@@ -9,7 +9,6 @@ public class CarAI : MonoBehaviour
 
     [Header("Détection d'obstacles (Les Yeux)")]
     public float sensorLength = 6f;
-    [Tooltip("Décale les lasers vers l'avant. Ajuste ça pour que les lasers rouges sortent DU PARE-CHOCS dans la vue Scene.")]
     public float sensorFrontOffset = 2.5f;
     public LayerMask obstacleMask;
 
@@ -17,11 +16,17 @@ public class CarAI : MonoBehaviour
     public float steerSmoothing = 4f;
 
     private CarController carController;
+    private Rigidbody rb;
     private bool isBraking = false;
+
+    // Système Anti-Blocage
+    private float stuckTimer = 0f;
+    private bool isReversing = false;
 
     void Start()
     {
         carController = GetComponent<CarController>();
+        rb = GetComponent<Rigidbody>();
         carController.isDrivenByAI = true;
     }
 
@@ -31,7 +36,7 @@ public class CarAI : MonoBehaviour
 
         CheckSensors();
 
-        if (isBraking)
+        if (isBraking && !isReversing)
         {
             carController.moveInput = 0f;
             carController.turnInput = 0f;
@@ -55,14 +60,40 @@ public class CarAI : MonoBehaviour
 
         Vector3 localTarget = transform.InverseTransformPoint(currentNode.transform.position);
         float angle = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
-
         float targetTurn = Mathf.Clamp(angle / 45f, -1f, 1f);
+
+        // --- NOUVEAU : SYSTÈME ANTI-BLOCAGE (MARCHE ARRIÈRE) ---
+        if (rb.linearVelocity.magnitude < 1f)
+        {
+            stuckTimer += Time.deltaTime;
+            if (stuckTimer > 2.5f) isReversing = true; // Bloqué depuis 2.5s ? Marche arrière !
+            if (stuckTimer > 5f) // Après 2.5s de marche arrière, on retente d'avancer
+            {
+                isReversing = false;
+                stuckTimer = 0f;
+            }
+        }
+        else
+        {
+            stuckTimer = 0f;
+            isReversing = false;
+        }
+
+        if (isReversing)
+        {
+            // L'IA fait une marche arrière et braque dans le sens inverse pour se dégager
+            carController.moveInput = -1f;
+            carController.turnInput = Mathf.MoveTowards(carController.turnInput, -targetTurn, Time.deltaTime * steerSmoothing);
+            return;
+        }
+
+        // --- CONDUITE NORMALE ---
         carController.turnInput = Mathf.MoveTowards(carController.turnInput, targetTurn, Time.deltaTime * steerSmoothing);
 
         float angleAbs = Mathf.Abs(angle);
         if (angleAbs > 25f)
         {
-            carController.moveInput = 0.25f;
+            carController.moveInput = 0.35f; // On donne un peu plus de jus dans les virages
         }
         else
         {
@@ -74,7 +105,6 @@ public class CarAI : MonoBehaviour
     {
         isBraking = false;
 
-        // On utilise la nouvelle variable pour sortir du capot
         Vector3 sensorStartPos = transform.position + (transform.forward * sensorFrontOffset) + (Vector3.up * 0.5f);
 
         Vector3 frontCenter = transform.forward;
@@ -85,9 +115,28 @@ public class CarAI : MonoBehaviour
         Debug.DrawRay(sensorStartPos, frontLeft * (sensorLength * 0.8f), Color.red);
         Debug.DrawRay(sensorStartPos, frontRight * (sensorLength * 0.8f), Color.red);
 
-        if (Physics.Raycast(sensorStartPos, frontCenter, sensorLength, obstacleMask) ||
-            Physics.Raycast(sensorStartPos, frontLeft, sensorLength * 0.8f, obstacleMask) ||
-            Physics.Raycast(sensorStartPos, frontRight, sensorLength * 0.8f, obstacleMask))
+        // On crée une fonction locale pour vérifier si le rayon touche un VRAI obstacle
+        bool CheckRay(Vector3 dir, float length)
+        {
+            RaycastHit hit;
+            if (Physics.Raycast(sensorStartPos, dir, out hit, length, obstacleMask))
+            {
+                // 1. On ignore notre propre voiture
+                if (hit.collider.transform.root == transform.root) return false;
+
+                // 2. On ignore le sol (tout ce qui est à peu près plat)
+                if (hit.normal.y > 0.5f) return false;
+
+                // DEBUG : Affiche dans la console de Unity CE QUE l'IA regarde
+                Debug.Log($"<color=orange>[Pick-It AI]</color> Je freine car je vois : {hit.collider.gameObject.name}");
+                return true;
+            }
+            return false;
+        }
+
+        if (CheckRay(frontCenter, sensorLength) ||
+            CheckRay(frontLeft, sensorLength * 0.8f) ||
+            CheckRay(frontRight, sensorLength * 0.8f))
         {
             isBraking = true;
         }

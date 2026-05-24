@@ -203,7 +203,7 @@ public class CarController : MonoBehaviour
         float forwardSpeed = Vector3.Dot(transform.forward, rb.linearVelocity);
         float absoluteSpeed = Mathf.Abs(forwardSpeed);
 
-        if (absoluteSpeed > 0.5f)
+        if (absoluteSpeed > 0.1f)
         {
             float directionMultiplier = Mathf.Sign(forwardSpeed);
             float speedFactor = Mathf.Clamp01(absoluteSpeed / maxSpeed);
