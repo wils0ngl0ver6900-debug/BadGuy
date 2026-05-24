@@ -922,7 +922,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CarController
   maxSpeed: 36
   accelerationForce: 60
-  reverseForce: 20
+  reverseForce: 30
   brakingForce: 40
   lowSpeedSteerAngle: 70
   highSpeedSteerAngle: 25

@@ -1302,9 +1302,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8febaef875649c4dbfbf3dfd614f5a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
-  maxSpeed: 35
+  maxSpeed: 50
   accelerationForce: 20
-  reverseForce: 25
+  reverseForce: 26
   brakingForce: 40
   lowSpeedSteerAngle: 70
   highSpeedSteerAngle: 25

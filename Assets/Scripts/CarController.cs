@@ -52,8 +52,6 @@ public class CarController : MonoBehaviour
         rb.centerOfMass = new Vector3(0, centerOfMassOffset, 0);
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
-        // --- CORRECTION DE LA FUMÉE FANTÔME ---
-        // On coupe tout, on nettoie les particules résiduelles et on ferme la vanne
         foreach (ParticleSystem smoke in tireSmokeParticles)
         {
             if (smoke != null)
@@ -115,7 +113,6 @@ public class CarController : MonoBehaviour
 
         bool isDrifting = false;
 
-        // Détection propre du drift
         if ((isDrivenByPlayer || isDrivenByAI) && rb.linearVelocity.magnitude > 2f)
         {
             float rightSpeed = Mathf.Abs(Vector3.Dot(transform.right, rb.linearVelocity));
@@ -134,7 +131,6 @@ public class CarController : MonoBehaviour
             if (trail != null) trail.emitting = active;
         }
 
-        // --- GESTION PROPRE DU PLAY / STOP ---
         foreach (ParticleSystem smoke in tireSmokeParticles)
         {
             if (smoke != null)
@@ -150,9 +146,11 @@ public class CarController : MonoBehaviour
         }
     }
 
+    // --- LE MOTEUR A ÉTÉ SÉPARÉ EN DEUX PÉDALES STRICTES (Z et S) ---
     private void ProcessEngine()
     {
         float speed = rb.linearVelocity.magnitude;
+        float forwardSpeed = Vector3.Dot(transform.forward, rb.linearVelocity);
 
         if (isEngineDead)
         {
@@ -166,17 +164,41 @@ public class CarController : MonoBehaviour
             return;
         }
 
-        if (Mathf.Abs(moveInput) > 0.1f)
+        // 1. SI ON APPUIE SUR LA TOUCHE "S" (Reculer / Freiner)
+        if (moveInput < -0.1f)
         {
-            if (speed < maxSpeed)
+            if (forwardSpeed > 1f)
             {
-                float speedFactor = 1f - (speed / maxSpeed);
-                float accel = moveInput > 0 ? accelerationForce : reverseForce;
-                rb.AddForce(transform.forward * moveInput * accel * Mathf.Max(speedFactor, 0.3f), ForceMode.Acceleration);
+                // Si la voiture roule vers l'avant -> FREINAGE CLASSIQUE
+                rb.AddForce(-rb.linearVelocity.normalized * brakingForce, ForceMode.Acceleration);
+            }
+            else
+            {
+                // Si elle est à l'arrêt ou recule déjà -> MARCHE ARRIÈRE
+                // (J'ai bridé la vitesse max en marche arrière à 50% pour plus de réalisme)
+                float speedFactor = 1f - (speed / (maxSpeed * 0.5f));
+                rb.AddForce(transform.forward * moveInput * reverseForce * Mathf.Max(speedFactor, 0.3f), ForceMode.Acceleration);
             }
         }
+        // 2. SI ON APPUIE SUR LA TOUCHE "Z" (Avancer)
+        else if (moveInput > 0.1f)
+        {
+            if (forwardSpeed < -1f)
+            {
+                // Si la voiture recule -> FREINAGE (pour s'arrêter de reculer)
+                rb.AddForce(-rb.linearVelocity.normalized * brakingForce, ForceMode.Acceleration);
+            }
+            else
+            {
+                // Si elle est à l'arrêt ou avance -> ACCÉLÉRATION
+                float speedFactor = 1f - (speed / maxSpeed);
+                rb.AddForce(transform.forward * moveInput * accelerationForce * Mathf.Max(speedFactor, 0.3f), ForceMode.Acceleration);
+            }
+        }
+        // 3. SI ON NE TOUCHE À RIEN
         else
         {
+            // Frein moteur naturel
             rb.AddForce(-rb.linearVelocity.normalized * (brakingForce * 0.2f), ForceMode.Acceleration);
         }
     }
@@ -225,16 +247,10 @@ public class CarController : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        // --- CORRECTION DU BUG DE DÉGÂT SUR LE FREIN À MAIN ---
-        // Si le choc vient d'en bas (la route / le sol), on IGNORE complétement !
-        if (collision.contacts.Length > 0 && collision.contacts[0].normal.y > 0.5f)
-        {
-            return;
-        }
+        if (collision.contacts.Length > 0 && collision.contacts[0].normal.y > 0.5f) return;
 
         float impactForce = collision.relativeVelocity.magnitude;
 
-        // J'ai augmenté la tolérance de 4f à 6f pour éviter de casser la voiture au moindre poteau
         if (impactForce > 6f)
         {
             float damage = impactForce * 1.5f;
