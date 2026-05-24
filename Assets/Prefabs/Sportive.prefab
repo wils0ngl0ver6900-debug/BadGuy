@@ -78,6 +78,7 @@ MonoBehaviour:
   carController: {fileID: 4448128897179363323}
   carCamera: {fileID: 7769887700934977188}
   exitPoint: {fileID: 8840912108768982379}
+  driverPrefab: {fileID: 0}
 --- !u!1 &6438360832353583807
 GameObject:
   m_ObjectHideFlags: 0
@@ -265,9 +266,29 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8febaef875649c4dbfbf3dfd614f5a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
-  acceleration: 60
-  steering: 60
-  isDriven: 0
+  maxSpeed: 50
+  accelerationForce: 90
+  reverseForce: 30
+  brakingForce: 65
+  lowSpeedSteerAngle: 85
+  highSpeedSteerAngle: 35
+  gripLevel: 0.98
+  driftGrip: 0.45
+  downforce: 90
+  centerOfMassOffset: -0.7
+  carModelName: Berline Classique
+  baseValue: 15000
+  maxHealth: 100
+  currentHealth: 0
+  smokeEffectPrefab: {fileID: 0}
+  hoodPosition: {fileID: 0}
+  tireSmokeParticles: []
+  skidMarks: []
+  isDrivenByPlayer: 0
+  isDrivenByAI: 0
+  moveInput: 0
+  turnInput: 0
+  isHandbraking: 0
 --- !u!1 &7769887700934977188
 GameObject:
   m_ObjectHideFlags: 0

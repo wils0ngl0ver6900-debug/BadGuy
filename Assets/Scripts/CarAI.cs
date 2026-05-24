@@ -1,15 +1,19 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 [RequireComponent(typeof(CarController))]
 public class CarAI : MonoBehaviour
 {
-    [Header("Navigation routi�re")]
+    [Header("Navigation routière")]
     public TrafficNode currentNode;
-    public float waypointThreshold = 3f;
+    public float waypointThreshold = 4f; // Légèrement augmenté pour les véhicules lourds
 
-    [Header("D�tection d'obstacles (Les Yeux)")]
+    [Header("Détection d'obstacles (Les Yeux)")]
     public float sensorLength = 6f;
     public LayerMask obstacleMask;
+
+    [Header("Ajustements IA 🧠")]
+    [Tooltip("Vitesse à laquelle l'IA tourne le volant. Plus c'est bas, plus c'est fluide.")]
+    public float steerSmoothing = 4f;
 
     private CarController carController;
     private bool isBraking = false;
@@ -30,8 +34,11 @@ public class CarAI : MonoBehaviour
         {
             carController.moveInput = 0f;
             carController.turnInput = 0f;
+            carController.isHandbraking = true; // Active le frein pour s'arrêter net
             return;
         }
+
+        carController.isHandbraking = false;
 
         if (currentNode != null) Drive();
     }
@@ -45,11 +52,26 @@ public class CarAI : MonoBehaviour
                 currentNode = currentNode.nextNodes[Random.Range(0, currentNode.nextNodes.Count)];
         }
 
+        // Calcul de l'angle vers la cible
         Vector3 localTarget = transform.InverseTransformPoint(currentNode.transform.position);
         float angle = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
 
-        carController.turnInput = Mathf.Clamp(angle / 45f, -1f, 1f);
-        carController.moveInput = 1f - (Mathf.Abs(carController.turnInput) * 0.5f);
+        // 1. CORRECTION DES EMBARDÉES : Rotation progressive du volant
+        float targetTurn = Mathf.Clamp(angle / 45f, -1f, 1f);
+        carController.turnInput = Mathf.MoveTowards(carController.turnInput, targetTurn, Time.deltaTime * steerSmoothing);
+
+        // 2. ANTICIPATION DU VIRAGE : On ralentit si l'angle est trop prononcé
+        float angleAbs = Mathf.Abs(angle);
+        if (angleAbs > 25f)
+        {
+            // Le virage est serré, on force la voiture à ralentir pour ne pas glisser hors de la route
+            carController.moveInput = 0.25f;
+        }
+        else
+        {
+            // Ligne droite ou courbe légère : on accélère de façon saine
+            carController.moveInput = 1f - (Mathf.Abs(carController.turnInput) * 0.3f);
+        }
     }
 
     void CheckSensors()
