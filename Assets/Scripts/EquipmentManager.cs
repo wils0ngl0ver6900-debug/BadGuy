@@ -24,8 +24,8 @@ public class EquipmentManager : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
 
-        // Si on est repéré (spottersCount > 0) ou qu'on n'a plus d'étoiles, on remet à zéro la mémoire des vêtements changés
-        if (GameManager.Instance.spottersCount > 0 || GameManager.Instance.wantedLevel == 0)
+        // FIX ICI : On utilise isBeingSeen au lieu de l'ancien spottersCount
+        if (GameManager.Instance.isBeingSeen || GameManager.Instance.wantedLevel == 0)
         {
             for (int i = 0; i < slotChangedThisBreak.Length; i++)
             {
@@ -34,19 +34,14 @@ public class EquipmentManager : MonoBehaviour
         }
     }
 
-    public void OnNotorietyIncreased(int amount)
-    {
-        // Gardée vide pour éviter les erreurs avec d'autres vieux scripts, 
-        // mais n'est plus utile avec le système d'étoiles dynamique.
-    }
+    public void OnNotorietyIncreased(int amount) { }
 
-    // --- LE MOTEUR UNIVERSEL DE DÉGUISEMENT (-1 ÉTOILE) ---
     private void HandleSlotChangeNotoriety(int slotIndex)
     {
         if (GameManager.Instance == null) return;
 
-        // Si personne ne nous voit et qu'on est recherché
-        if (GameManager.Instance.spottersCount == 0 && GameManager.Instance.wantedLevel > 0)
+        // FIX ICI : !isBeingSeen
+        if (!GameManager.Instance.isBeingSeen && GameManager.Instance.wantedLevel > 0)
         {
             if (!slotChangedThisBreak[slotIndex])
             {
@@ -80,13 +75,9 @@ public class EquipmentManager : MonoBehaviour
         if (newItem == null || !newItem.isClothing) return;
 
         int slotIndex = (int)newItem.clothingSlot;
-
         HandleSlotChangeNotoriety(slotIndex);
 
-        if (currentEquipment[slotIndex] != null)
-        {
-            UnequipInternal(slotIndex);
-        }
+        if (currentEquipment[slotIndex] != null) UnequipInternal(slotIndex);
 
         currentEquipment[slotIndex] = newItem;
 
@@ -100,10 +91,10 @@ public class EquipmentManager : MonoBehaviour
             if (UIManager.Instance != null) UIManager.Instance.UpdateHealthDisplay(player.currentHealth, player.maxHealth);
         }
 
-        // --- PUNITION SI ON MET LA CAGOULE DEVANT UN TÉMOIN ---
-        if (newItem.isMask && GameManager.Instance != null && GameManager.Instance.spottersCount > 0)
+        // FIX ICI : isBeingSeen
+        if (newItem.isMask && GameManager.Instance != null && GameManager.Instance.isBeingSeen)
         {
-            GameManager.Instance.ReportCrime(10); // FIX ICI
+            GameManager.Instance.ReportCrime(10);
             if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Masque enfilé devant témoin !</color>");
         }
 
@@ -127,7 +118,6 @@ public class EquipmentManager : MonoBehaviour
     private void UnequipInternal(int slotIndex)
     {
         ItemData oldItem = currentEquipment[slotIndex];
-
         if (InventoryManager.Instance != null) InventoryManager.Instance.AddItem(oldItem);
 
         if (player != null)
@@ -137,7 +127,6 @@ public class EquipmentManager : MonoBehaviour
             player.UpdateClothingSpeedBonus();
             if (UIManager.Instance != null) UIManager.Instance.UpdateHealthDisplay(player.currentHealth, player.maxHealth);
         }
-
         currentEquipment[slotIndex] = null;
     }
 }

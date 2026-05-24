@@ -132,7 +132,7 @@ public class Interactable : MonoBehaviour
 
             float timer = qteTimeToReact;
             bool stepSuccess = false;
-
+            // Dans Interactable.cs, remplace la boucle while de QTERoutine par ceci :
             while (timer > 0)
             {
                 timer -= Time.deltaTime;
@@ -142,7 +142,8 @@ public class Interactable : MonoBehaviour
                     UIManager.Instance.qteSlider.value = timer / qteTimeToReact;
                 }
 
-                if (GameManager.Instance != null && GameManager.Instance.spottersCount > 0)
+                // FIX ICI : isBeingSeen
+                if (GameManager.Instance != null && GameManager.Instance.isBeingSeen)
                 {
                     caughtInTheAct = true;
                 }

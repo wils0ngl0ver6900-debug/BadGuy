@@ -1,68 +1,58 @@
 using UnityEngine;
+using System.Collections;
 
 public class VisionCone : MonoBehaviour
 {
     [Header("Paramètres de Vision")]
-    public float viewRadius = 8f;
+    public float viewRadius = 15f;
     [Range(0, 360)] public float viewAngle = 90f;
+    public LayerMask obstacleMask; // N'oublie pas de cocher les murs/décors dans Unity !
 
-    [Header("Obstacles")]
-    public LayerMask obstacleMask;
+    [HideInInspector] public bool isSeeingPlayer = false;
+    private Transform playerTarget;
 
-    private Transform player;
-    public bool isSeeingPlayer = false;
-
-    // LE FIX : On trouve le joueur dans Awake !
-    void Awake()
+    void Start()
     {
         GameObject p = GameObject.FindGameObjectWithTag("Player");
-        if (p != null) player = p.transform;
+        if (p != null) playerTarget = p.transform;
+
+        // Optimisation : Le cône de vision scanne 5 fois par seconde au lieu de 60
+        StartCoroutine(FindPlayerWithDelay(0.2f));
     }
 
-    void Update()
+    IEnumerator FindPlayerWithDelay(float delay)
     {
-        if (player == null) return;
-
-        bool canSee = CheckVisibility();
-
-        if (canSee && !isSeeingPlayer)
+        while (true)
         {
-            isSeeingPlayer = true;
-            if (GameManager.Instance != null) GameManager.Instance.spottersCount++;
-        }
-        else if (!canSee && isSeeingPlayer)
-        {
-            isSeeingPlayer = false;
-            if (GameManager.Instance != null) GameManager.Instance.spottersCount--;
+            yield return new WaitForSeconds(delay);
+            FindVisiblePlayer();
         }
     }
 
-    bool CheckVisibility()
+    void FindVisiblePlayer()
     {
-        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+        if (playerTarget == null) return;
 
-        if (distanceToPlayer <= viewRadius)
+        isSeeingPlayer = false; // Par défaut, on ne le voit pas
+        float distToPlayer = Vector3.Distance(transform.position, playerTarget.position);
+
+        if (distToPlayer < viewRadius)
         {
-            Vector3 directionToPlayer = (player.position - transform.position).normalized;
-            if (Vector3.Angle(transform.forward, directionToPlayer) < viewAngle / 2)
+            Vector3 dirToPlayer = (playerTarget.position - transform.position).normalized;
+
+            // Le joueur est-il dans l'angle de vision ?
+            if (Vector3.Angle(transform.forward, dirToPlayer) < viewAngle / 2f)
             {
-                if (!Physics.Raycast(transform.position + Vector3.up, directionToPlayer, distanceToPlayer, obstacleMask))
+                // Un mur nous bloque-t-il la vue ?
+                if (!Physics.Raycast(transform.position + Vector3.up, dirToPlayer, distToPlayer, obstacleMask))
                 {
-                    return true;
+                    isSeeingPlayer = true; // Le joueur est visible !
                 }
             }
         }
-        return false;
     }
 
-    void OnDestroy()
-    {
-        if (isSeeingPlayer && GameManager.Instance != null)
-        {
-            GameManager.Instance.spottersCount--;
-        }
-    }
-
+    // --- DESSINE LE CÔNE DANS L'ÉDITEUR ---
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
@@ -71,14 +61,9 @@ public class VisionCone : MonoBehaviour
         Vector3 viewAngleA = DirFromAngle(transform.eulerAngles.y, -viewAngle / 2);
         Vector3 viewAngleB = DirFromAngle(transform.eulerAngles.y, viewAngle / 2);
 
+        Gizmos.color = Color.red;
         Gizmos.DrawLine(transform.position, transform.position + viewAngleA * viewRadius);
         Gizmos.DrawLine(transform.position, transform.position + viewAngleB * viewRadius);
-
-        if (isSeeingPlayer && player != null)
-        {
-            Gizmos.color = Color.red;
-            Gizmos.DrawLine(transform.position + Vector3.up, player.position + Vector3.up);
-        }
     }
 
     private Vector3 DirFromAngle(float eulerY, float angleInDegrees)
