@@ -516,7 +516,7 @@ TrailRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Time: 3
+  m_Time: 10
   m_PreviewTimeScale: 1
   m_Parameters:
     serializedVersion: 3
@@ -525,8 +525,8 @@ TrailRenderer:
       serializedVersion: 2
       m_Curve:
       - serializedVersion: 3
-        time: 0.29970932
-        value: 0.29969406
+        time: 0.40057373
+        value: 0.4984703
         inSlope: 0
         outSlope: 0
         tangentMode: 0
@@ -948,7 +948,7 @@ TrailRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Time: 3
+  m_Time: 10
   m_PreviewTimeScale: 1
   m_Parameters:
     serializedVersion: 3
@@ -957,8 +957,8 @@ TrailRenderer:
       serializedVersion: 2
       m_Curve:
       - serializedVersion: 3
-        time: 0.29970932
-        value: 0.29969406
+        time: 0.40057373
+        value: 0.4984703
         inSlope: 0
         outSlope: 0
         tangentMode: 0
@@ -1988,24 +1988,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8aa3ad8ffd2f23742a71f3016e8d38a0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PoliceAI
-  currentState: 0
-  waypoints:
-  - {fileID: 970991762}
-  - {fileID: 6104156}
-  patrolSpeed: 2
-  chaseSpeed: 4
-  waitTimeAtWaypoint: 10
-  currentWaypointIndex: 0
-  agent: {fileID: 0}
-  isWaiting: 0
-  viewRadius: 15
-  viewAngle: 90
-  obstacleMask:
-    m_Bits: 1
-  playerTarget: {fileID: 0}
-  isSpotted: 0
-  crimeDetectionTimer: 0
-  crimeNotificationTimer: 2
 --- !u!1001 &138472122
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6750,7 +6732,7 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: 49bb1d8fa151c3b48b1b00108eee2c05, type: 2}
     - target: {fileID: 919132149155446097, guid: 187cf8a10aa98b946879f27928d792bc, type: 3}
       propertyPath: m_Name
-      value: Pick-it
+      value: Pick-it AI
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 187cf8a10aa98b946879f27928d792bc, type: 3}
       propertyPath: m_Layer
@@ -7187,15 +7169,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bdad76bddb41ce4dac1d98b027e5ca8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WanderingNPC
-  currentState: 0
-  wanderRadius: 1
-  minWaitTime: 20
-  maxWaitTime: 50
-  callPoliceDuration: 5
-  currentCallTimer: 0
-  agent: {fileID: 0}
-  vision: {fileID: 0}
-  playerTarget: {fileID: 0}
 --- !u!114 &674137722
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10940,11 +10913,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 969911668}
   m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
---- !u!4 &970991762 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
-  m_PrefabInstance: {fileID: 2664467492823859949}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &985632387
 GameObject:
   m_ObjectHideFlags: 0
@@ -11941,7 +11909,7 @@ MonoBehaviour:
   maxSpeed: 35
   accelerationForce: 60
   reverseForce: 25
-  brakingForce: 40
+  brakingForce: 60
   lowSpeedSteerAngle: 70
   highSpeedSteerAngle: 25
   gripLevel: 0.85
@@ -17019,10 +16987,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8febaef875649c4dbfbf3dfd614f5a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
-  maxSpeed: 35
-  accelerationForce: 20
-  reverseForce: 25
-  brakingForce: 40
+  maxSpeed: 50
+  accelerationForce: 30
+  reverseForce: 30
+  brakingForce: 60
   lowSpeedSteerAngle: 70
   highSpeedSteerAngle: 25
   gripLevel: 0.85
@@ -23630,15 +23598,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6bdad76bddb41ce4dac1d98b027e5ca8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WanderingNPC
-  currentState: 0
-  wanderRadius: 1
-  minWaitTime: 20
-  maxWaitTime: 50
-  callPoliceDuration: 5
-  currentCallTimer: 0
-  agent: {fileID: 0}
-  vision: {fileID: 0}
-  playerTarget: {fileID: 0}
 --- !u!114 &2056516132
 MonoBehaviour:
   m_ObjectHideFlags: 0
