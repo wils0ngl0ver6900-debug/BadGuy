@@ -1679,11 +1679,17 @@ MonoBehaviour:
   patrolSpeed: 2
   chaseSpeed: 4
   waitTimeAtWaypoint: 10
+  currentWaypointIndex: 0
+  agent: {fileID: 0}
+  isWaiting: 0
   viewRadius: 15
   viewAngle: 90
   obstacleMask:
-    serializedVersion: 2
     m_Bits: 1
+  playerTarget: {fileID: 0}
+  isSpotted: 0
+  crimeDetectionTimer: 0
+  crimeNotificationTimer: 2
 --- !u!1001 &138472122
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2479,8 +2485,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8febaef875649c4dbfbf3dfd614f5a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
-  acceleration: 50
-  steering: 80
+  maxSpeed: 35
+  accelerationForce: 60
+  reverseForce: 25
+  brakingForce: 40
+  lowSpeedSteerAngle: 70
+  highSpeedSteerAngle: 25
+  gripLevel: 0.85
+  driftGrip: 0.3
+  downforce: 60
+  centerOfMassOffset: -0.5
   carModelName: Compactico
   baseValue: 1500
   maxHealth: 100
@@ -2489,6 +2503,7 @@ MonoBehaviour:
   isDrivenByAI: 0
   moveInput: 0
   turnInput: 0
+  isHandbraking: 0
 --- !u!65 &201019118
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -3856,10 +3871,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Recherche
+  m_text: "\u2605\u2605\u2605\u2605\u2605"
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2100000, guid: e73a58f6e2794ae7b1b7e50b7fb811b0, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: e956dcebd2cdca341ad93687375582f2, type: 2}
+  m_sharedMaterial: {fileID: -469218993558033529, guid: e956dcebd2cdca341ad93687375582f2, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -3883,14 +3898,14 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 21.12
-  m_fontSizeBase: 21.12
+  m_fontSize: 35
+  m_fontSizeBase: 46.82
   m_fontWeight: 400
-  m_enableAutoSizing: 0
-  m_fontSizeMin: 18
-  m_fontSizeMax: 72
-  m_fontStyle: 1
-  m_HorizontalAlignment: 1
+  m_enableAutoSizing: 1
+  m_fontSizeMin: 30
+  m_fontSizeMax: 35
+  m_fontStyle: 0
+  m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
   m_characterSpacing: 0
@@ -4426,22 +4441,22 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Argent Sale : 0$'
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2100000, guid: e73a58f6e2794ae7b1b7e50b7fb811b0, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: cd4ad68e029af5e47b90d27502f34410, type: 2}
+  m_sharedMaterial: {fileID: 3194288957110531224, guid: cd4ad68e029af5e47b90d27502f34410, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
-  m_enableVertexGradient: 1
-  m_colorMode: 3
+    rgba: 4278190265
+  m_fontColor: {r: 0.7264151, g: 0, b: 0, a: 1}
+  m_enableVertexGradient: 0
+  m_colorMode: 0
   m_fontColorGradient:
     topLeft: {r: 0.6792453, g: 0, b: 0, a: 1}
-    topRight: {r: 0.5849056, g: 0, b: 0, a: 1}
-    bottomLeft: {r: 0.20754719, g: 0, b: 0, a: 1}
-    bottomRight: {r: 0, g: 0, b: 0, a: 1}
+    topRight: {r: 0.6792453, g: 0, b: 0, a: 1}
+    bottomLeft: {r: 0.6792453, g: 0, b: 0, a: 1}
+    bottomRight: {r: 0.6792453, g: 0, b: 0, a: 1}
   m_fontColorGradientPreset: {fileID: 0}
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
@@ -4451,8 +4466,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 21.12
-  m_fontSizeBase: 21.12
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -6815,6 +6830,10 @@ MonoBehaviour:
   minWaitTime: 20
   maxWaitTime: 50
   callPoliceDuration: 5
+  currentCallTimer: 0
+  agent: {fileID: 0}
+  vision: {fileID: 0}
+  playerTarget: {fileID: 0}
 --- !u!114 &674137722
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9806,8 +9825,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2100000, guid: e73a58f6e2794ae7b1b7e50b7fb811b0, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 6ea7f7afa2962fb43926fe1152b01e43, type: 2}
+  m_sharedMaterial: {fileID: -5777879170605897302, guid: 6ea7f7afa2962fb43926fe1152b01e43, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -11337,8 +11356,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8febaef875649c4dbfbf3dfd614f5a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
-  acceleration: 70
-  steering: 80
+  maxSpeed: 35
+  accelerationForce: 60
+  reverseForce: 25
+  brakingForce: 40
+  lowSpeedSteerAngle: 70
+  highSpeedSteerAngle: 25
+  gripLevel: 0.85
+  driftGrip: 0.3
+  downforce: 80
+  centerOfMassOffset: -0.5
   carModelName: Fusillante
   baseValue: 1500
   maxHealth: 100
@@ -11347,6 +11374,7 @@ MonoBehaviour:
   isDrivenByAI: 0
   moveInput: 0
   turnInput: 0
+  isHandbraking: 0
 --- !u!65 &1057025843
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -12090,6 +12118,33 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1113802956}
   m_CullTransparentMesh: 1
+--- !u!1 &1120297196 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6512716062819704709, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+  m_PrefabInstance: {fileID: 1890572927}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1120297197
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1120297196}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c23da36fdd9a8246bbe4a0bf13356d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NPCBrain
+  role: 0
+  faction: 0
+  locomotion: 0
+  currentState: 0
+  walkSpeed: 1.5
+  runSpeed: 4.5
+  visionRange: 15
+  currentTrafficNode: {fileID: 0}
+  copPedestrianPrefab: {fileID: 0}
+  exitDoors: []
 --- !u!1 &1128813081
 GameObject:
   m_ObjectHideFlags: 0
@@ -12138,6 +12193,33 @@ Transform:
   - {fileID: 140280261}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1132514712 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6512716062819704709, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+  m_PrefabInstance: {fileID: 1798877601}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1132514713
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1132514712}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c23da36fdd9a8246bbe4a0bf13356d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NPCBrain
+  role: 1
+  faction: 0
+  locomotion: 0
+  currentState: 0
+  walkSpeed: 1.5
+  runSpeed: 4.5
+  visionRange: 15
+  currentTrafficNode: {fileID: 0}
+  copPedestrianPrefab: {fileID: 0}
+  exitDoors: []
 --- !u!1 &1149916667
 GameObject:
   m_ObjectHideFlags: 0
@@ -12910,7 +12992,7 @@ Camera:
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 14391
+    m_Bits: 14519
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
@@ -13093,8 +13175,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8febaef875649c4dbfbf3dfd614f5a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
-  acceleration: 35
-  steering: 80
+  maxSpeed: 35
+  accelerationForce: 20
+  reverseForce: 25
+  brakingForce: 40
+  lowSpeedSteerAngle: 70
+  highSpeedSteerAngle: 25
+  gripLevel: 0.85
+  driftGrip: 0.3
+  downforce: 60
+  centerOfMassOffset: -0.5
   carModelName: Pick-it
   baseValue: 1500
   maxHealth: 100
@@ -13103,6 +13193,7 @@ MonoBehaviour:
   isDrivenByAI: 0
   moveInput: 0
   turnInput: 0
+  isHandbraking: 0
 --- !u!54 &1200659039
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -15682,8 +15773,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameManager
   dirtyMoney: 100
   cleanMoney: 0
-  notoriety: 0
-  spottersCount: 0
+  wantedLevel: 0
+  crimePoints: 0
+  evadeTimeRequired: 20
+  currentEvadeTimer: 0
+  isEvading: 0
 --- !u!4 &1403774075
 Transform:
   m_ObjectHideFlags: 0
@@ -15799,7 +15893,6 @@ MonoBehaviour:
   - {fileID: 0}
   - {fileID: 0}
   - {fileID: 0}
-  notorietyGainedWithCurrentOutfit: 0
 --- !u!114 &1403774081
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16332,8 +16425,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8febaef875649c4dbfbf3dfd614f5a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
-  acceleration: 35
-  steering: 80
+  maxSpeed: 35
+  accelerationForce: 20
+  reverseForce: 25
+  brakingForce: 40
+  lowSpeedSteerAngle: 70
+  highSpeedSteerAngle: 25
+  gripLevel: 0.85
+  driftGrip: 0.3
+  downforce: 60
+  centerOfMassOffset: -0.5
   carModelName: Pick-it
   baseValue: 1500
   maxHealth: 100
@@ -16342,6 +16443,7 @@ MonoBehaviour:
   isDrivenByAI: 0
   moveInput: 0
   turnInput: 0
+  isHandbraking: 0
 --- !u!54 &1414697052
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -16391,8 +16493,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8febaef875649c4dbfbf3dfd614f5a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
-  acceleration: 50
-  steering: 80
+  maxSpeed: 35
+  accelerationForce: 60
+  reverseForce: 25
+  brakingForce: 40
+  lowSpeedSteerAngle: 70
+  highSpeedSteerAngle: 25
+  gripLevel: 0.85
+  driftGrip: 0.3
+  downforce: 60
+  centerOfMassOffset: -0.5
   carModelName: Compactico
   baseValue: 1500
   maxHealth: 100
@@ -16401,6 +16511,7 @@ MonoBehaviour:
   isDrivenByAI: 0
   moveInput: 0
   turnInput: 0
+  isHandbraking: 0
 --- !u!65 &1419026842
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -17083,54 +17194,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 1254842449}
   m_SourcePrefab: {fileID: 100100000, guid: 9ccfee7c17274d949841942e61d76428, type: 3}
---- !u!1 &1479607027
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1479607029}
-  - component: {fileID: 1479607028}
-  m_Layer: 0
-  m_Name: _PoliceManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1479607028
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1479607027}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: deaf367d309a61a4bbaefd84b157aa44, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PoliceManager
-  copPrefab: {fileID: 275132658035761588, guid: e5e2257854302d943bad35f078131ea5, type: 3}
-  notorietyThreshold: 50
-  spawnRadius: 15
-  timeBetweenSpawns: 4
---- !u!4 &1479607029
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1479607027}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 21.2023, y: 0, z: 95.07877}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1508872181
 GameObject:
   m_ObjectHideFlags: 0
@@ -17477,8 +17540,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: dsfqsfqsfsqfq
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2100000, guid: 79459efec17a4d00a321bdcc27bbc385, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: fc0cb25c4ad85fa4daaf1530de576854, type: 2}
+  m_sharedMaterial: {fileID: 4982734529638798065, guid: fc0cb25c4ad85fa4daaf1530de576854, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -17502,13 +17565,13 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 29.6
+  m_fontSize: 35.85
   m_fontSizeBase: 21.12
   m_fontWeight: 400
   m_enableAutoSizing: 1
   m_fontSizeMin: 20.95
   m_fontSizeMax: 40.8
-  m_fontStyle: 1
+  m_fontStyle: 0
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535
@@ -19473,6 +19536,80 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1790770461}
   m_CullTransparentMesh: 1
+--- !u!1001 &1798877601
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6512716062819704709, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_Name
+      value: Rich_PNJ (3)
+      objectReference: {fileID: 0}
+    - target: {fileID: 7782452568508912040, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_Size.x
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7782452568508912040, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_Size.y
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7782452568508912040, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_Size.z
+      value: 2
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 4328779764877331323, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+    - {fileID: 9200583821984841878, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6512716062819704709, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1132514713}
+  m_SourcePrefab: {fileID: 100100000, guid: 78d176dce376f074f838aa691b28db93, type: 3}
 --- !u!1001 &1804666904
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -20783,6 +20920,83 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 672210716}
   m_SourcePrefab: {fileID: 100100000, guid: 9ccfee7c17274d949841942e61d76428, type: 3}
+--- !u!1001 &1890572927
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6512716062819704709, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_Name
+      value: Rich_PNJ (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 6512716062819704709, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_Layer
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7782452568508912040, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_Size.x
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7782452568508912040, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_Size.y
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7782452568508912040, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_Size.z
+      value: 2
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 4328779764877331323, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6512716062819704709, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1120297197}
+  m_SourcePrefab: {fileID: 100100000, guid: 78d176dce376f074f838aa691b28db93, type: 3}
 --- !u!1 &1910707413
 GameObject:
   m_ObjectHideFlags: 0
@@ -22293,8 +22507,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8febaef875649c4dbfbf3dfd614f5a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
-  acceleration: 30
-  steering: 80
+  maxSpeed: 35
+  accelerationForce: 60
+  reverseForce: 25
+  brakingForce: 40
+  lowSpeedSteerAngle: 70
+  highSpeedSteerAngle: 25
+  gripLevel: 0.85
+  driftGrip: 0.3
+  downforce: 60
+  centerOfMassOffset: -0.5
   carModelName: Berlinair
   baseValue: 1500
   maxHealth: 100
@@ -22303,6 +22525,7 @@ MonoBehaviour:
   isDrivenByAI: 0
   moveInput: 0
   turnInput: 0
+  isHandbraking: 0
 --- !u!1 &2030030357
 GameObject:
   m_ObjectHideFlags: 0
@@ -22362,8 +22585,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: dqsdqsdsqdqsd
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2100000, guid: e73a58f6e2794ae7b1b7e50b7fb811b0, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: 6ea7f7afa2962fb43926fe1152b01e43, type: 2}
+  m_sharedMaterial: {fileID: -5777879170605897302, guid: 6ea7f7afa2962fb43926fe1152b01e43, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -22393,7 +22616,7 @@ MonoBehaviour:
   m_enableAutoSizing: 1
   m_fontSizeMin: 45.8
   m_fontSizeMax: 68.3
-  m_fontStyle: 2
+  m_fontStyle: 3
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 256
   m_textAlignment: 65535
@@ -22592,6 +22815,10 @@ MonoBehaviour:
   minWaitTime: 20
   maxWaitTime: 50
   callPoliceDuration: 5
+  currentCallTimer: 0
+  agent: {fileID: 0}
+  vision: {fileID: 0}
+  playerTarget: {fileID: 0}
 --- !u!114 &2056516132
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -22932,8 +23159,8 @@ MonoBehaviour:
       m_Calls: []
   m_text: 'Argent Propre : 0$'
   m_isRightToLeft: 0
-  m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-  m_sharedMaterial: {fileID: 2100000, guid: e73a58f6e2794ae7b1b7e50b7fb811b0, type: 2}
+  m_fontAsset: {fileID: 11400000, guid: cd4ad68e029af5e47b90d27502f34410, type: 2}
+  m_sharedMaterial: {fileID: 3194288957110531224, guid: cd4ad68e029af5e47b90d27502f34410, type: 2}
   m_fontSharedMaterials: []
   m_fontMaterial: {fileID: 0}
   m_fontMaterials: []
@@ -22942,12 +23169,12 @@ MonoBehaviour:
     rgba: 4294967295
   m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 1
-  m_colorMode: 3
+  m_colorMode: 0
   m_fontColorGradient:
-    topLeft: {r: 0.02754921, g: 0.6784314, b: 0, a: 1}
-    topRight: {r: 0.0024029962, g: 0.509434, b: 0.13720278, a: 1}
-    bottomLeft: {r: 0, g: 0.20784314, b: 0.0000045589372, a: 1}
-    bottomRight: {r: 0, g: 0, b: 0, a: 1}
+    topLeft: {r: 0.022903165, g: 0.5660378, b: 0, a: 1}
+    topRight: {r: 0.022903165, g: 0.5660378, b: 0, a: 1}
+    bottomLeft: {r: 0.022903165, g: 0.5660378, b: 0, a: 1}
+    bottomRight: {r: 0.022903165, g: 0.5660378, b: 0, a: 1}
   m_fontColorGradientPreset: {fileID: 0}
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
@@ -22957,8 +23184,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 21.12
-  m_fontSizeBase: 21.12
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -23469,8 +23696,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8febaef875649c4dbfbf3dfd614f5a2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
-  acceleration: 50
-  steering: 80
+  maxSpeed: 35
+  accelerationForce: 60
+  reverseForce: 25
+  brakingForce: 40
+  lowSpeedSteerAngle: 70
+  highSpeedSteerAngle: 25
+  gripLevel: 0.85
+  driftGrip: 0.3
+  downforce: 60
+  centerOfMassOffset: -0.5
   carModelName: Compactico
   baseValue: 1500
   maxHealth: 100
@@ -23479,6 +23714,7 @@ MonoBehaviour:
   isDrivenByAI: 0
   moveInput: 0
   turnInput: 0
+  isHandbraking: 0
 --- !u!65 &2122171529
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -24077,7 +24313,6 @@ SceneRoots:
   - {fileID: 856123118}
   - {fileID: 1003898413}
   - {fileID: 2070606475}
-  - {fileID: 1479607029}
   - {fileID: 1784374319}
   - {fileID: 835222824}
   - {fileID: 378288840}
@@ -24091,6 +24326,8 @@ SceneRoots:
   - {fileID: 1952842127}
   - {fileID: 1056767742}
   - {fileID: 2012331150}
+  - {fileID: 1890572927}
+  - {fileID: 1798877601}
   - {fileID: 1842373319}
   - {fileID: 138472122}
   - {fileID: 948488980}
