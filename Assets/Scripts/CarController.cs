@@ -31,8 +31,7 @@ public class CarController : MonoBehaviour
     public GameObject smokeEffectPrefab;
     public Transform hoodPosition;
 
-    [Header("Effets Visuels (Drift & Échappement) 💨")]
-    public ParticleSystem exhaustParticles;     // Le pot d'échappement
+    [Header("Effets Visuels (Drift) 💨")]
     public ParticleSystem[] tireSmokeParticles; // Fumée des pneus arrière
     public TrailRenderer[] skidMarks;           // Traces noires sur le sol
 
@@ -53,13 +52,12 @@ public class CarController : MonoBehaviour
         rb.centerOfMass = new Vector3(0, centerOfMassOffset, 0);
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
-        // On s'assure que les traces sont désactivées au démarrage
-        SetTireEffects(false);
+        SetTireEffects(false); // Coupe les traces au démarrage
     }
 
     void Update()
     {
-        HandleEffects(); // NOUVEAU : Gère le visuel en temps réel
+        HandleEffects(); // Gère les particules en temps réel
 
         if (isEngineDead)
         {
@@ -94,29 +92,26 @@ public class CarController : MonoBehaviour
         AutoRighting();
     }
 
-    // --- NOUVEAU : GESTION DES EFFETS DE CONDUITE ---
+    // --- CORRECTION DES EFFETS DE CONDUITE (Sans le pot d'échappement) ---
     private void HandleEffects()
     {
         if (isEngineDead)
         {
-            if (exhaustParticles != null && exhaustParticles.isPlaying) exhaustParticles.Stop();
             SetTireEffects(false);
             return;
         }
 
-        // 1. Le pot d'échappement (fume plus si on accélère)
-        if (exhaustParticles != null)
+        // Est-ce qu'il y a quelqu'un au volant (Joueur ou IA) ?
+        bool isEngineRunning = isDrivenByPlayer || isDrivenByAI;
+        bool isDrifting = false;
+
+        // On ne peut drifter QUE si quelqu'un conduit (évite le bug de la voiture garée qui fume)
+        if (isEngineRunning)
         {
-            var emission = exhaustParticles.emission;
-            // 20 particules/sec si on roule, 5/sec au ralenti
-            emission.rateOverTime = (Mathf.Abs(moveInput) > 0.1f) ? 20f : 5f;
+            float rightSpeed = Mathf.Abs(Vector3.Dot(transform.right, rb.linearVelocity));
+            float forwardSpeed = rb.linearVelocity.magnitude;
+            isDrifting = (isHandbraking && forwardSpeed > 5f) || rightSpeed > 4f;
         }
-
-        // 2. Détection du Drift (Vitesse latérale élevée OU Frein à main à haute vitesse)
-        float rightSpeed = Mathf.Abs(Vector3.Dot(transform.right, rb.linearVelocity));
-        float forwardSpeed = rb.linearVelocity.magnitude;
-
-        bool isDrifting = (isHandbraking && forwardSpeed > 5f) || rightSpeed > 4f;
 
         SetTireEffects(isDrifting);
     }
@@ -129,16 +124,21 @@ public class CarController : MonoBehaviour
             if (trail != null) trail.emitting = active;
         }
 
-        // Fumée des pneus
+        // Fumée des pneus (Correction avec Play et Stop)
         foreach (ParticleSystem smoke in tireSmokeParticles)
         {
             if (smoke != null)
             {
                 var emission = smoke.emission;
                 emission.enabled = active;
+
+                if (active && !smoke.isPlaying) smoke.Play();
+                else if (!active && smoke.isPlaying) smoke.Stop();
             }
         }
     }
+
+    // -----------------------------------------------------
 
     private void ProcessEngine()
     {
