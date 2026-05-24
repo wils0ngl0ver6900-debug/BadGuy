@@ -32,8 +32,8 @@ public class CarController : MonoBehaviour
     public Transform hoodPosition;
 
     [Header("Effets Visuels (Drift) 💨")]
-    public ParticleSystem[] tireSmokeParticles; // Fumée des pneus arrière
-    public TrailRenderer[] skidMarks;           // Traces noires sur le sol
+    public ParticleSystem[] tireSmokeParticles;
+    public TrailRenderer[] skidMarks;
 
     // États
     [HideInInspector] public bool isDrivenByPlayer = false;
@@ -52,22 +52,33 @@ public class CarController : MonoBehaviour
         rb.centerOfMass = new Vector3(0, centerOfMassOffset, 0);
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
-        SetTireEffects(false); // Coupe les traces au démarrage
+        // --- CORRECTION DE LA FUMÉE FANTÔME ---
+        // On coupe tout, on nettoie les particules résiduelles et on ferme la vanne
+        foreach (ParticleSystem smoke in tireSmokeParticles)
+        {
+            if (smoke != null)
+            {
+                smoke.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+                var em = smoke.emission;
+                em.enabled = false;
+            }
+        }
+
+        foreach (TrailRenderer trail in skidMarks)
+        {
+            if (trail != null) trail.emitting = false;
+        }
     }
 
     void Update()
     {
-        HandleEffects(); // Gère les particules en temps réel
-
         if (isEngineDead)
         {
             moveInput = 0;
             turnInput = 0;
             isHandbraking = false;
-            return;
         }
-
-        if (isDrivenByPlayer)
+        else if (isDrivenByPlayer)
         {
             moveInput = Input.GetAxis("Vertical");
             turnInput = Input.GetAxis("Horizontal");
@@ -79,6 +90,8 @@ public class CarController : MonoBehaviour
             turnInput = 0;
             isHandbraking = true;
         }
+
+        HandleEffects();
     }
 
     void FixedUpdate()
@@ -92,7 +105,6 @@ public class CarController : MonoBehaviour
         AutoRighting();
     }
 
-    // --- CORRECTION DES EFFETS DE CONDUITE (Sans le pot d'échappement) ---
     private void HandleEffects()
     {
         if (isEngineDead)
@@ -101,16 +113,15 @@ public class CarController : MonoBehaviour
             return;
         }
 
-        // Est-ce qu'il y a quelqu'un au volant (Joueur ou IA) ?
-        bool isEngineRunning = isDrivenByPlayer || isDrivenByAI;
         bool isDrifting = false;
 
-        // On ne peut drifter QUE si quelqu'un conduit (évite le bug de la voiture garée qui fume)
-        if (isEngineRunning)
+        // Détection propre du drift
+        if ((isDrivenByPlayer || isDrivenByAI) && rb.linearVelocity.magnitude > 2f)
         {
             float rightSpeed = Mathf.Abs(Vector3.Dot(transform.right, rb.linearVelocity));
             float forwardSpeed = rb.linearVelocity.magnitude;
-            isDrifting = (isHandbraking && forwardSpeed > 5f) || rightSpeed > 4f;
+
+            isDrifting = (isHandbraking && forwardSpeed > 5f) || rightSpeed > 3f;
         }
 
         SetTireEffects(isDrifting);
@@ -118,27 +129,26 @@ public class CarController : MonoBehaviour
 
     private void SetTireEffects(bool active)
     {
-        // Traces au sol
         foreach (TrailRenderer trail in skidMarks)
         {
             if (trail != null) trail.emitting = active;
         }
 
-        // Fumée des pneus (Correction avec Play et Stop)
+        // --- GESTION PROPRE DU PLAY / STOP ---
         foreach (ParticleSystem smoke in tireSmokeParticles)
         {
             if (smoke != null)
             {
                 var emission = smoke.emission;
-                emission.enabled = active;
-
-                if (active && !smoke.isPlaying) smoke.Play();
-                else if (!active && smoke.isPlaying) smoke.Stop();
+                if (emission.enabled != active)
+                {
+                    emission.enabled = active;
+                    if (active) smoke.Play();
+                    else smoke.Stop();
+                }
             }
         }
     }
-
-    // -----------------------------------------------------
 
     private void ProcessEngine()
     {
@@ -215,8 +225,17 @@ public class CarController : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
+        // --- CORRECTION DU BUG DE DÉGÂT SUR LE FREIN À MAIN ---
+        // Si le choc vient d'en bas (la route / le sol), on IGNORE complétement !
+        if (collision.contacts.Length > 0 && collision.contacts[0].normal.y > 0.5f)
+        {
+            return;
+        }
+
         float impactForce = collision.relativeVelocity.magnitude;
-        if (impactForce > 4f)
+
+        // J'ai augmenté la tolérance de 4f à 6f pour éviter de casser la voiture au moindre poteau
+        if (impactForce > 6f)
         {
             float damage = impactForce * 1.5f;
             currentHealth = Mathf.Clamp(currentHealth - damage, 0, maxHealth);
