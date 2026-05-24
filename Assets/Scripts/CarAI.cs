@@ -5,7 +5,7 @@ public class CarAI : MonoBehaviour
 {
     [Header("Navigation routière")]
     public TrafficNode currentNode;
-    public float waypointThreshold = 4f;
+    public float waypointThreshold = 5f; // Recommandé : 5 pour les camions
 
     [Header("Détection d'obstacles (Les Yeux)")]
     public float sensorLength = 6f;
@@ -19,7 +19,6 @@ public class CarAI : MonoBehaviour
     private Rigidbody rb;
     private bool isBraking = false;
 
-    // Système Anti-Blocage
     private float stuckTimer = 0f;
     private bool isReversing = false;
 
@@ -52,6 +51,8 @@ public class CarAI : MonoBehaviour
     void Drive()
     {
         float dist = Vector3.Distance(transform.position, currentNode.transform.position);
+
+        // Validation du noeud de trafic
         if (dist < waypointThreshold)
         {
             if (currentNode.nextNodes.Count > 0)
@@ -62,12 +63,12 @@ public class CarAI : MonoBehaviour
         float angle = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
         float targetTurn = Mathf.Clamp(angle / 45f, -1f, 1f);
 
-        // --- NOUVEAU : SYSTÈME ANTI-BLOCAGE (MARCHE ARRIÈRE) ---
-        if (rb.linearVelocity.magnitude < 1f)
+        // Système Anti-Blocage
+        if (rb.linearVelocity.magnitude < 0.5f)
         {
             stuckTimer += Time.deltaTime;
-            if (stuckTimer > 2.5f) isReversing = true; // Bloqué depuis 2.5s ? Marche arrière !
-            if (stuckTimer > 5f) // Après 2.5s de marche arrière, on retente d'avancer
+            if (stuckTimer > 2.5f) isReversing = true;
+            if (stuckTimer > 5f)
             {
                 isReversing = false;
                 stuckTimer = 0f;
@@ -81,30 +82,38 @@ public class CarAI : MonoBehaviour
 
         if (isReversing)
         {
-            // L'IA fait une marche arrière et braque dans le sens inverse pour se dégager
             carController.moveInput = -1f;
             carController.turnInput = Mathf.MoveTowards(carController.turnInput, -targetTurn, Time.deltaTime * steerSmoothing);
             return;
         }
 
-        // --- CONDUITE NORMALE ---
+        // Le volant tourne vers la cible
         carController.turnInput = Mathf.MoveTowards(carController.turnInput, targetTurn, Time.deltaTime * steerSmoothing);
 
+        // --- NOUVELLE LOGIQUE DE VIRAGE PRO (Freinage et Filet de gaz) ---
         float angleAbs = Mathf.Abs(angle);
-        if (angleAbs > 25f)
+        float currentSpeed = rb.linearVelocity.magnitude;
+
+        if (angleAbs > 30f && currentSpeed > 10f)
         {
-            carController.moveInput = 0.35f; // On donne un peu plus de jus dans les virages
+            // VIRAGE BRUTAL + VITESSE ÉLEVÉE : L'IA écrase le frein !
+            carController.moveInput = -0.8f;
+        }
+        else if (angleAbs > 15f)
+        {
+            // VIRAGE CLASSIQUE : Filet de gaz (40%) pour garder de l'élan sans déborder
+            carController.moveInput = 0.40f;
         }
         else
         {
-            carController.moveInput = 1f - (Mathf.Abs(carController.turnInput) * 0.3f);
+            // LIGNE DROITE : On accélère à fond (proportionnellement à la ligne droite)
+            carController.moveInput = 1f - (Mathf.Abs(carController.turnInput) * 0.2f);
         }
     }
 
     void CheckSensors()
     {
         isBraking = false;
-
         Vector3 sensorStartPos = transform.position + (transform.forward * sensorFrontOffset) + (Vector3.up * 0.5f);
 
         Vector3 frontCenter = transform.forward;
@@ -115,20 +124,13 @@ public class CarAI : MonoBehaviour
         Debug.DrawRay(sensorStartPos, frontLeft * (sensorLength * 0.8f), Color.red);
         Debug.DrawRay(sensorStartPos, frontRight * (sensorLength * 0.8f), Color.red);
 
-        // On crée une fonction locale pour vérifier si le rayon touche un VRAI obstacle
         bool CheckRay(Vector3 dir, float length)
         {
             RaycastHit hit;
             if (Physics.Raycast(sensorStartPos, dir, out hit, length, obstacleMask))
             {
-                // 1. On ignore notre propre voiture
                 if (hit.collider.transform.root == transform.root) return false;
-
-                // 2. On ignore le sol (tout ce qui est à peu près plat)
                 if (hit.normal.y > 0.5f) return false;
-
-                // DEBUG : Affiche dans la console de Unity CE QUE l'IA regarde
-                Debug.Log($"<color=orange>[Pick-It AI]</color> Je freine car je vois : {hit.collider.gameObject.name}");
                 return true;
             }
             return false;
