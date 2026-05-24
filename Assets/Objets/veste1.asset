@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb379c7bb8a2fad47ad8fca751c90424, type: 3}
+  m_Name: veste1
+  m_EditorClassIdentifier: Assembly-CSharp::ItemData
+  itemName: veste
+  description: veste1
+  icon: {fileID: -477549779, guid: 44f7c4185df999e4b99e04d0ccbe22ce, type: 3}
+  buyPrice: 800
+  valueInBlackMarket: 300
+  isIllegal: 0
+  isEquippable: 0
+  isConsumable: 0
+  healAmount: 0
+  speedBoostMultiplier: 0
+  buffDuration: 0
+  isDrugWithComedown: 0
+  comedownDuration: 0
+  comedownSpeedMultiplier: 0.5
+  invertControlsDuringComedown: 1
+  rarity: 0
+  isClothing: 1
+  clothingSlot: 1
+  armorBonus: 0
+  speedBonus: 0
+  isMask: 0
+  isWeapon: 0
+  damage: 0
+  maxAmmo: 12
+  fireRate: 0.5
+  weaponPrefab: {fileID: 0}
+  bulletPrefab: {fileID: 0}
