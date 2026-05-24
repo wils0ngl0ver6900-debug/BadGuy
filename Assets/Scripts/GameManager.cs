@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
@@ -7,117 +8,132 @@ public class GameManager : MonoBehaviour
     [Header("Économie & Criminologie")]
     public int dirtyMoney = 100;
     public int cleanMoney = 0;
-    public int notoriety = 0;
 
-    [Header("Infiltration 👁️")]
-    public int spottersCount = 0; // Nombre de PNJ qui voient le joueur actuellement
+    [Header("Système de Recherche (GTA Style) 🚔")]
+    public int wantedLevel = 0; // De 0 à 5 étoiles
+    public int crimePoints = 0; // Les points cachés qui remplissent les étoiles
+
+    [Header("Système d'Évasion 🏃‍♂️")]
+    public int spottersCount = 0; // Combien de FLICS ou TÉMOINS te voient ?
+    public float evadeTimeRequired = 20f; // 20 secondes caché pour perdre les flics
+    private float currentEvadeTimer = 0f;
+    [HideInInspector] public bool isEvading = false;
 
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
     }
+
+    private void Update()
+    {
+        // LA LOGIQUE D'ÉVASION
+        if (wantedLevel > 0)
+        {
+            if (spottersCount == 0)
+            {
+                // Personne ne nous voit, on commence à se faire oublier
+                isEvading = true;
+                currentEvadeTimer += Time.deltaTime;
+
+                if (currentEvadeTimer >= evadeTimeRequired)
+                {
+                    LoseCops();
+                }
+            }
+            else
+            {
+                // On a été repéré ! On remet le chrono d'évasion à zéro
+                isEvading = false;
+                currentEvadeTimer = 0f;
+            }
+        }
+    }
+
     public void AddDirtyMoney(int amount)
     {
         dirtyMoney += amount;
+        if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
+    }
+
+    // --- LE NOUVEAU MOTEUR DE CRIME ---
+    public void ReportCrime(int points)
+    {
+        crimePoints += points;
+        currentEvadeTimer = 0f; // Un nouveau crime annule l'évasion
+        isEvading = false;
+
+        UpdateWantedLevel();
+    }
+
+    private void UpdateWantedLevel()
+    {
+        int oldLevel = wantedLevel;
+
+        // Paliers façon GTA (À équilibrer selon tes goûts)
+        if (crimePoints >= 150) wantedLevel = 5;
+        else if (crimePoints >= 100) wantedLevel = 4;
+        else if (crimePoints >= 60) wantedLevel = 3;
+        else if (crimePoints >= 30) wantedLevel = 2;
+        else if (crimePoints >= 10) wantedLevel = 1;
+        else wantedLevel = 0;
+
+        if (wantedLevel > oldLevel)
+        {
+            if (UIManager.Instance != null)
+                UIManager.Instance.ShowNotification($"<color=red>RECHERCHÉ : {wantedLevel} ÉTOILE(S) !</color>");
+        }
+
+        if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
+    }
+
+    public void LoseCops()
+    {
+        wantedLevel = 0;
+        crimePoints = 0;
+        currentEvadeTimer = 0f;
+        isEvading = false;
+
         if (UIManager.Instance != null)
         {
+            UIManager.Instance.ShowNotification("<color=yellow>Indice de recherche perdu.</color>");
             UIManager.Instance.UpdateHUD();
         }
     }
-    public void IncreaseNotoriety(int amount)
+
+    // --- DÉGUISEMENT (RÉDUCTION D'ÉTOILES) ---
+    public void DropOneStarFromDisguise()
     {
-        int oldNotoriety = notoriety;
-
-        notoriety = Mathf.Clamp(notoriety + amount, 0, 100);
-        UIManager.Instance.UpdateHUD();
-
-        if (oldNotoriety < 50 && notoriety >= 50)
+        if (wantedLevel > 0 && spottersCount == 0)
         {
-            UIManager.Instance.ShowNotification("FUYEZ ! La police a été appelée !");
-        }
+            // Fait redescendre les points juste en dessous du palier actuel
+            if (wantedLevel == 5) crimePoints = 149;
+            else if (wantedLevel == 4) crimePoints = 99;
+            else if (wantedLevel == 3) crimePoints = 59;
+            else if (wantedLevel == 2) crimePoints = 29;
+            else if (wantedLevel == 1) crimePoints = 0;
 
-        if (EquipmentManager.Instance != null)
-        {
-            EquipmentManager.Instance.OnNotorietyIncreased(amount);
+            UpdateWantedLevel();
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=green>Déguisement efficace : -1 Étoile</color>");
         }
-
-        // C'EST TOUT ! On a retiré le lien avec le TerritoryManager ici.
-    }
-    public bool IsPlayerSpotted()
-    {
-        return spottersCount > 0;
     }
 
-    // --- BLANCHIMENT ---
-    public void LaunderAllMoney()
-    {
-        if (dirtyMoney <= 0)
-        {
-            UIManager.Instance.ShowNotification("Vous n'avez pas d'argent sale à blanchir.");
-            return;
-        }
-
-        int tax = Mathf.RoundToInt(dirtyMoney * 0.30f);
-        int laundered = dirtyMoney - tax;
-
-        cleanMoney += laundered;
-        UIManager.Instance.ShowNotification($"Blanchiment réussi ! Legitime : +{laundered}$ (Taxe: {tax}$)");
-        dirtyMoney = 0;
-
-        UIManager.Instance.UpdateHUD();
-    }
-
-    // --- CORRUPTION POLICE ---
-    public void PayOffPolice(int cost)
-    {
-        if (cleanMoney >= cost && notoriety > 0)
-        {
-            cleanMoney -= cost;
-            notoriety = Mathf.Clamp(notoriety - 30, 0, 100);
-            UIManager.Instance.ShowNotification("Police corrompue. L'indice de recherche baisse !");
-        }
-        else
-        {
-            UIManager.Instance.ShowNotification("Pas assez d'argent propre ou aucun indice de recherche.");
-        }
-        UIManager.Instance.UpdateHUD();
-    }
-
-    // --- SYSTÈME DE POLICE : ARRESTATION ET CONFISCATION ---
+    // --- ARRESTATION ---
     public void Busted()
     {
-        // 1. Confiscation de l'argent sale
         dirtyMoney = 0;
+        if (HotbarManager.Instance != null) HotbarManager.Instance.RemoveIllegalItems();
 
-        // 2. Confiscation des objets équipés dans les mains et dans la Hotbar
-        if (HotbarManager.Instance != null)
-        {
-            HotbarManager.Instance.RemoveIllegalItems();
-        }
-
-        // 3. Confiscation des objets illégaux restants dans le sac à dos (via une liste temporaire sécurisée)
-        System.Collections.Generic.List<ItemData> itemsToConfiscate = new System.Collections.Generic.List<ItemData>();
-
+        List<ItemData> itemsToConfiscate = new List<ItemData>();
         foreach (var item in InventoryManager.Instance.items)
-        {
-            if (item != null && item.isIllegal)
-            {
-                itemsToConfiscate.Add(item);
-            }
-        }
+            if (item != null && item.isIllegal) itemsToConfiscate.Add(item);
 
-        foreach (var item in itemsToConfiscate)
-        {
-            InventoryManager.Instance.RemoveItem(item);
-        }
+        foreach (var item in itemsToConfiscate) InventoryManager.Instance.RemoveItem(item);
 
-        // 4. Reset de la notoriété et mise à jour de l'UI
-        notoriety = 0;
-        UIManager.Instance.UpdateHUD();
-        UIManager.Instance.ShowNotification("ARRÊTÉ ! Argent sale et objets illégaux confisqués.");
+        LoseCops(); // Remet tout à zéro proprement
+        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("ARRÊTÉ ! Argent sale et objets illégaux confisqués.");
 
-        // 5. Nettoyage des policiers présents autour du joueur
+        // On détruit les flics à pied de la zone pour repartir propre
         CopAI[] cops = FindObjectsOfType<CopAI>();
         foreach (CopAI cop in cops) Destroy(cop.gameObject);
     }

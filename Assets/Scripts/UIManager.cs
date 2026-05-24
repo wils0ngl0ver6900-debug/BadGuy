@@ -62,7 +62,23 @@ public class UIManager : MonoBehaviour
 
         if (textDirtyMoney != null) textDirtyMoney.text = $"Argent Sale: {GameManager.Instance.dirtyMoney}$";
         if (textCleanMoney != null) textCleanMoney.text = $"Argent Propre: {GameManager.Instance.cleanMoney}$";
-        if (textNotoriety != null) textNotoriety.text = $"Recherche: {GameManager.Instance.notoriety}%";
+
+        // --- NOUVEAU : SYSTÈME D'ÉTOILES ---
+        if (textNotoriety != null)
+        {
+            string stars = "";
+            // Couleur rouge si on nous voit, gris clair si on est en train de s'échapper
+            string activeColor = GameManager.Instance.isEvading ? "<color=#AAAAAA>" : "<color=red>";
+
+            for (int i = 1; i <= 5; i++)
+            {
+                if (i <= GameManager.Instance.wantedLevel)
+                    stars += $"{activeColor}★</color> ";
+                else
+                    stars += "<color=#444444>★</color> "; // Étoile éteinte
+            }
+            textNotoriety.text = stars;
+        }
 
         UpdateDistrictControlHUD();
     }

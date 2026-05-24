@@ -19,7 +19,7 @@ public class PoliceManager : MonoBehaviour
     void Update()
     {
         // Si on dépasse le seuil, l'alarme sonne !
-        if (GameManager.Instance.notoriety >= notorietyThreshold)
+        if (GameManager.Instance.wantedLevel >= notorietyThreshold)
         {
             if (!isSpawning) StartCoroutine(SpawnCopRoutine());
         }
@@ -32,7 +32,7 @@ public class PoliceManager : MonoBehaviour
     IEnumerator SpawnCopRoutine()
     {
         isSpawning = true;
-        while (GameManager.Instance.notoriety >= notorietyThreshold)
+        while (GameManager.Instance.wantedLevel >= notorietyThreshold)
         {
             SpawnCop();
             yield return new WaitForSeconds(timeBetweenSpawns);

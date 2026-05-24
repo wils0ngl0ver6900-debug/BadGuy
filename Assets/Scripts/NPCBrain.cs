@@ -81,15 +81,15 @@ public class NPCBrain : MonoBehaviour
     // --- 1. ANALYSE (Que se passe-t-il autour de moi ?) ---
     private void AnalyzeEnvironment()
     {
-        if (player == null || currentState == AIState.Panique) return;
+            if (player == null || currentState == AIState.Panique) return;
 
-        float distToPlayer = Vector3.Distance(transform.position, player.position);
-        bool canSeePlayer = distToPlayer <= visionRange;
+            float distToPlayer = Vector3.Distance(transform.position, player.position);
+            bool canSeePlayer = distToPlayer <= visionRange;
 
-        // Si le PNJ est un CIVIL
-        if (role == NPCRole.Civil)
+            // Si le PNJ est un CIVIL
+            if (role == NPCRole.Civil)
         {
-            if (canSeePlayer && GameManager.Instance != null && GameManager.Instance.notoriety > 0)
+            if (canSeePlayer && GameManager.Instance != null && GameManager.Instance.wantedLevel > 0)
             {
                 ChangeState(AIState.Fuite);
             }
@@ -97,13 +97,16 @@ public class NPCBrain : MonoBehaviour
         // Si le PNJ est un FLIC
         else if (role == NPCRole.Policier)
         {
-            if (canSeePlayer && GameManager.Instance != null && GameManager.Instance.notoriety > 0)
+            // Le flic communique avec le GameManager pour dire "Je le vois !"
+            if (canSeePlayer && GameManager.Instance.wantedLevel > 0)
             {
+                // S'il te voit, il empêche ton évasion de baisser
+                GameManager.Instance.spottersCount = 1;
                 ChangeState(AIState.Poursuite);
             }
-            else if (GameManager.Instance == null || GameManager.Instance.notoriety == 0)
+            else if (GameManager.Instance.wantedLevel == 0)
             {
-                ChangeState(AIState.Patrouille); // Retour au calme
+                ChangeState(AIState.Patrouille);
             }
         }
     }
@@ -174,7 +177,7 @@ public class NPCBrain : MonoBehaviour
             callPoliceTimer += 0.2f; // On ajoute le temps du BrainTick
             if (callPoliceTimer >= 4f)
             {
-                if (GameManager.Instance != null) GameManager.Instance.IncreaseNotoriety(15);
+                if (GameManager.Instance != null) GameManager.Instance.ReportCrime(15);
                 callPoliceTimer = 0f; // Reset
             }
         }

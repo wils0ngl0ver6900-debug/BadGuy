@@ -23,7 +23,7 @@ public class TargetHealth : MonoBehaviour
 
         currentHealth -= amount;
         UIManager.Instance.ShowNotification($"Touché ! -{amount} PV");
-        GameManager.Instance.IncreaseNotoriety(20);
+        GameManager.Instance.ReportCrime(20);
         if (currentHealth <= 0)
         {
             Die();
@@ -35,7 +35,7 @@ public class TargetHealth : MonoBehaviour
         UIManager.Instance.ShowNotification("Cible éliminée !");
 
         if (GameManager.Instance != null)
-            GameManager.Instance.IncreaseNotoriety(40);
+            GameManager.Instance.ReportCrime(40);
 
         // ---> NOUVEAU : VÉRIFICATION GUERRE DE GANG <---
         GangObjective gangObj = GetComponent<GangObjective>();

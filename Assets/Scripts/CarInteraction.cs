@@ -60,7 +60,7 @@ public class CarInteraction : MonoBehaviour
             carController.isDrivenByAI = false;
             // Spawn du PNJ conducteur si nécessaire
             if (driverPrefab != null) Instantiate(driverPrefab, exitPoint.position, Quaternion.identity);
-            if (GameManager.Instance != null) GameManager.Instance.IncreaseNotoriety(20);
+            if (GameManager.Instance != null) GameManager.Instance.ReportCrime(20);
         }
 
         // On coupe le joueur à pied

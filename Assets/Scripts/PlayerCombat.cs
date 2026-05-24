@@ -40,7 +40,7 @@ public class PlayerCombat : MonoBehaviour
                 ItemData weapon = HotbarManager.Instance.GetEquippedItem();
                 if (weapon != null && weapon.isWeapon && weapon.isIllegal)
                 {
-                    GameManager.Instance.IncreaseNotoriety(5); // Petit gain pour exhibition
+                    GameManager.Instance.ReportCrime(5); // Petit gain pour exhibition
                 }
             }
         }
@@ -94,7 +94,7 @@ public class PlayerCombat : MonoBehaviour
 
                     // ---> DÉCLENCHE LE FLASH DE LUMIÈRE <---
                     if (muzzleFlashLight != null)
-                        GameManager.Instance.IncreaseNotoriety(10); // Tirer fait monter la notoriété
+                        GameManager.Instance.ReportCrime(10); // Tirer fait monter la notoriété
                     {
                         StartCoroutine(ShowMuzzleFlash());
                     }

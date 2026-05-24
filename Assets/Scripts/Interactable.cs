@@ -205,7 +205,7 @@ public class Interactable : MonoBehaviour
             if (civil != null)
             {
                 // FIX NOTORIÉTÉ : C'est un PNJ (Pickpocket), donc +10 points de recherche
-                if (GameManager.Instance != null) GameManager.Instance.IncreaseNotoriety(10);
+                if (GameManager.Instance != null) GameManager.Instance.ReportCrime(10);
                 if (UIManager.Instance != null) UIManager.Instance.ShowNotification("ÉCHEC ! Le civil donne l'alerte !");
 
                 civil.TriggerPanic(true); // Le PNJ s'enfuit en hurlant
@@ -213,7 +213,7 @@ public class Interactable : MonoBehaviour
             else
             {
                 // C'est un objet (Piratage ATM), la police est prévenue automatiquement
-                if (GameManager.Instance != null) GameManager.Instance.IncreaseNotoriety(caughtInTheAct ? 30 : 15);
+                if (GameManager.Instance != null) GameManager.Instance.ReportCrime(caughtInTheAct ? 30 : 15);
                 string failMsg = caughtInTheAct ? "VU EN FLAGRANT DÉLIT !" : $"ÉCHEC ({actionName}) !";
                 if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"{failMsg} L'alarme sonne !");
             }

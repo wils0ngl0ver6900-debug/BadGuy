@@ -7,9 +7,6 @@ public class EquipmentManager : MonoBehaviour
     private PlayerController player;
 
     [Header("Système de Déguisement 🥷")]
-    public int notorietyGainedWithCurrentOutfit = 0;
-    private int snapshotPool = 0;
-    private bool isCleaningPool = false;
     private bool[] slotChangedThisBreak = new bool[4];
 
     private void Awake()
@@ -27,16 +24,9 @@ public class EquipmentManager : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
 
-        if (notorietyGainedWithCurrentOutfit > GameManager.Instance.notoriety)
+        // Si on est repéré (spottersCount > 0) ou qu'on n'a plus d'étoiles, on remet à zéro la mémoire des vêtements changés
+        if (GameManager.Instance.spottersCount > 0 || GameManager.Instance.wantedLevel == 0)
         {
-            notorietyGainedWithCurrentOutfit = GameManager.Instance.notoriety;
-        }
-
-        // Si on est repéré, on ne peut plus se déguiser en cachette
-        if (GameManager.Instance.spottersCount > 0)
-        {
-            isCleaningPool = false;
-            snapshotPool = 0;
             for (int i = 0; i < slotChangedThisBreak.Length; i++)
             {
                 slotChangedThisBreak[i] = false;
@@ -46,37 +36,28 @@ public class EquipmentManager : MonoBehaviour
 
     public void OnNotorietyIncreased(int amount)
     {
-        isCleaningPool = false;
-        notorietyGainedWithCurrentOutfit = Mathf.Clamp(notorietyGainedWithCurrentOutfit + amount, 0, 100);
+        // Gardée vide pour éviter les erreurs avec d'autres vieux scripts, 
+        // mais n'est plus utile avec le système d'étoiles dynamique.
     }
 
-    // --- LE MOTEUR UNIVERSEL DE DÉGUISEMENT (25% PAR SLOT) ---
+    // --- LE MOTEUR UNIVERSEL DE DÉGUISEMENT (-1 ÉTOILE) ---
     private void HandleSlotChangeNotoriety(int slotIndex)
     {
         if (GameManager.Instance == null) return;
 
-        if (GameManager.Instance.spottersCount == 0 && notorietyGainedWithCurrentOutfit > 0)
+        // Si personne ne nous voit et qu'on est recherché
+        if (GameManager.Instance.spottersCount == 0 && GameManager.Instance.wantedLevel > 0)
         {
             if (!slotChangedThisBreak[slotIndex])
             {
                 slotChangedThisBreak[slotIndex] = true;
 
-                if (!isCleaningPool)
-                {
-                    isCleaningPool = true;
-                    snapshotPool = notorietyGainedWithCurrentOutfit;
-                }
-
-                int reduction = Mathf.RoundToInt(snapshotPool * 0.25f);
-
-                GameManager.Instance.notoriety = Mathf.Max(0, GameManager.Instance.notoriety - reduction);
-                notorietyGainedWithCurrentOutfit = Mathf.Max(0, notorietyGainedWithCurrentOutfit - reduction);
+                GameManager.Instance.DropOneStarFromDisguise();
 
                 if (UIManager.Instance != null)
                 {
-                    UIManager.Instance.UpdateHUD();
                     string slotName = GetSlotName(slotIndex);
-                    UIManager.Instance.ShowNotification($"Silhouette modifiée ({slotName}) : <color=#00FF22>Notoriété -{reduction}%</color>");
+                    UIManager.Instance.ShowNotification($"Silhouette modifiée ({slotName}) : <color=#00FF22>Recherche réduite !</color>");
                 }
             }
         }
@@ -100,7 +81,6 @@ public class EquipmentManager : MonoBehaviour
 
         int slotIndex = (int)newItem.clothingSlot;
 
-        // Que ce soit un masque ou non, ça compte comme un changement à 25% !
         HandleSlotChangeNotoriety(slotIndex);
 
         if (currentEquipment[slotIndex] != null)
@@ -120,11 +100,11 @@ public class EquipmentManager : MonoBehaviour
             if (UIManager.Instance != null) UIManager.Instance.UpdateHealthDisplay(player.currentHealth, player.maxHealth);
         }
 
-        // --- PUNITION SI ON MET LA CAGOULE DEVANT UN FLIC ---
+        // --- PUNITION SI ON MET LA CAGOULE DEVANT UN TÉMOIN ---
         if (newItem.isMask && GameManager.Instance != null && GameManager.Instance.spottersCount > 0)
         {
-            GameManager.Instance.IncreaseNotoriety(10);
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Masque enfilé devant témoin ! Notoriété +10</color>");
+            GameManager.Instance.ReportCrime(10); // FIX ICI
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Masque enfilé devant témoin !</color>");
         }
 
         if (EquipmentUI.Instance != null) EquipmentUI.Instance.RefreshUI();
