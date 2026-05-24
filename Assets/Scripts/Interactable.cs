@@ -31,7 +31,6 @@ public class Interactable : MonoBehaviour
         // 1. VÉRIFICATION DE L'OUTIL (Fouille de l'inventaire + Hotbar)
         if (requiresTool)
         {
-            // Sécurité : Vérifie si tu n'as pas oublié d'écrire le nom de l'outil dans l'Inspector d'Unity
             if (string.IsNullOrEmpty(requiredToolName))
             {
                 Debug.LogWarning($"⚠️ [Interactable] L'objet {gameObject.name} demande un outil, mais le champ 'Required Tool Name' est vide dans l'Inspector !");
@@ -41,7 +40,6 @@ public class Interactable : MonoBehaviour
             bool playerHasTool = false;
             string targetTool = requiredToolName.Trim().ToLower(); // On ignore les majuscules et espaces en trop
 
-            // A. On vérifie d'abord dans la ceinture (Hotbar)
             if (HotbarManager.Instance != null)
             {
                 foreach (HotbarSlot slot in HotbarManager.Instance.hotbarSlots)
@@ -54,7 +52,6 @@ public class Interactable : MonoBehaviour
                 }
             }
 
-            // B. Si pas trouvé dans la ceinture, on cherche dans le sac à dos (Inventory)
             if (!playerHasTool && InventoryManager.Instance != null)
             {
                 foreach (ItemData item in InventoryManager.Instance.items)
@@ -67,12 +64,11 @@ public class Interactable : MonoBehaviour
                 }
             }
 
-            // C. Si la carte est introuvable NULLE PART, on bloque l'action
             if (!playerHasTool)
             {
                 if (UIManager.Instance != null)
                     UIManager.Instance.ShowNotification($"Outil requis : {requiredToolName}");
-                return; // On arrête l'interaction ici !
+                return;
             }
         }
 
@@ -109,7 +105,6 @@ public class Interactable : MonoBehaviour
                 break;
 
             case ActionType.ShopIllegal:
-                // APPEL CORRIGÉ : On lance la fonction pour le RECELEUR (Vente)
                 if (ShopManager.Instance != null)
                     ShopManager.Instance.OpenSellShop("Receleur");
                 break;
@@ -126,7 +121,6 @@ public class Interactable : MonoBehaviour
         PlayerController pc = FindObjectOfType<PlayerController>();
         if (pc != null) pc.isDoingQTE = true; // Bloque les mouvements à pied
 
-        // FIX "GHOST INPUT" : On attend 0.2 seconde le temps de lâcher la touche d'interaction
         yield return new WaitForSeconds(0.2f);
 
         for (int step = 0; step < qteStepsRequired; step++)
@@ -143,13 +137,11 @@ public class Interactable : MonoBehaviour
             {
                 timer -= Time.deltaTime;
 
-                // Mise à jour de la jauge UI
                 if (UIManager.Instance != null && UIManager.Instance.qteSlider != null)
                 {
                     UIManager.Instance.qteSlider.value = timer / qteTimeToReact;
                 }
 
-                // Vérification en temps réel des témoins (Infiltration)
                 if (GameManager.Instance != null && GameManager.Instance.spottersCount > 0)
                 {
                     caughtInTheAct = true;
@@ -162,7 +154,6 @@ public class Interactable : MonoBehaviour
                         stepSuccess = true;
                         break;
                     }
-                    // Évite de faire rater le QTE si le joueur clique avec la souris
                     else if (!Input.GetMouseButtonDown(0) && !Input.GetMouseButtonDown(1) && !Input.GetMouseButtonDown(2))
                     {
                         stepSuccess = false;
@@ -178,15 +169,12 @@ public class Interactable : MonoBehaviour
                 break;
             }
 
-            // Petit délai de confort visuel entre deux touches
             yield return new WaitForSeconds(0.1f);
         }
 
-        // Fin du mini-jeu : Nettoyage de l'UI et libération du joueur
         if (UIManager.Instance != null) UIManager.Instance.HideQTE();
         if (pc != null) pc.isDoingQTE = false;
 
-        // TRAITEMENT DU RÉSULTAT
         if (!qteFailed)
         {
             ItemData itemToSteal = null;
@@ -194,21 +182,20 @@ public class Interactable : MonoBehaviour
             {
                 itemToSteal = possibleLoot[Random.Range(0, possibleLoot.Length)];
             }
-            // Si on gagne, il ne s'enfuit pas et on a la récompense :
             ExecuteTheftSuccess(actionName, itemToSteal);
         }
         else
         {
-            // Si on perd, la panique se lance selon la cible :
-            WanderingNPC civil = GetComponent<WanderingNPC>();
+            // ---> NOUVEAU : On s'adresse au NPCBrain ! <---
+            NPCBrain civil = GetComponent<NPCBrain>();
 
             if (civil != null)
             {
-                // FIX NOTORIÉTÉ : C'est un PNJ (Pickpocket), donc +10 points de recherche
+                // FIX NOTORIÉTÉ : Nouveau système
                 if (GameManager.Instance != null) GameManager.Instance.ReportCrime(10);
                 if (UIManager.Instance != null) UIManager.Instance.ShowNotification("ÉCHEC ! Le civil donne l'alerte !");
 
-                civil.TriggerPanic(true); // Le PNJ s'enfuit en hurlant
+                civil.ForcePanic(); // Le PNJ s'enfuit en hurlant
             }
             else
             {
@@ -222,7 +209,6 @@ public class Interactable : MonoBehaviour
 
     private void ExecuteTheftSuccess(string actionName, ItemData itemToSteal)
     {
-        // SYSTÈME DE TERRITOIRE : Augmente le contrôle du quartier actuel (+2%)
         if (TerritoryManager.Instance != null && TerritoryManager.Instance.currentDistrictName != "Inconnu")
         {
             TerritoryManager.Instance.IncreasePlayerControl(TerritoryManager.Instance.currentDistrictName, 2);
