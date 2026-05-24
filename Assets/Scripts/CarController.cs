@@ -44,6 +44,7 @@ public class CarController : MonoBehaviour
 
     private Rigidbody rb;
     private bool isEngineDead = false;
+    private float spawnProtectionTimer = 2f; // NOUVEAU : 2 secondes d'invincibilité au spawn !
 
     void Start()
     {
@@ -70,6 +71,8 @@ public class CarController : MonoBehaviour
 
     void Update()
     {
+        if (spawnProtectionTimer > 0f) spawnProtectionTimer -= Time.deltaTime; // Fait baisser le chrono de protection
+
         if (isEngineDead)
         {
             moveInput = 0;
@@ -146,7 +149,6 @@ public class CarController : MonoBehaviour
         }
     }
 
-    // --- LE MOTEUR A ÉTÉ SÉPARÉ EN DEUX PÉDALES STRICTES (Z et S) ---
     private void ProcessEngine()
     {
         float speed = rb.linearVelocity.magnitude;
@@ -164,41 +166,32 @@ public class CarController : MonoBehaviour
             return;
         }
 
-        // 1. SI ON APPUIE SUR LA TOUCHE "S" (Reculer / Freiner)
         if (moveInput < -0.1f)
         {
             if (forwardSpeed > 1f)
             {
-                // Si la voiture roule vers l'avant -> FREINAGE CLASSIQUE
                 rb.AddForce(-rb.linearVelocity.normalized * brakingForce, ForceMode.Acceleration);
             }
             else
             {
-                // Si elle est à l'arrêt ou recule déjà -> MARCHE ARRIÈRE
-                // (J'ai bridé la vitesse max en marche arrière à 50% pour plus de réalisme)
                 float speedFactor = 1f - (speed / (maxSpeed * 0.5f));
                 rb.AddForce(transform.forward * moveInput * reverseForce * Mathf.Max(speedFactor, 0.3f), ForceMode.Acceleration);
             }
         }
-        // 2. SI ON APPUIE SUR LA TOUCHE "Z" (Avancer)
         else if (moveInput > 0.1f)
         {
             if (forwardSpeed < -1f)
             {
-                // Si la voiture recule -> FREINAGE (pour s'arrêter de reculer)
                 rb.AddForce(-rb.linearVelocity.normalized * brakingForce, ForceMode.Acceleration);
             }
             else
             {
-                // Si elle est à l'arrêt ou avance -> ACCÉLÉRATION
                 float speedFactor = 1f - (speed / maxSpeed);
                 rb.AddForce(transform.forward * moveInput * accelerationForce * Mathf.Max(speedFactor, 0.3f), ForceMode.Acceleration);
             }
         }
-        // 3. SI ON NE TOUCHE À RIEN
         else
         {
-            // Frein moteur naturel
             rb.AddForce(-rb.linearVelocity.normalized * (brakingForce * 0.2f), ForceMode.Acceleration);
         }
     }
@@ -247,6 +240,9 @@ public class CarController : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
+        // Si la voiture vient juste d'apparaître, elle est invincible !
+        if (spawnProtectionTimer > 0f) return;
+
         if (collision.contacts.Length > 0 && collision.contacts[0].normal.y > 0.5f) return;
 
         float impactForce = collision.relativeVelocity.magnitude;

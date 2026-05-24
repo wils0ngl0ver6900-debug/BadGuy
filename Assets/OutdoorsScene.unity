@@ -5703,7 +5703,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 187cf8a10aa98b946879f27928d792bc, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -66.807495
+      value: -54
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 187cf8a10aa98b946879f27928d792bc, type: 3}
       propertyPath: m_LocalPosition.y
@@ -5711,7 +5711,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 187cf8a10aa98b946879f27928d792bc, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.94791365
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 187cf8a10aa98b946879f27928d792bc, type: 3}
       propertyPath: m_LocalRotation.w
@@ -14736,8 +14736,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarAI
   currentNode: {fileID: 1842373318}
-  waypointThreshold: 4
+  waypointThreshold: 3
   sensorLength: 6
+  sensorFrontOffset: 4
   obstacleMask:
     serializedVersion: 2
     m_Bits: 10248
@@ -14788,7 +14789,7 @@ MonoBehaviour:
   carModelName: Pick-it
   baseValue: 1500
   maxHealth: 100
-  currentHealth: 0
+  currentHealth: 100
   smokeEffectPrefab: {fileID: 0}
   hoodPosition: {fileID: 0}
   tireSmokeParticles: []
