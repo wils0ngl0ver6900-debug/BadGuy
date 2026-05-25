@@ -180,7 +180,7 @@ public class NPCBrain : MonoBehaviour
         {
             case AIState.Patrouille:
                 if (locomotion == Locomotion.Pieton) PatrolPedestrian();
-                else PatrolVehicle(); // NOUVEAU : La voiture retourne faire sa ronde
+                else PatrolVehicle();
                 break;
             case AIState.Fuite:
                 if (locomotion == Locomotion.Pieton) FleePedestrian();
@@ -242,6 +242,14 @@ public class NPCBrain : MonoBehaviour
 
         if (currentTarget == null) { ChangeState(AIState.Patrouille); return; }
 
+        // CORRECTIF : Si c'est une voiture de police et que le conducteur est déjà descendu, elle ne tire plus
+        if (role == NPCRole.Policier && hasSpawnedCops)
+        {
+            ChaseVehicle();
+            return;
+        }
+
+        // Sinon, le comportement normal s'applique (tir + poursuite)
         ShootAtTarget();
         ChaseVehicle();
     }
@@ -283,7 +291,6 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
-    // NOUVEAU : Si la police te perd de vue, la voiture se remet à rouler au hasard dans le trafic !
     private void PatrolVehicle()
     {
         CarAI ai = GetComponent<CarAI>();
@@ -343,19 +350,17 @@ public class NPCBrain : MonoBehaviour
         int stars = GameManager.Instance != null ? GameManager.Instance.wantedLevel : 0;
         CarAI ai = GetComponent<CarAI>();
 
-        // 1. ARRÊT ET DÉPLOIEMENT : 1 à 2 étoiles, à moins de 15 mètres du joueur !
         if (stars <= 2 && distToPlayer < 15f && !hasSpawnedCops)
         {
-            if (ai != null) ai.enabled = false; // On coupe le pilote auto pour reprendre le contrôle
+            if (ai != null) ai.enabled = false;
             car.moveInput = 0;
             car.turnInput = 0;
-            car.isHandbraking = true; // On tire le frein à main !
+            car.isHandbraking = true;
             car.isDrivenByAI = false;
             DeployFootCops();
             return;
         }
 
-        // 2. POURSUITE ET DRIVE-BY : On donne le joueur en cible au pilote auto !
         if (ai != null)
         {
             ai.chaseTarget = player;
