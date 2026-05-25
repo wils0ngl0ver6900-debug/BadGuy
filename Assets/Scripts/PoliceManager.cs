@@ -7,11 +7,12 @@ public class PoliceManager : MonoBehaviour
     public static PoliceManager Instance;
 
     [Header("Ressources (Prefabs) 🚓")]
-    public GameObject copCarPrefab; // Remplace ton ancien copPrefab par la voiture !
+    public GameObject copCarPrefab;
+    public GameObject copPedestrianPrefab; // NOUVEAU : Le flic à pied !
 
     [Header("Paramètres de Fuite 🚔")]
     public float escapeTimer = 0f;
-    public float baseTimeToEscape = 15f; // 15s par étoile pour être oublié
+    public float baseTimeToEscape = 15f;
     public bool isPlayerSpotted = false;
     public Vector3 lastKnownPosition;
 
@@ -28,6 +29,7 @@ public class PoliceManager : MonoBehaviour
     private Transform player;
     private Camera mainCam;
     private TrafficNode[] allNodes;
+    private int lastStars = 0;
 
     void Awake()
     {
@@ -46,26 +48,35 @@ public class PoliceManager : MonoBehaviour
 
     void Update()
     {
-        // ON UTILISE TON GAMEMANAGER ! Si pas d'étoiles, on ne fait rien.
-        if (GameManager.Instance == null || GameManager.Instance.wantedLevel == 0 || player == null) return;
+        if (GameManager.Instance == null || player == null) return;
+
+        int currentStars = GameManager.Instance.wantedLevel;
+
+        if (currentStars == 0)
+        {
+            lastStars = 0;
+            return;
+        }
+
+        if (currentStars > lastStars) escapeTimer = baseTimeToEscape * currentStars;
+        lastStars = currentStars;
 
         ManageEscape();
-        UpdateMaxCops();
+        UpdateMaxCops(currentStars);
         ManageReinforcements();
     }
 
-    // Appelée par l'IA des policiers (NPCBrain) quand ils ont un visuel direct sur le joueur
     public void ReportPlayerSight(Vector3 pos)
     {
         isPlayerSpotted = true;
         lastKnownPosition = pos;
 
-        // On convertit grossièrement ton wantedLevel en étoiles pour le calcul du temps
-        int level = GameManager.Instance.wantedLevel;
-        int stars = level >= 50 ? (level / 50) : level;
-        if (stars == 0) stars = 1;
-
-        escapeTimer = baseTimeToEscape * stars; // Relance le chrono de recherche
+        if (GameManager.Instance != null)
+        {
+            int currentStars = GameManager.Instance.wantedLevel;
+            if (currentStars == 0) currentStars = 1;
+            escapeTimer = baseTimeToEscape * currentStars;
+        }
     }
 
     private void ManageEscape()
@@ -73,23 +84,19 @@ public class PoliceManager : MonoBehaviour
         if (!isPlayerSpotted)
         {
             escapeTimer -= Time.deltaTime;
+
             if (escapeTimer <= 0)
             {
-                GameManager.Instance.wantedLevel = 0; // Le joueur a réussi à s'enfuir ! On remet à zéro.
-                if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=cyan>Avis de recherche expiré. Vous êtes libre.</color>");
+                GameManager.Instance.LoseCops(); // On appelle la fonction propre du GameManager
+                lastStars = 0;
             }
         }
 
-        // On remet le visuel à faux. Si un flic voit encore le joueur, il rappellera la fonction ReportPlayerSight() à la prochaine frame
         isPlayerSpotted = false;
     }
 
-    private void UpdateMaxCops()
+    private void UpdateMaxCops(int stars)
     {
-        int level = GameManager.Instance.wantedLevel;
-        // Adaptation à ton système (si c'est 1,2,3,4,5 étoiles, ou des points)
-        int stars = level >= 50 ? (level / 50) : level;
-
         switch (stars)
         {
             case 1: maxCopsAllowed = 1; break;
@@ -103,7 +110,6 @@ public class PoliceManager : MonoBehaviour
 
     private void ManageReinforcements()
     {
-        // Nettoie la liste des voitures explosées
         activeCops.RemoveAll(item => item == null);
 
         if (activeCops.Count < maxCopsAllowed && Time.time >= nextSpawnTime)
@@ -115,7 +121,7 @@ public class PoliceManager : MonoBehaviour
 
     private void SpawnCopOrganically()
     {
-        if (allNodes.Length == 0 || copCarPrefab == null) return;
+        if (allNodes.Length == 0) return;
 
         List<TrafficNode> validNodes = new List<TrafficNode>();
 
@@ -123,35 +129,39 @@ public class PoliceManager : MonoBehaviour
         {
             float dist = Vector3.Distance(player.position, node.transform.position);
 
-            // Est-ce qu'on est à la bonne distance ?
             if (dist >= minSpawnDist && dist <= maxSpawnDist)
             {
-                // LA MAGIE : Est-ce que cette rue est dans le dos du joueur ?
                 Vector3 viewPos = mainCam.WorldToViewportPoint(node.transform.position);
                 bool isOffScreen = viewPos.x < -0.1f || viewPos.x > 1.1f || viewPos.y < -0.1f || viewPos.y > 1.1f || viewPos.z < 0;
 
-                if (isOffScreen)
-                {
-                    validNodes.Add(node);
-                }
+                if (isOffScreen) validNodes.Add(node);
             }
         }
 
         if (validNodes.Count > 0)
         {
-            // On tire une rue au hasard parmi celles qu'on ne regarde pas
             TrafficNode spawnNode = validNodes[Random.Range(0, validNodes.Count)];
 
-            GameObject cop = Instantiate(copCarPrefab, spawnNode.transform.position, spawnNode.transform.rotation);
-            CarAI ai = cop.GetComponent<CarAI>();
+            // NOUVEAU : 40% de chance de faire spawn un flic à pied, 60% une voiture
+            bool spawnPedestrian = (copPedestrianPrefab != null && Random.value < 0.4f);
 
-            if (ai != null)
+            if (spawnPedestrian)
             {
-                // Le flic se dirige vers l'endroit du dernier appel radio, pas bêtement sur le joueur !
-                ai.currentNode = GetClosestNodeToPosition(lastKnownPosition);
+                // On s'assure qu'il spawn bien sur le sol pour ne pas passer à travers la map
+                UnityEngine.AI.NavMeshHit hit;
+                if (UnityEngine.AI.NavMesh.SamplePosition(spawnNode.transform.position, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+                {
+                    GameObject cop = Instantiate(copPedestrianPrefab, hit.position, Quaternion.identity);
+                    activeCops.Add(cop);
+                }
             }
-
-            activeCops.Add(cop);
+            else if (copCarPrefab != null)
+            {
+                GameObject cop = Instantiate(copCarPrefab, spawnNode.transform.position, spawnNode.transform.rotation);
+                CarAI ai = cop.GetComponent<CarAI>();
+                if (ai != null) ai.currentNode = GetClosestNodeToPosition(lastKnownPosition);
+                activeCops.Add(cop);
+            }
         }
     }
 
