@@ -140,8 +140,6 @@ public class PoliceManager : MonoBehaviour
         if (validNodes.Count > 0)
         {
             TrafficNode spawnNode = validNodes[Random.Range(0, validNodes.Count)];
-
-            // On ne fait spawner que des voitures ! Ce sont elles qui amèneront les piétons.
             GameObject cop = Instantiate(copCarPrefab, spawnNode.transform.position, spawnNode.transform.rotation);
             CarAI ai = cop.GetComponent<CarAI>();
             if (ai != null) ai.currentNode = GetClosestNodeToPosition(lastKnownPosition);
@@ -164,5 +162,26 @@ public class PoliceManager : MonoBehaviour
             }
         }
         return bestNode;
+    }
+
+    // --- LE NETTOYEUR INVISIBLE ---
+    public void DespawnAllCops()
+    {
+        foreach (GameObject cop in activeCops)
+        {
+            if (cop != null) Destroy(cop);
+        }
+        activeCops.Clear();
+
+        NPCBrain[] allNPCs = FindObjectsOfType<NPCBrain>();
+        foreach (NPCBrain npc in allNPCs)
+        {
+            if (npc.role == NPCBrain.NPCRole.Policier)
+            {
+                Destroy(npc.gameObject);
+            }
+        }
+
+        lastStars = 0;
     }
 }

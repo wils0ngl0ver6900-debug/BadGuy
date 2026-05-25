@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
-using UnityEngine.Rendering; // INDISPENSABLE pour manipuler les Volumes
-using UnityEngine.Rendering.HighDefinition; // INDISPENSABLE pour HDRP
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
 
 public class PlayerController : MonoBehaviour
 {
@@ -11,7 +11,7 @@ public class PlayerController : MonoBehaviour
 
     [HideInInspector] public int maxShield = 0;
     [HideInInspector] public int currentShield = 0;
-    private float clothingSpeedBonus = 0f; // Stocke le bonus des chaussures/pantalons
+    private float clothingSpeedBonus = 0f;
 
     [Header("Mouvement")]
     public float moveSpeed = 5f;
@@ -30,7 +30,6 @@ public class PlayerController : MonoBehaviour
     private Vector3 moveInput;
     private Interactable currentInteractable;
 
-    // --- VARIABLES POST-PROCESSING HDRP ---
     private Volume drogueVolume;
     private ChromaticAberration chromaticAberration;
     private LensDistortion lensDistortion;
@@ -46,28 +45,21 @@ public class PlayerController : MonoBehaviour
             UIManager.Instance.UpdateHealthDisplay(currentHealth, maxHealth);
         }
 
-        // Configuration automatique du Post-Processing HDRP
         SetupPostProcessing();
     }
 
     private void SetupPostProcessing()
     {
-        // On cherche le Global Volume via son Tag
         GameObject volumeObj = GameObject.FindWithTag("GameController");
         if (volumeObj != null)
         {
             drogueVolume = volumeObj.GetComponent<Volume>();
             if (drogueVolume != null && drogueVolume.profile != null)
             {
-                // On extrait les composants HDRP du profil pour pouvoir les modifier par code
                 drogueVolume.profile.TryGet(out chromaticAberration);
                 drogueVolume.profile.TryGet(out lensDistortion);
                 drogueVolume.profile.TryGet(out vignette);
             }
-        }
-        else
-        {
-            Debug.LogWarning("DrogueVolume introuvable ! Assurez-vous d'avoir mis le tag 'GameController' sur votre Global Volume.");
         }
     }
 
@@ -97,7 +89,6 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        // --- DÉPLACEMENT ---
         float moveX = Input.GetAxisRaw("Horizontal");
         float moveZ = Input.GetAxisRaw("Vertical");
 
@@ -109,7 +100,6 @@ public class PlayerController : MonoBehaviour
 
         moveInput = new Vector3(moveX, 0f, moveZ).normalized;
 
-        // --- OUVRIR L'INVENTAIRE ---
         if (Input.GetKeyDown(KeyCode.I))
         {
             if (inventoryPanel != null)
@@ -120,7 +110,6 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // --- ACTION PRINCIPALE : TOUCHE [E] ---
         if (Input.GetKeyDown(KeyCode.E))
         {
             ItemData equippedItem = null;
@@ -218,7 +207,6 @@ public class PlayerController : MonoBehaviour
 
     public void TakeDamage(int amount)
     {
-        // Le bouclier encaisse d'abord !
         if (currentShield > 0)
         {
             if (amount <= currentShield)
@@ -251,10 +239,13 @@ public class PlayerController : MonoBehaviour
 
     private void Die()
     {
-        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("VOUS ÊTES MORT !");
-        gameObject.SetActive(false);
+        // CORRECTIF : On appelle la séquence de mort globale
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.Wasted();
+        }
     }
-    
+
     public void UpdateClothingSpeedBonus()
     {
         clothingSpeedBonus = 0f;
@@ -266,6 +257,7 @@ public class PlayerController : MonoBehaviour
             }
         }
     }
+
     private IEnumerator SimpleSpeedBoostRoutine(float multiplier, float duration)
     {
         isSpeedBoosted = true;
@@ -276,12 +268,8 @@ public class PlayerController : MonoBehaviour
         isSpeedBoosted = false;
     }
 
-    // --- LE MINUTEUR À DOUBLE EFFET AVEC EFFETS VISUELS HDRP ---
     private IEnumerator DrugDoubleEffectRoutine(ItemData drug)
     {
-        // ==========================================
-        // ETAPE 1 : LE HIGH (LE GROS BOOST)
-        // ==========================================
         isSpeedBoosted = true;
         moveSpeed = originalMoveSpeed * drug.speedBoostMultiplier;
 
@@ -292,9 +280,6 @@ public class PlayerController : MonoBehaviour
 
         yield return new WaitForSeconds(drug.buffDuration);
 
-        // ==========================================
-        // ETAPE 2 : LA DESCENTE (LE BAD TRIP HDRP)
-        // ==========================================
         isSpeedBoosted = false;
         isInComedown = true;
         currentInvertControls = drug.invertControlsDuringComedown;
@@ -303,25 +288,20 @@ public class PlayerController : MonoBehaviour
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification("⚠️ VOUS ÊTES EN PLEINE DESCENTE ! ⚠️");
 
-        // ---> ANIMATION DU POST-PROCESSING (On fait monter l'effet en 1 seconde) <---
         float elapsed = 0f;
         while (elapsed < 1f)
         {
             elapsed += Time.deltaTime;
             if (chromaticAberration != null) chromaticAberration.intensity.value = Mathf.Lerp(0f, 1f, elapsed);
-            if (lensDistortion != null) lensDistortion.intensity.value = Mathf.Lerp(0f, -0.4f, elapsed); // Déforme l'écran vers l'intérieur
-            if (vignette != null) vignette.intensity.value = Mathf.Lerp(0f, 0.45f, elapsed); // Assombrit les bords
+            if (lensDistortion != null) lensDistortion.intensity.value = Mathf.Lerp(0f, -0.4f, elapsed);
+            if (vignette != null) vignette.intensity.value = Mathf.Lerp(0f, 0.45f, elapsed);
             yield return null;
         }
 
-        // On attend que la descente se termine
         yield return new WaitForSeconds(drug.comedownDuration - 1f);
 
-        // ==========================================
-        // ETAPE 3 : RETOUR À LA NORMALE (On dissipe l'effet)
-        // ==========================================
         elapsed = 0f;
-        while (elapsed < 2f) // Le retour à la normale prend 2 secondes
+        while (elapsed < 2f)
         {
             elapsed += Time.deltaTime;
             if (chromaticAberration != null) chromaticAberration.intensity.value = Mathf.Lerp(1f, 0f, elapsed / 2f);

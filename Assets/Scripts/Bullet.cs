@@ -8,7 +8,7 @@ public class Bullet : MonoBehaviour
 
     [HideInInspector] public int damage;
     [HideInInspector] public bool isEnemyBullet = false;
-    [HideInInspector] public GameObject shooter; // NOUVEAU : Identifie qui a tiré
+    [HideInInspector] public GameObject shooter;
 
     void Start()
     {
@@ -20,45 +20,30 @@ public class Bullet : MonoBehaviour
     {
         if (other.isTrigger) return;
 
-        // --- CORRECTION MAGIQUE ICI ---
-        // Si la balle touche la personne qui a tiré (ou un de ses colliders enfants), on l'ignore !
+        // La balle ignore son propre tireur
         if (shooter != null)
         {
             if (other.gameObject == shooter || other.transform.IsChildOf(shooter.transform)) return;
         }
 
-        // 1. SI LA BALLE TOUCHE LE JOUEUR (On cherche directement le PlayerController)
+        // 1. SI LA BALLE TOUCHE LE JOUEUR
         PlayerController pc = other.GetComponentInParent<PlayerController>();
         if (pc != null)
         {
-            if (!isEnemyBullet) return; // Sécurité : on ne se tire pas dessus nous-même
+            if (!isEnemyBullet) return;
 
-            // Baisse le bouclier, puis la vie
-            if (pc.currentShield > 0)
-            {
-                pc.currentShield -= damage;
-                if (pc.currentShield < 0)
-                {
-                    pc.currentHealth += pc.currentShield;
-                    pc.currentShield = 0;
-                }
-            }
-            else
-            {
-                pc.currentHealth -= damage;
-            }
-
-            if (UIManager.Instance != null) UIManager.Instance.UpdateHealthDisplay((int)pc.currentHealth, (int)pc.maxHealth);
+            // CORRECTIF : La balle dit juste "Fais les dégâts". Le PlayerController s'occupe du reste (bouclier, mort, etc.)
+            pc.TakeDamage(damage);
 
             Destroy(gameObject);
-            return; // On détruit la balle ici
+            return;
         }
 
         // 2. SI LA BALLE TOUCHE UN PNJ ENNEMI
         TargetHealth target = other.GetComponent<TargetHealth>();
         if (target != null)
         {
-            target.TakeDamage(damage);
+            target.TakeDamage(damage, shooter);
         }
 
         // 3. SI LA BALLE TOUCHE UNE VOITURE

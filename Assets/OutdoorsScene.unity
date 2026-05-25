@@ -5815,6 +5815,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: fd0cd672a9d4917449b62efd25f7c340, type: 2}
   - {fileID: 11400000, guid: 66152f32f738ea44bb1e1744161ec16d, type: 2}
   dropChance: 100
+  isDead: 0
 --- !u!65 &674137724
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -11512,7 +11513,7 @@ MonoBehaviour:
   firePoint: {fileID: 1582629934}
   muzzleFlashLight: {fileID: 1169579735}
   flashDuration: 0.05
-  currentAmmo: 0
+  currentAmmo: 15
 --- !u!114 &1219955357
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13287,6 +13288,7 @@ MonoBehaviour:
   qteActionNameText: {fileID: 453903394}
   qteKeyText: {fileID: 2061086228}
   qteSlider: {fileID: 642747649}
+  transitionPanel: {fileID: 0}
 --- !u!114 &1403774074
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13303,6 +13305,8 @@ MonoBehaviour:
   cleanMoney: 0
   wantedLevel: 0
   crimePoints: 0
+  hospitalSpawnPoint: {fileID: 1430368521}
+  policeStationSpawnPoint: {fileID: 1674776372}
 --- !u!4 &1403774075
 Transform:
   m_ObjectHideFlags: 0
@@ -14076,6 +14080,37 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 16.229427, y: 19.23972, z: 11.414914}
   m_Center: {x: -0.00013649464, y: 9.61986, z: -0.9350014}
+--- !u!1 &1430368520
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1430368521}
+  m_Layer: 0
+  m_Name: Hospital Spawn Point
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1430368521
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1430368520}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 36, y: 1, z: -44}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1437603383
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -15628,6 +15663,37 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!1 &1674776371
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1674776372}
+  m_Layer: 0
+  m_Name: Police Station Spawn Point
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1674776372
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1674776371}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -7.54899, y: 1, z: -44}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1677020972 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8828740605641665633, guid: 9ccfee7c17274d949841942e61d76428, type: 3}
@@ -17347,6 +17413,7 @@ MonoBehaviour:
   lootPrefab: {fileID: 0}
   possibleDrops: []
   dropChance: 50
+  isDead: 0
 --- !u!65 &1846492134
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -20471,3 +20538,5 @@ SceneRoots:
   - {fileID: 1259860675}
   - {fileID: 8279587905148897738}
   - {fileID: 8062211699978860025}
+  - {fileID: 1674776372}
+  - {fileID: 1430368521}

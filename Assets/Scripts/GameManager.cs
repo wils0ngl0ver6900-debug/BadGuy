@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
@@ -14,8 +15,10 @@ public class GameManager : MonoBehaviour
     public int crimePoints = 0;
     [HideInInspector] public bool isBeingSeen { get; private set; }
 
-    // LE CORRECTIF EST ICI : L'UIManager peut de nouveau lire isEvading sans erreur.
-    // Il va chercher l'information intelligemment dans le PoliceManager !
+    [Header("Points de Réapparition (Spawns) 🏥/🚓")]
+    public Transform hospitalSpawnPoint;
+    public Transform policeStationSpawnPoint;
+
     public bool isEvading
     {
         get
@@ -37,6 +40,8 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+        wantedLevel = 0;
+        crimePoints = 0;
         allNPCsInScene = FindObjectsOfType<NPCBrain>();
     }
 
@@ -120,18 +125,78 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // --- SÉQUENCES DE FIN FINALES ---
+
     public void Busted()
     {
-        dirtyMoney = 0;
-        if (HotbarManager.Instance != null) HotbarManager.Instance.RemoveIllegalItems();
-        List<ItemData> itemsToConfiscate = new List<ItemData>();
-        foreach (var item in InventoryManager.Instance.items) if (item != null && item.isIllegal) itemsToConfiscate.Add(item);
-        foreach (var item in itemsToConfiscate) InventoryManager.Instance.RemoveItem(item);
+        PlayerController pc = FindObjectOfType<PlayerController>();
+        if (pc != null && pc.currentHealth <= 0) return;
+
+        StartCoroutine(DefeatSequence(true));
+    }
+
+    public void Wasted()
+    {
+        StartCoroutine(DefeatSequence(false));
+    }
+
+    private IEnumerator DefeatSequence(bool isBusted)
+    {
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ShowNotification(isBusted ? "<color=blue>ARRÊTÉ !</color>" : "<color=red>VOUS ÊTES MORT !</color>");
+        }
+
+        PlayerController pc = FindObjectOfType<PlayerController>();
+        if (pc != null) pc.enabled = false;
+
+        yield return new WaitForSeconds(3f);
+
+        // Activation de l'écran noir dynamique généré par l'UI
+        if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
+        {
+            UIManager.Instance.transitionPanel.SetActive(true);
+        }
+
+        if (isBusted)
+        {
+            dirtyMoney = 0;
+            if (HotbarManager.Instance != null) HotbarManager.Instance.RemoveIllegalItems();
+            List<ItemData> itemsToConfiscate = new List<ItemData>();
+            foreach (var item in InventoryManager.Instance.items) if (item != null && item.isIllegal) itemsToConfiscate.Add(item);
+            foreach (var item in itemsToConfiscate) InventoryManager.Instance.RemoveItem(item);
+        }
+        else
+        {
+            cleanMoney -= 500;
+            if (cleanMoney < 0) cleanMoney = 0;
+        }
 
         LoseCops();
-        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("ARRÊTÉ ! Argent sale et objets illégaux confisqués.");
 
-        CopAI[] cops = FindObjectsOfType<CopAI>();
-        foreach (CopAI cop in cops) Destroy(cop.gameObject);
+        if (PoliceManager.Instance != null) PoliceManager.Instance.DespawnAllCops();
+
+        yield return new WaitForSeconds(2f);
+
+        if (pc != null)
+        {
+            Transform targetPoint = isBusted ? policeStationSpawnPoint : hospitalSpawnPoint;
+
+            if (targetPoint != null)
+            {
+                pc.transform.position = targetPoint.position;
+                pc.transform.rotation = targetPoint.rotation;
+            }
+
+            pc.Heal(pc.maxHealth);
+            pc.enabled = true;
+        }
+
+        if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
+        {
+            UIManager.Instance.transitionPanel.SetActive(false);
+        }
+
+        if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
     }
 }

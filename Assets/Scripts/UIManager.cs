@@ -36,6 +36,9 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI qteKeyText;
     public Slider qteSlider;
 
+    [Header("Écran Noir (Transition) 🎬")]
+    public GameObject transitionPanel; // Plus besoin de le glisser obligatoirement dans l'inspecteur !
+
     private Coroutine notificationCoroutine;
 
     private void Awake()
@@ -45,6 +48,9 @@ public class UIManager : MonoBehaviour
 
     void Start()
     {
+        // Génération automatique et propre de l'écran noir de transition
+        SetupTransitionPanel();
+
         UpdateHUD();
         HideNotification();
         HideTooltip();
@@ -56,6 +62,33 @@ public class UIManager : MonoBehaviour
         if (textDistrictControl != null) textDistrictControl.gameObject.SetActive(false);
     }
 
+    // --- CRÉATION PROGRAMMATIQUE DE L'ÉCRAN NOIR ---
+    private void SetupTransitionPanel()
+    {
+        // Si tu en as glissé un manuellement, on garde le tien
+        if (transitionPanel != null) return;
+
+        // Sinon, on crée un panneau noir full stretch à la volée sous le Canvas
+        GameObject panelObj = new GameObject("DynamicTransitionPanel");
+        panelObj.transform.SetParent(this.transform, false);
+
+        Image bgImage = panelObj.AddComponent<Image>();
+        bgImage.color = Color.black;
+        bgImage.raycastTarget = true; // Bloque les clics de souris pendant l'écran noir
+
+        RectTransform rect = panelObj.GetComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.sizeDelta = Vector2.zero;
+        rect.anchoredPosition = Vector2.zero;
+
+        // Force l'écran noir à passer par-dessus toutes les autres interfaces du HUD
+        rect.SetAsLastSibling();
+
+        transitionPanel = panelObj;
+        transitionPanel.SetActive(false); // Reste masqué par défaut
+    }
+
     public void UpdateHUD()
     {
         if (GameManager.Instance == null) return;
@@ -63,11 +96,9 @@ public class UIManager : MonoBehaviour
         if (textDirtyMoney != null) textDirtyMoney.text = $"Argent Sale: {GameManager.Instance.dirtyMoney}$";
         if (textCleanMoney != null) textCleanMoney.text = $"Argent Propre: {GameManager.Instance.cleanMoney}$";
 
-        // --- NOUVEAU : SYSTÈME D'ÉTOILES ---
         if (textNotoriety != null)
         {
             string stars = "";
-            // Couleur rouge si on nous voit, gris clair si on est en train de s'échapper
             string activeColor = GameManager.Instance.isEvading ? "<color=#AAAAAA>" : "<color=red>";
 
             for (int i = 1; i <= 5; i++)
@@ -75,7 +106,7 @@ public class UIManager : MonoBehaviour
                 if (i <= GameManager.Instance.wantedLevel)
                     stars += $"{activeColor}★</color> ";
                 else
-                    stars += "<color=#444444>★</color> "; // Étoile éteinte
+                    stars += "<color=#444444>★</color> ";
             }
             textNotoriety.text = stars;
         }
@@ -156,7 +187,6 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    // --- FONCTIONS DU MINI-JEU QTE ---
     public void ShowQTE(string keyName, string actionName)
     {
         if (qtePanel != null)
@@ -178,7 +208,6 @@ public class UIManager : MonoBehaviour
         if (qtePanel != null) qtePanel.SetActive(false);
     }
 
-    // --- FONCTIONS HUD VÉHICULE ---
     public void ShowVehicleHUD(string vehicleName)
     {
         if (textVehicleName != null)
@@ -196,7 +225,6 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    // --- GESTION DE L'AFFICHAGE DES QUARTIERS ---
     public void UpdateDistrictControlHUD()
     {
         if (TerritoryManager.Instance != null && TerritoryManager.Instance.currentDistrictName != "Inconnu")
@@ -205,7 +233,6 @@ public class UIManager : MonoBehaviour
 
             if (d != null && textDistrictControl != null)
             {
-                // FIX : On utilise "playerControlPercentage" qui est le vrai nom de ta variable !
                 textDistrictControl.text = $"[{d.playerControlPercentage}%]";
                 textDistrictControl.gameObject.SetActive(true);
             }

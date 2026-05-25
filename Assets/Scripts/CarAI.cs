@@ -15,7 +15,6 @@ public class CarAI : MonoBehaviour
     [Header("Ajustements IA 🧠")]
     public float steerSmoothing = 4f;
 
-    // NOUVEAU : La cible de poursuite !
     [HideInInspector] public Transform chaseTarget = null;
 
     private CarController carController;
@@ -62,12 +61,10 @@ public class CarAI : MonoBehaviour
 
         Vector3 targetPos;
 
-        // 1. SI ON POURSUIT LE JOUEUR
         if (chaseTarget != null)
         {
             targetPos = chaseTarget.position;
         }
-        // 2. SI ON PATROUILLE TRANQUILLEMENT (Trafic)
         else
         {
             targetPos = currentNode.transform.position;
@@ -82,7 +79,6 @@ public class CarAI : MonoBehaviour
         float angle = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
         float targetTurn = Mathf.Clamp(angle / 45f, -1f, 1f);
 
-        // Anti-Blocage
         if (rb.linearVelocity.magnitude < 0.5f && !isAvoidingObstacle)
         {
             stuckTimer += Time.deltaTime;
@@ -107,7 +103,6 @@ public class CarAI : MonoBehaviour
         float angleAbs = Mathf.Abs(angle);
         float currentSpeed = rb.linearVelocity.magnitude;
 
-        // VIRAGES ET LIGNES DROITES
         if (angleAbs > 30f && currentSpeed > 10f) carController.moveInput = -0.8f;
         else if (angleAbs > 15f) carController.moveInput = 0.40f;
         else carController.moveInput = 1f - (Mathf.Abs(carController.turnInput) * 0.2f);
@@ -130,8 +125,13 @@ public class CarAI : MonoBehaviour
                 if (hit.collider.transform.root == transform.root) return false;
                 if (hit.normal.y > 0.5f) return false;
 
-                // NOUVEAU : Si on traque le joueur, ON NE FREINE PAS devant lui !
-                if (chaseTarget != null && hit.collider.CompareTag("Player")) return false;
+                // --- CORRECTIF KAMIKAZE ---
+                if (chaseTarget != null)
+                {
+                    if (hit.collider.CompareTag("Player")) return false;
+                    // Si on détecte la voiture du joueur, on ne freine surtout pas ! On lui rentre dedans.
+                    if (hit.collider.transform.root == chaseTarget.root) return false;
+                }
 
                 return true;
             }

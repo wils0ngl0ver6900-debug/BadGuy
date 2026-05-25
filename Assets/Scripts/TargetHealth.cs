@@ -11,7 +11,7 @@ public class TargetHealth : MonoBehaviour
     public ItemData[] possibleDrops;
     [Range(0, 100)] public int dropChance = 50;
 
-    private bool isDead = false;
+    [HideInInspector] public bool isDead = false;
 
     void Start()
     {
@@ -19,7 +19,8 @@ public class TargetHealth : MonoBehaviour
         DisableRagdoll();
     }
 
-    public void TakeDamage(int amount)
+    // MODIFICATION : On accepte un paramètre optionnel 'attacker'
+    public void TakeDamage(int amount, GameObject attacker = null)
     {
         if (isDead) return;
 
@@ -29,20 +30,28 @@ public class TargetHealth : MonoBehaviour
         currentHealth -= amount;
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"Touché ! -{amount} PV");
 
-        if (GameManager.Instance != null) GameManager.Instance.ReportCrime(20);
+        // CORRECTIF CRUCIAL : On ne rapporte le crime que si c'est le JOUEUR qui a infligé les dégâts !
+        if (attacker != null && attacker.CompareTag("Player") && GameManager.Instance != null)
+        {
+            GameManager.Instance.ReportCrime(20);
+        }
 
         if (currentHealth <= 0)
         {
-            Die();
+            Die(attacker);
         }
     }
 
-    void Die()
+    void Die(GameObject attacker = null)
     {
         isDead = true;
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Cible éliminée !");
 
-        if (GameManager.Instance != null) GameManager.Instance.ReportCrime(40);
+        // CORRECTIF CRUCIAL : On ne rapporte le crime de meurtre que si c'est le JOUEUR le tueur !
+        if (attacker != null && attacker.CompareTag("Player") && GameManager.Instance != null)
+        {
+            GameManager.Instance.ReportCrime(40);
+        }
 
         GangObjective gangObj = GetComponent<GangObjective>();
         if (gangObj != null) gangObj.CompleteObjective();
@@ -50,7 +59,6 @@ public class TargetHealth : MonoBehaviour
         if (ContractManager.Instance != null) ContractManager.Instance.CompleteContract(ContractManager.ContractType.Hitman);
 
         SpawnLoot();
-
         EnableRagdoll();
 
         Destroy(gameObject, 15f);
@@ -68,7 +76,6 @@ public class TargetHealth : MonoBehaviour
 
     private void EnableRagdoll()
     {
-        // 1. Désactive les composants "vivants"
         Animator anim = GetComponentInChildren<Animator>();
         if (anim != null) anim.enabled = false;
 
@@ -78,21 +85,19 @@ public class TargetHealth : MonoBehaviour
         NPCBrain brain = GetComponent<NPCBrain>();
         if (brain != null)
         {
-            // LE CORRECTIF EST ICI : On coupe brutalement le cerveau et l'action de tir !
             brain.StopAllCoroutines();
+            if (brain.muzzleFlashLight != null) brain.muzzleFlashLight.enabled = false;
             brain.enabled = false;
         }
 
         Collider mainCollider = GetComponent<Collider>();
         if (mainCollider != null) mainCollider.enabled = false;
 
-        // 2. Active la physique des membres (Ragdoll)
         Rigidbody[] rbs = GetComponentsInChildren<Rigidbody>();
         foreach (Rigidbody rb in rbs)
         {
             rb.isKinematic = false;
             rb.useGravity = true;
-
             rb.AddForce(-transform.forward * 5f + Vector3.up * 2f, ForceMode.Impulse);
         }
     }

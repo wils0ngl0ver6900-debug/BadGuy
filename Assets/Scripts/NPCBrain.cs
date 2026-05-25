@@ -97,6 +97,9 @@ public class NPCBrain : MonoBehaviour
                 TargetHealth health = hit.GetComponent<TargetHealth>();
                 PlayerController playerHealth = hit.GetComponent<PlayerController>();
 
+                if (health != null && health.isDead) continue;
+                if (playerHealth != null && playerHealth.currentHealth <= 0) continue;
+
                 if (health == null && playerHealth == null) continue;
 
                 NPCBrain otherNPC = hit.GetComponent<NPCBrain>();
@@ -132,21 +135,38 @@ public class NPCBrain : MonoBehaviour
             {
                 currentTarget = bestEnemy;
 
+                // --- LOGIQUE DE L'ESCALADE ADAPTATIVE ---
                 if (role == NPCRole.Policier && bestEnemy.CompareTag("Player"))
                 {
-                    if (GameManager.Instance != null && GameManager.Instance.wantedLevel <= 2)
+                    int stars = GameManager.Instance != null ? GameManager.Instance.wantedLevel : 0;
+                    bool isPlayerInCar = bestEnemy.GetComponentInParent<CarController>() != null;
+
+                    if (stars <= 2)
                     {
-                        ChangeState(AIState.Poursuite);
+                        ChangeState(AIState.Poursuite); // Course-poursuite classique
                         return;
                     }
-                    else
+                    else if (stars == 3)
                     {
-                        ChangeState(AIState.Combat);
+                        if (isPlayerInCar && locomotion == Locomotion.Vehicule)
+                        {
+                            ChangeState(AIState.Poursuite); // Si le flic est en voiture et le joueur aussi : on le percute (pas de tir)
+                            return;
+                        }
+                        else
+                        {
+                            ChangeState(AIState.Combat); // Joueur à pied à 3 étoiles : drive-by !
+                            return;
+                        }
+                    }
+                    else // 4 ou 5 étoiles
+                    {
+                        ChangeState(AIState.Combat); // On tire sur tout ce qui bouge
                         return;
                     }
                 }
 
-                ChangeState(AIState.Combat);
+                ChangeState(AIState.Combat); // Les gangs se tirent toujours dessus
                 return;
             }
             else
@@ -197,6 +217,7 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
+    // --- LA FONCTION MANQUANTE REVIENT ICI ---
     public void ChangeState(AIState newState)
     {
         if (currentState == newState) return;
@@ -214,16 +235,52 @@ public class NPCBrain : MonoBehaviour
     {
         if (role == NPCRole.Policier && currentState == AIState.Poursuite)
         {
+            bool isPlayerInCar = player != null && player.GetComponentInParent<CarController>() != null;
+
             if (collision.gameObject.CompareTag("Player"))
             {
-                if (GameManager.Instance != null) GameManager.Instance.Busted();
+                if (locomotion == Locomotion.Pieton || (locomotion == Locomotion.Vehicule && !isPlayerInCar))
+                {
+                    if (GameManager.Instance != null) GameManager.Instance.Busted();
+                }
+            }
+
+            if (locomotion == Locomotion.Vehicule && isPlayerInCar)
+            {
+                CarController targetCar = collision.gameObject.GetComponentInParent<CarController>();
+                if (targetCar != null && collision.gameObject.transform.root == player.root)
+                {
+                    Rigidbody myRb = GetComponent<Rigidbody>();
+                    if (myRb != null && myRb.linearVelocity.magnitude > 8f)
+                    {
+                        targetCar.TakeDamage(10f);
+                    }
+                }
             }
         }
     }
 
+    private bool IsTargetAlive(Transform target)
+    {
+        if (target == null || !target.gameObject.activeInHierarchy) return false;
+
+        TargetHealth th = target.GetComponent<TargetHealth>();
+        if (th != null && th.isDead) return false;
+
+        PlayerController pc = target.GetComponent<PlayerController>();
+        if (pc != null && pc.currentHealth <= 0) return false;
+
+        return true;
+    }
+
     private void CombatPedestrian()
     {
-        if (currentTarget == null) { ChangeState(AIState.Patrouille); return; }
+        if (currentTarget == null || !IsTargetAlive(currentTarget))
+        {
+            currentTarget = null;
+            ChangeState(AIState.Patrouille);
+            return;
+        }
 
         Vector3 lookDir = currentTarget.position - transform.position;
         lookDir.y = 0;
@@ -240,7 +297,12 @@ public class NPCBrain : MonoBehaviour
             return;
         }
 
-        if (currentTarget == null) { ChangeState(AIState.Patrouille); return; }
+        if (currentTarget == null || !IsTargetAlive(currentTarget))
+        {
+            currentTarget = null;
+            ChangeState(AIState.Patrouille);
+            return;
+        }
 
         if (role == NPCRole.Policier && hasSpawnedCops)
         {
@@ -266,7 +328,7 @@ public class NPCBrain : MonoBehaviour
             {
                 b.isEnemyBullet = true;
                 b.damage = attackDamage;
-                b.shooter = this.gameObject; // <--- C'EST ICI : On donne l'identité du tireur à la balle
+                b.shooter = this.gameObject;
             }
 
             if (muzzleFlashLight != null) StartCoroutine(FlashMuzzleLight());
@@ -349,7 +411,9 @@ public class NPCBrain : MonoBehaviour
         int stars = GameManager.Instance != null ? GameManager.Instance.wantedLevel : 0;
         CarAI ai = GetComponent<CarAI>();
 
-        if (stars <= 2 && distToPlayer < 15f && !hasSpawnedCops)
+        bool isPlayerInCar = player.GetComponentInParent<CarController>() != null;
+
+        if (stars <= 2 && !isPlayerInCar && distToPlayer < 15f && !hasSpawnedCops)
         {
             if (ai != null) ai.enabled = false;
             car.moveInput = 0;
