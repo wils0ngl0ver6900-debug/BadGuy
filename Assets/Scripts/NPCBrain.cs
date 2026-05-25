@@ -110,6 +110,11 @@ public class NPCBrain : MonoBehaviour
                 {
                     if (otherNPC != null && otherNPC.role == NPCRole.Gang) isEnemy = true;
                     if (hit.CompareTag("Player") && GameManager.Instance != null && GameManager.Instance.wantedLevel > 0) isEnemy = true;
+                    {
+                        isEnemy = true;
+                        // LE FLIC TE VOIT ! IL APPELLE DES RENFORTS SUR TA POSITION :
+                        if (PoliceManager.Instance != null) PoliceManager.Instance.ReportPlayerSight(player.position);
+                    }
                 }
                 else if (role == NPCRole.Gang)
                 {
