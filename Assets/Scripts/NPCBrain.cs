@@ -26,6 +26,7 @@ public class NPCBrain : MonoBehaviour
     public GameObject bulletPrefab;
     public Transform firePoint;
     public float fireRate = 0.5f;
+    public int attackDamage = 15; // NOUVEAU : Les dégâts de l'arme de l'IA !
 
     public Light muzzleFlashLight;
 
@@ -104,8 +105,6 @@ public class NPCBrain : MonoBehaviour
                 if (role == NPCRole.Policier)
                 {
                     if (otherNPC != null && otherNPC.role == NPCRole.Gang) isEnemy = true;
-
-                    // LE CORRECTIF EST ICI : Le bloc est maintenant bien rattaché au 'if' !
                     if (hit.CompareTag("Player") && GameManager.Instance != null && GameManager.Instance.wantedLevel > 0)
                     {
                         isEnemy = true;
@@ -132,6 +131,21 @@ public class NPCBrain : MonoBehaviour
             if (bestEnemy != null)
             {
                 currentTarget = bestEnemy;
+
+                if (role == NPCRole.Policier && bestEnemy.CompareTag("Player"))
+                {
+                    if (GameManager.Instance != null && GameManager.Instance.wantedLevel <= 2)
+                    {
+                        ChangeState(AIState.Poursuite);
+                        return;
+                    }
+                    else
+                    {
+                        ChangeState(AIState.Combat);
+                        return;
+                    }
+                }
+
                 ChangeState(AIState.Combat);
                 return;
             }
@@ -141,7 +155,6 @@ public class NPCBrain : MonoBehaviour
             }
         }
 
-        // REPOS / TRAQUE
         if (role == NPCRole.Civil)
         {
             if (isSeeingPlayer && GameManager.Instance != null && GameManager.Instance.wantedLevel > 0) ChangeState(AIState.Fuite);
@@ -152,7 +165,7 @@ public class NPCBrain : MonoBehaviour
             if (GameManager.Instance != null)
             {
                 if (GameManager.Instance.wantedLevel == 0) ChangeState(AIState.Patrouille);
-                else ChangeState(AIState.Poursuite); // Traque le joueur même sans le voir !
+                else ChangeState(AIState.Poursuite);
             }
         }
         else if (role == NPCRole.Gang)
@@ -196,6 +209,17 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (role == NPCRole.Policier && currentState == AIState.Poursuite)
+        {
+            if (collision.gameObject.CompareTag("Player"))
+            {
+                if (GameManager.Instance != null) GameManager.Instance.Busted();
+            }
+        }
+    }
+
     private void CombatPedestrian()
     {
         if (currentTarget == null) { ChangeState(AIState.Patrouille); return; }
@@ -216,7 +240,9 @@ public class NPCBrain : MonoBehaviour
         }
 
         if (currentTarget == null) { ChangeState(AIState.Patrouille); return; }
+
         ShootAtTarget();
+        ChaseVehicle();
     }
 
     private void ShootAtTarget()
@@ -225,7 +251,15 @@ public class NPCBrain : MonoBehaviour
         {
             nextFireTime = Time.time + fireRate;
             Vector3 aimDir = (currentTarget.position + Vector3.up * 1f) - firePoint.position;
-            Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(aimDir));
+
+            GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(aimDir));
+
+            Bullet b = bullet.GetComponent<Bullet>();
+            if (b != null)
+            {
+                b.isEnemyBullet = true;
+                b.damage = attackDamage; // ON ASSIGNE ENFIN LES DÉGÂTS À LA BALLE !
+            }
 
             if (muzzleFlashLight != null) StartCoroutine(FlashMuzzleLight());
         }
@@ -275,14 +309,13 @@ public class NPCBrain : MonoBehaviour
         }
         else if (PoliceManager.Instance != null)
         {
-            // Le flic va fouiller la dernière position connue !
             agent.SetDestination(PoliceManager.Instance.lastKnownPosition);
         }
     }
 
     public void ForcePanic()
     {
-        if (role != NPCRole.Civil) return; // NOUVEAU : Les flics et gangs n'ont plus peur des balles !
+        if (role != NPCRole.Civil) return;
 
         ChangeState(AIState.Panique);
         if (locomotion == Locomotion.Pieton && agent != null) FleePedestrian();

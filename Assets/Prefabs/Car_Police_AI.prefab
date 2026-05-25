@@ -4954,7 +4954,7 @@ Transform:
   m_GameObject: {fileID: 3083417850736477876}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.24000421, y: 0.8800001, z: 0.44999874}
+  m_LocalPosition: {x: -0.12, y: 0.01, z: 0.27}
   m_LocalScale: {x: 100, y: 10, z: 100}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -10812,7 +10812,7 @@ Transform:
   m_GameObject: {fileID: 5773750978951416825}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 1, z: -0, w: 0.0000029504295}
-  m_LocalPosition: {x: -0.7, y: 0.73, z: 1.06}
+  m_LocalPosition: {x: -0.99, y: 1.53, z: 1.0599983}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -10959,6 +10959,7 @@ Transform:
   - {fileID: 4048617777091844844}
   - {fileID: 7621480317597576955}
   - {fileID: 5651753308172075626}
+  - {fileID: 8971179365180283684}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: -180, z: 0}
 --- !u!33 &7307528052974846973
@@ -11085,6 +11086,7 @@ MonoBehaviour:
   moveInput: 0
   turnInput: 0
   isHandbraking: 0
+  isEngineDead: 0
 --- !u!65 &8062807443172673962
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -11141,7 +11143,7 @@ MonoBehaviour:
   carController: {fileID: 191010194857392625}
   carCamera: {fileID: 4011831211097149870}
   exitPoint: {fileID: 5848328408979446706}
-  driverPrefab: {fileID: 6512716062819704709, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+  driverPrefab: {fileID: 1497394389711808643, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
 --- !u!114 &4742096999813549191
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11165,9 +11167,11 @@ MonoBehaviour:
   bulletPrefab: {fileID: 391651947737662775, guid: f9d1872e85697a44e97ba3e4503c04a2, type: 3}
   firePoint: {fileID: 4454120412578722356}
   fireRate: 0.5
+  attackDamage: 15
   muzzleFlashLight: {fileID: 303778053259165715}
   copPedestrianPrefab: {fileID: 0}
-  exitDoors: []
+  exitDoors:
+  - {fileID: 8971179365180283684}
   isSeeingPlayer: 0
 --- !u!1 &6482192431256895737
 GameObject:
@@ -11196,6 +11200,37 @@ Transform:
   m_LocalRotation: {x: -0, y: -0.000000014901161, z: -0, w: 1}
   m_LocalPosition: {x: -2.0520706, y: 0.5, z: 0.6181202}
   m_LocalScale: {x: 2, y: 1, z: 2}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5964548873489452120}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &7160358932248945702
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8971179365180283684}
+  m_Layer: 0
+  m_Name: Door
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8971179365180283684
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7160358932248945702}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 1, z: -0, w: 0.0000029504295}
+  m_LocalPosition: {x: -1.15, y: 1.28, z: 0.8943639}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5964548873489452120}

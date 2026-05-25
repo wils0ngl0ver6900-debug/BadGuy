@@ -24,7 +24,6 @@ public class EquipmentManager : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
 
-        // FIX ICI : On utilise isBeingSeen au lieu de l'ancien spottersCount
         if (GameManager.Instance.isBeingSeen || GameManager.Instance.wantedLevel == 0)
         {
             for (int i = 0; i < slotChangedThisBreak.Length; i++)
@@ -40,13 +39,11 @@ public class EquipmentManager : MonoBehaviour
     {
         if (GameManager.Instance == null) return;
 
-        // FIX ICI : !isBeingSeen
         if (!GameManager.Instance.isBeingSeen && GameManager.Instance.wantedLevel > 0)
         {
             if (!slotChangedThisBreak[slotIndex])
             {
                 slotChangedThisBreak[slotIndex] = true;
-
                 GameManager.Instance.DropOneStarFromDisguise();
 
                 if (UIManager.Instance != null)
@@ -80,7 +77,6 @@ public class EquipmentManager : MonoBehaviour
         if (currentEquipment[slotIndex] != null) UnequipInternal(slotIndex);
 
         currentEquipment[slotIndex] = newItem;
-
         if (InventoryManager.Instance != null) InventoryManager.Instance.RemoveItem(newItem);
 
         if (player != null)
@@ -88,14 +84,17 @@ public class EquipmentManager : MonoBehaviour
             player.maxShield += newItem.armorBonus;
             player.currentShield += newItem.armorBonus;
             player.UpdateClothingSpeedBonus();
-            if (UIManager.Instance != null) UIManager.Instance.UpdateHealthDisplay(player.currentHealth, player.maxHealth);
+            if (UIManager.Instance != null) UIManager.Instance.UpdateHealthDisplay((int)player.currentHealth, (int)player.maxHealth);
         }
 
-        // FIX ICI : isBeingSeen
+        // CORRECTION ICI : La cagoule ne donne 1 étoile QUE si tu en as 0 !
         if (newItem.isMask && GameManager.Instance != null && GameManager.Instance.isBeingSeen)
         {
-            GameManager.Instance.ReportCrime(10);
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Masque enfilé devant témoin !</color>");
+            if (GameManager.Instance.wantedLevel == 0)
+            {
+                GameManager.Instance.ReportCrime(10);
+                if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Masque enfilé devant témoin !</color>");
+            }
         }
 
         if (EquipmentUI.Instance != null) EquipmentUI.Instance.RefreshUI();
@@ -125,7 +124,7 @@ public class EquipmentManager : MonoBehaviour
             player.maxShield -= oldItem.armorBonus;
             player.currentShield = Mathf.Clamp(player.currentShield - oldItem.armorBonus, 0, player.maxShield);
             player.UpdateClothingSpeedBonus();
-            if (UIManager.Instance != null) UIManager.Instance.UpdateHealthDisplay(player.currentHealth, player.maxHealth);
+            if (UIManager.Instance != null) UIManager.Instance.UpdateHealthDisplay((int)player.currentHealth, (int)player.maxHealth);
         }
         currentEquipment[slotIndex] = null;
     }
