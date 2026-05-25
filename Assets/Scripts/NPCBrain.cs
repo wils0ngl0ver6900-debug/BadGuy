@@ -26,7 +26,7 @@ public class NPCBrain : MonoBehaviour
     public GameObject bulletPrefab;
     public Transform firePoint;
     public float fireRate = 0.5f;
-    public int attackDamage = 15; // NOUVEAU : Les dégâts de l'arme de l'IA !
+    public int attackDamage = 15;
 
     public Light muzzleFlashLight;
 
@@ -180,6 +180,7 @@ public class NPCBrain : MonoBehaviour
         {
             case AIState.Patrouille:
                 if (locomotion == Locomotion.Pieton) PatrolPedestrian();
+                else PatrolVehicle(); // NOUVEAU : La voiture retourne faire sa ronde
                 break;
             case AIState.Fuite:
                 if (locomotion == Locomotion.Pieton) FleePedestrian();
@@ -258,7 +259,7 @@ public class NPCBrain : MonoBehaviour
             if (b != null)
             {
                 b.isEnemyBullet = true;
-                b.damage = attackDamage; // ON ASSIGNE ENFIN LES DÉGÂTS À LA BALLE !
+                b.damage = attackDamage;
             }
 
             if (muzzleFlashLight != null) StartCoroutine(FlashMuzzleLight());
@@ -280,6 +281,13 @@ public class NPCBrain : MonoBehaviour
             Vector3 randomDir = Random.insideUnitSphere * 15f + transform.position;
             if (NavMesh.SamplePosition(randomDir, out NavMeshHit hit, 15f, 1)) agent.SetDestination(hit.position);
         }
+    }
+
+    // NOUVEAU : Si la police te perd de vue, la voiture se remet à rouler au hasard dans le trafic !
+    private void PatrolVehicle()
+    {
+        CarAI ai = GetComponent<CarAI>();
+        if (ai != null) ai.chaseTarget = null;
     }
 
     private void FleePedestrian()
@@ -330,21 +338,28 @@ public class NPCBrain : MonoBehaviour
     private void ChaseVehicle()
     {
         if (car == null || player == null || !car.isDrivenByAI) return;
-        float distToPlayer = Vector3.Distance(transform.position, player.position);
 
-        if (distToPlayer < 8f && !hasSpawnedCops)
+        float distToPlayer = Vector3.Distance(transform.position, player.position);
+        int stars = GameManager.Instance != null ? GameManager.Instance.wantedLevel : 0;
+        CarAI ai = GetComponent<CarAI>();
+
+        // 1. ARRÊT ET DÉPLOIEMENT : 1 à 2 étoiles, à moins de 15 mètres du joueur !
+        if (stars <= 2 && distToPlayer < 15f && !hasSpawnedCops)
         {
+            if (ai != null) ai.enabled = false; // On coupe le pilote auto pour reprendre le contrôle
             car.moveInput = 0;
             car.turnInput = 0;
+            car.isHandbraking = true; // On tire le frein à main !
             car.isDrivenByAI = false;
             DeployFootCops();
             return;
         }
 
-        Vector3 localTarget = transform.InverseTransformPoint(player.position);
-        float angle = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
-        car.turnInput = Mathf.Clamp(angle / 45f, -1f, 1f);
-        car.moveInput = 1f - (Mathf.Abs(car.turnInput) * 0.4f);
+        // 2. POURSUITE ET DRIVE-BY : On donne le joueur en cible au pilote auto !
+        if (ai != null)
+        {
+            ai.chaseTarget = player;
+        }
     }
 
     private void DeployFootCops()

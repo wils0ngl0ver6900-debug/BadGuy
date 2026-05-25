@@ -11128,6 +11128,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 10248
   steerSmoothing: 20
+  chaseTarget: {fileID: 0}
 --- !u!114 &6539125083142406906
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11169,7 +11170,7 @@ MonoBehaviour:
   fireRate: 0.5
   attackDamage: 15
   muzzleFlashLight: {fileID: 303778053259165715}
-  copPedestrianPrefab: {fileID: 0}
+  copPedestrianPrefab: {fileID: 1497394389711808643, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
   exitDoors:
   - {fileID: 8971179365180283684}
   isSeeingPlayer: 0

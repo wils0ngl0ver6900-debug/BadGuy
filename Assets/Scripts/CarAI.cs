@@ -15,11 +15,13 @@ public class CarAI : MonoBehaviour
     [Header("Ajustements IA 🧠")]
     public float steerSmoothing = 4f;
 
+    // NOUVEAU : La cible de poursuite !
+    [HideInInspector] public Transform chaseTarget = null;
+
     private CarController carController;
     private Rigidbody rb;
     private bool isBraking = false;
 
-    // Systèmes de Secours (Blocage et Contournement)
     private float stuckTimer = 0f;
     private bool isReversing = false;
 
@@ -49,37 +51,43 @@ public class CarAI : MonoBehaviour
         }
 
         carController.isHandbraking = false;
-
-        // Si on est en train de contourner un obstacle, on ignore le chemin classique temporairement
         if (isAvoidingObstacle) return;
 
-        if (currentNode != null) Drive();
+        Drive();
     }
 
     void Drive()
     {
-        float dist = Vector3.Distance(transform.position, currentNode.transform.position);
+        if (chaseTarget == null && currentNode == null) return;
 
-        if (dist < waypointThreshold)
+        Vector3 targetPos;
+
+        // 1. SI ON POURSUIT LE JOUEUR
+        if (chaseTarget != null)
         {
-            if (currentNode.nextNodes.Count > 0)
+            targetPos = chaseTarget.position;
+        }
+        // 2. SI ON PATROUILLE TRANQUILLEMENT (Trafic)
+        else
+        {
+            targetPos = currentNode.transform.position;
+            float dist = Vector3.Distance(transform.position, targetPos);
+            if (dist < waypointThreshold && currentNode.nextNodes.Count > 0)
+            {
                 currentNode = currentNode.nextNodes[Random.Range(0, currentNode.nextNodes.Count)];
+            }
         }
 
-        Vector3 localTarget = transform.InverseTransformPoint(currentNode.transform.position);
+        Vector3 localTarget = transform.InverseTransformPoint(targetPos);
         float angle = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
         float targetTurn = Mathf.Clamp(angle / 45f, -1f, 1f);
 
-        // Système Anti-Blocage Total (Marche Arrière)
+        // Anti-Blocage
         if (rb.linearVelocity.magnitude < 0.5f && !isAvoidingObstacle)
         {
             stuckTimer += Time.deltaTime;
             if (stuckTimer > 3f) isReversing = true;
-            if (stuckTimer > 6f)
-            {
-                isReversing = false;
-                stuckTimer = 0f;
-            }
+            if (stuckTimer > 6f) { isReversing = false; stuckTimer = 0f; }
         }
         else
         {
@@ -99,18 +107,10 @@ public class CarAI : MonoBehaviour
         float angleAbs = Mathf.Abs(angle);
         float currentSpeed = rb.linearVelocity.magnitude;
 
-        if (angleAbs > 30f && currentSpeed > 10f)
-        {
-            carController.moveInput = -0.8f;
-        }
-        else if (angleAbs > 15f)
-        {
-            carController.moveInput = 0.40f;
-        }
-        else
-        {
-            carController.moveInput = 1f - (Mathf.Abs(carController.turnInput) * 0.2f);
-        }
+        // VIRAGES ET LIGNES DROITES
+        if (angleAbs > 30f && currentSpeed > 10f) carController.moveInput = -0.8f;
+        else if (angleAbs > 15f) carController.moveInput = 0.40f;
+        else carController.moveInput = 1f - (Mathf.Abs(carController.turnInput) * 0.2f);
     }
 
     void CheckSensors()
@@ -119,14 +119,9 @@ public class CarAI : MonoBehaviour
         isBraking = false;
 
         Vector3 sensorStartPos = transform.position + (transform.forward * sensorFrontOffset) + (Vector3.up * 0.5f);
-
         Vector3 frontCenter = transform.forward;
-        Vector3 frontLeft = Quaternion.Euler(0, -35, 0) * transform.forward; // J'ai écarté un peu les capteurs (35 degrés)
+        Vector3 frontLeft = Quaternion.Euler(0, -35, 0) * transform.forward;
         Vector3 frontRight = Quaternion.Euler(0, 35, 0) * transform.forward;
-
-        Debug.DrawRay(sensorStartPos, frontCenter * sensorLength, Color.red);
-        Debug.DrawRay(sensorStartPos, frontLeft * (sensorLength * 0.8f), Color.red);
-        Debug.DrawRay(sensorStartPos, frontRight * (sensorLength * 0.8f), Color.red);
 
         bool CheckRay(Vector3 dir, float length)
         {
@@ -134,6 +129,10 @@ public class CarAI : MonoBehaviour
             {
                 if (hit.collider.transform.root == transform.root) return false;
                 if (hit.normal.y > 0.5f) return false;
+
+                // NOUVEAU : Si on traque le joueur, ON NE FREINE PAS devant lui !
+                if (chaseTarget != null && hit.collider.CompareTag("Player")) return false;
+
                 return true;
             }
             return false;
@@ -146,30 +145,17 @@ public class CarAI : MonoBehaviour
         if (hitCenter || hitLeft || hitRight)
         {
             obstacleTimer += Time.deltaTime;
-
-            // SI ÇA FAIT PLUS DE 1.5 SECONDE QU'ON EST BLOQUÉ -> MODE CONTOURNEMENT
             if (obstacleTimer > 1.5f)
             {
                 isAvoidingObstacle = true;
-                carController.moveInput = 0.4f; // On donne un petit coup de gaz pour forcer le passage
-
-                // On cherche la voie libre !
-                if (hitLeft && !hitRight) avoidDirection = 1f; // Obstacle à gauche ? Tourne à droite !
-                else if (hitRight && !hitLeft) avoidDirection = -1f; // Obstacle à droite ? Tourne à gauche !
-                else if (hitCenter) avoidDirection = 1f; // Par défaut, esquive par la droite
-
+                carController.moveInput = 0.4f;
+                if (hitLeft && !hitRight) avoidDirection = 1f;
+                else if (hitRight && !hitLeft) avoidDirection = -1f;
+                else if (hitCenter) avoidDirection = 1f;
                 carController.turnInput = Mathf.MoveTowards(carController.turnInput, avoidDirection, Time.deltaTime * steerSmoothing * 2f);
             }
-            else
-            {
-                // FREINAGE CLASSIQUE
-                isBraking = true;
-            }
+            else isBraking = true;
         }
-        else
-        {
-            // Voie libre !
-            obstacleTimer = 0f;
-        }
+        else obstacleTimer = 0f;
     }
 }
