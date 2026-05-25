@@ -13140,9 +13140,6 @@ MonoBehaviour:
   cleanMoney: 0
   wantedLevel: 0
   crimePoints: 0
-  evadeTimeRequired: 15
-  currentEvadeTimer: 0
-  isEvading: 0
 --- !u!4 &1403774075
 Transform:
   m_ObjectHideFlags: 0
@@ -13330,6 +13327,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PoliceManager
   copCarPrefab: {fileID: 6452960307185440482, guid: 4e02fecc53d13e94b9f5a05a847ee4d2, type: 3}
+  copPedestrianPrefab: {fileID: 1497394389711808643, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
   escapeTimer: 15
   baseTimeToEscape: 15
   isPlayerSpotted: 0
@@ -20051,7 +20049,8 @@ PrefabInstance:
       propertyPath: m_Name
       value: Rich_PNJ
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 4328779764877331323, guid: 78d176dce376f074f838aa691b28db93, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []

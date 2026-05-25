@@ -27,8 +27,7 @@ public class NPCBrain : MonoBehaviour
     public Transform firePoint;
     public float fireRate = 0.5f;
 
-    [Tooltip("Glisse ici ton Point Light pour l'éclair de tir")]
-    public Light muzzleFlashLight; // La lumière du coup de feu !
+    public Light muzzleFlashLight;
 
     private float nextFireTime = 0f;
     private Transform currentTarget;
@@ -61,11 +60,7 @@ public class NPCBrain : MonoBehaviour
             if (car != null) car.isDrivenByAI = true;
         }
 
-        // On s'assure que la lumière est éteinte au démarrage du jeu
-        if (muzzleFlashLight != null)
-        {
-            muzzleFlashLight.enabled = false;
-        }
+        if (muzzleFlashLight != null) muzzleFlashLight.enabled = false;
     }
 
     void Start()
@@ -109,10 +104,11 @@ public class NPCBrain : MonoBehaviour
                 if (role == NPCRole.Policier)
                 {
                     if (otherNPC != null && otherNPC.role == NPCRole.Gang) isEnemy = true;
-                    if (hit.CompareTag("Player") && GameManager.Instance != null && GameManager.Instance.wantedLevel > 0) isEnemy = true;
+
+                    // LE CORRECTIF EST ICI : Le bloc est maintenant bien rattaché au 'if' !
+                    if (hit.CompareTag("Player") && GameManager.Instance != null && GameManager.Instance.wantedLevel > 0)
                     {
                         isEnemy = true;
-                        // LE FLIC TE VOIT ! IL APPELLE DES RENFORTS SUR TA POSITION :
                         if (PoliceManager.Instance != null) PoliceManager.Instance.ReportPlayerSight(player.position);
                     }
                 }
@@ -145,6 +141,7 @@ public class NPCBrain : MonoBehaviour
             }
         }
 
+        // REPOS / TRAQUE
         if (role == NPCRole.Civil)
         {
             if (isSeeingPlayer && GameManager.Instance != null && GameManager.Instance.wantedLevel > 0) ChangeState(AIState.Fuite);
@@ -152,7 +149,11 @@ public class NPCBrain : MonoBehaviour
         }
         else if (role == NPCRole.Policier)
         {
-            if (GameManager.Instance != null && GameManager.Instance.wantedLevel == 0) ChangeState(AIState.Patrouille);
+            if (GameManager.Instance != null)
+            {
+                if (GameManager.Instance.wantedLevel == 0) ChangeState(AIState.Patrouille);
+                else ChangeState(AIState.Poursuite); // Traque le joueur même sans le voir !
+            }
         }
         else if (role == NPCRole.Gang)
         {
@@ -208,7 +209,6 @@ public class NPCBrain : MonoBehaviour
 
     private void CombatVehicle()
     {
-        // LA CORRECTION EST ICI : Si la voiture est détruite, on arrête de tirer et on panique !
         if (car != null && car.isEngineDead)
         {
             ChangeState(AIState.Panique);
@@ -227,20 +227,15 @@ public class NPCBrain : MonoBehaviour
             Vector3 aimDir = (currentTarget.position + Vector3.up * 1f) - firePoint.position;
             Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(aimDir));
 
-            // On lance l'effet d'éclair de bouche
-            if (muzzleFlashLight != null)
-            {
-                StartCoroutine(FlashMuzzleLight());
-            }
+            if (muzzleFlashLight != null) StartCoroutine(FlashMuzzleLight());
         }
     }
 
-    // La Coroutine qui allume et éteint la lumière super vite
     private IEnumerator FlashMuzzleLight()
     {
-        muzzleFlashLight.enabled = true; // Allume
-        yield return new WaitForSeconds(0.05f); // Attend 5 centièmes de seconde
-        muzzleFlashLight.enabled = false; // Éteint
+        muzzleFlashLight.enabled = true;
+        yield return new WaitForSeconds(0.05f);
+        muzzleFlashLight.enabled = false;
     }
 
     private void PatrolPedestrian()
@@ -272,11 +267,23 @@ public class NPCBrain : MonoBehaviour
 
     private void ChasePedestrian()
     {
-        if (agent != null && player != null && agent.isOnNavMesh) agent.SetDestination(player.position);
+        if (agent == null || !agent.isOnNavMesh) return;
+
+        if (isSeeingPlayer && player != null)
+        {
+            agent.SetDestination(player.position);
+        }
+        else if (PoliceManager.Instance != null)
+        {
+            // Le flic va fouiller la dernière position connue !
+            agent.SetDestination(PoliceManager.Instance.lastKnownPosition);
+        }
     }
 
     public void ForcePanic()
     {
+        if (role != NPCRole.Civil) return; // NOUVEAU : Les flics et gangs n'ont plus peur des balles !
+
         ChangeState(AIState.Panique);
         if (locomotion == Locomotion.Pieton && agent != null) FleePedestrian();
     }

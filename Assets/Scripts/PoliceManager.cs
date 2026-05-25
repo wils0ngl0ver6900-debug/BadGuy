@@ -8,7 +8,7 @@ public class PoliceManager : MonoBehaviour
 
     [Header("Ressources (Prefabs) 🚓")]
     public GameObject copCarPrefab;
-    public GameObject copPedestrianPrefab; // NOUVEAU : Le flic à pied !
+    public GameObject copPedestrianPrefab;
 
     [Header("Paramètres de Fuite 🚔")]
     public float escapeTimer = 0f;
@@ -87,7 +87,7 @@ public class PoliceManager : MonoBehaviour
 
             if (escapeTimer <= 0)
             {
-                GameManager.Instance.LoseCops(); // On appelle la fonction propre du GameManager
+                GameManager.Instance.LoseCops();
                 lastStars = 0;
             }
         }
@@ -142,20 +142,24 @@ public class PoliceManager : MonoBehaviour
         {
             TrafficNode spawnNode = validNodes[Random.Range(0, validNodes.Count)];
 
-            // NOUVEAU : 40% de chance de faire spawn un flic à pied, 60% une voiture
             bool spawnPedestrian = (copPedestrianPrefab != null && Random.value < 0.4f);
 
             if (spawnPedestrian)
             {
-                // On s'assure qu'il spawn bien sur le sol pour ne pas passer à travers la map
+                // CORRECTIF : On cherche très large autour de la route pour trouver un bout de trottoir
                 UnityEngine.AI.NavMeshHit hit;
-                if (UnityEngine.AI.NavMesh.SamplePosition(spawnNode.transform.position, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+                if (UnityEngine.AI.NavMesh.SamplePosition(spawnNode.transform.position, out hit, 15f, UnityEngine.AI.NavMesh.AllAreas))
                 {
                     GameObject cop = Instantiate(copPedestrianPrefab, hit.position, Quaternion.identity);
+                    NPCBrain ai = cop.GetComponent<NPCBrain>();
+                    if (ai != null) ai.currentTrafficNode = spawnNode;
                     activeCops.Add(cop);
+                    return; // Succès !
                 }
             }
-            else if (copCarPrefab != null)
+
+            // Si le piéton n'a pas pu spawn, on envoie une voiture
+            if (copCarPrefab != null)
             {
                 GameObject cop = Instantiate(copCarPrefab, spawnNode.transform.position, spawnNode.transform.rotation);
                 CarAI ai = cop.GetComponent<CarAI>();
