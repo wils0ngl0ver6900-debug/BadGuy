@@ -8,6 +8,7 @@ public class Bullet : MonoBehaviour
 
     [HideInInspector] public int damage;
     [HideInInspector] public bool isEnemyBullet = false;
+    [HideInInspector] public GameObject shooter; // NOUVEAU : Identifie qui a tiré
 
     void Start()
     {
@@ -18,6 +19,13 @@ public class Bullet : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         if (other.isTrigger) return;
+
+        // --- CORRECTION MAGIQUE ICI ---
+        // Si la balle touche la personne qui a tiré (ou un de ses colliders enfants), on l'ignore !
+        if (shooter != null)
+        {
+            if (other.gameObject == shooter || other.transform.IsChildOf(shooter.transform)) return;
+        }
 
         // 1. SI LA BALLE TOUCHE LE JOUEUR (On cherche directement le PlayerController)
         PlayerController pc = other.GetComponentInParent<PlayerController>();
@@ -43,7 +51,7 @@ public class Bullet : MonoBehaviour
             if (UIManager.Instance != null) UIManager.Instance.UpdateHealthDisplay((int)pc.currentHealth, (int)pc.maxHealth);
 
             Destroy(gameObject);
-            return; // IMPORTANT : On détruit la balle ici pour éviter que d'autres scripts affichent "-0 PV" !
+            return; // On détruit la balle ici
         }
 
         // 2. SI LA BALLE TOUCHE UN PNJ ENNEMI

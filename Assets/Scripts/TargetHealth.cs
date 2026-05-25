@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.AI;
 
 public class TargetHealth : MonoBehaviour
 {
@@ -6,25 +7,29 @@ public class TargetHealth : MonoBehaviour
     private int currentHealth;
 
     [Header("Système de Butin (Loot) 💰")]
-    public GameObject lootPrefab; // Le modèle 3D du sac/boîte par terre
-    public ItemData[] possibleDrops; // Liste des objets qu'il peut faire tomber
-    [Range(0, 100)] public int dropChance = 50; // % de chance qu'il fasse tomber un truc
+    public GameObject lootPrefab;
+    public ItemData[] possibleDrops;
+    [Range(0, 100)] public int dropChance = 50;
+
+    private bool isDead = false;
 
     void Start()
     {
         currentHealth = maxHealth;
+        DisableRagdoll();
     }
 
     public void TakeDamage(int amount)
     {
-        // NOUVEAU : On utilise le Cerveau (NPCBrain) au lieu de WanderingNPC
+        if (isDead) return;
+
         NPCBrain npc = GetComponent<NPCBrain>();
-        if (npc != null) npc.ForcePanic(); // Si c'est un civil qui prend une balle, il panique direct !
+        if (npc != null) npc.ForcePanic();
 
         currentHealth -= amount;
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"Touché ! -{amount} PV");
 
-        if (GameManager.Instance != null) GameManager.Instance.ReportCrime(20); // FIX : Nouveau système d'étoiles
+        if (GameManager.Instance != null) GameManager.Instance.ReportCrime(20);
 
         if (currentHealth <= 0)
         {
@@ -34,44 +39,75 @@ public class TargetHealth : MonoBehaviour
 
     void Die()
     {
+        isDead = true;
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Cible éliminée !");
 
-        if (GameManager.Instance != null)
-            GameManager.Instance.ReportCrime(40); // FIX : Nouveau système d'étoiles
+        if (GameManager.Instance != null) GameManager.Instance.ReportCrime(40);
 
-        // ---> VÉRIFICATION GUERRE DE GANG <---
         GangObjective gangObj = GetComponent<GangObjective>();
-        if (gangObj != null)
-        {
-            gangObj.CompleteObjective();
-        }
+        if (gangObj != null) gangObj.CompleteObjective();
 
-        // --- VÉRIFICATION DU CONTRAT ---
-        if (ContractManager.Instance != null)
-        {
-            ContractManager.Instance.CompleteContract(ContractManager.ContractType.Hitman);
-        }
+        if (ContractManager.Instance != null) ContractManager.Instance.CompleteContract(ContractManager.ContractType.Hitman);
 
         SpawnLoot();
-        Destroy(gameObject);
+
+        EnableRagdoll();
+
+        Destroy(gameObject, 15f);
+    }
+
+    private void DisableRagdoll()
+    {
+        Rigidbody[] rbs = GetComponentsInChildren<Rigidbody>();
+        foreach (Rigidbody rb in rbs)
+        {
+            if (rb.gameObject == this.gameObject) continue;
+            rb.isKinematic = true;
+        }
+    }
+
+    private void EnableRagdoll()
+    {
+        // 1. Désactive les composants "vivants"
+        Animator anim = GetComponentInChildren<Animator>();
+        if (anim != null) anim.enabled = false;
+
+        NavMeshAgent agent = GetComponent<NavMeshAgent>();
+        if (agent != null) agent.enabled = false;
+
+        NPCBrain brain = GetComponent<NPCBrain>();
+        if (brain != null)
+        {
+            // LE CORRECTIF EST ICI : On coupe brutalement le cerveau et l'action de tir !
+            brain.StopAllCoroutines();
+            brain.enabled = false;
+        }
+
+        Collider mainCollider = GetComponent<Collider>();
+        if (mainCollider != null) mainCollider.enabled = false;
+
+        // 2. Active la physique des membres (Ragdoll)
+        Rigidbody[] rbs = GetComponentsInChildren<Rigidbody>();
+        foreach (Rigidbody rb in rbs)
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
+
+            rb.AddForce(-transform.forward * 5f + Vector3.up * 2f, ForceMode.Impulse);
+        }
     }
 
     void SpawnLoot()
     {
         if (lootPrefab != null && possibleDrops.Length > 0)
         {
-            int random = Random.Range(0, 100);
-
-            if (random < dropChance)
+            if (Random.Range(0, 100) < dropChance)
             {
                 ItemData droppedItem = possibleDrops[Random.Range(0, possibleDrops.Length)];
                 GameObject loot = Instantiate(lootPrefab, transform.position + Vector3.up * 0.5f, Quaternion.identity);
 
                 LootItem lootScript = loot.GetComponent<LootItem>();
-                if (lootScript != null)
-                {
-                    lootScript.itemToGive = droppedItem;
-                }
+                if (lootScript != null) lootScript.itemToGive = droppedItem;
             }
         }
     }

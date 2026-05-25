@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using System.Collections; // INDISPENSABLE pour utiliser les Coroutines (les timers)
+using System.Collections;
 
 public class PlayerCombat : MonoBehaviour
 {
@@ -8,8 +8,8 @@ public class PlayerCombat : MonoBehaviour
     public Transform firePoint;
 
     [Header("Effets Visuels 💥")]
-    public Light muzzleFlashLight; // La fameuse lumière du canon
-    public float flashDuration = 0.05f; // Durée du flash (très court !)
+    public Light muzzleFlashLight;
+    public float flashDuration = 0.05f;
 
     [Header("Munitions")]
     public int currentAmmo;
@@ -17,7 +17,6 @@ public class PlayerCombat : MonoBehaviour
 
     void Start()
     {
-        // On s'assure que la lumière est éteinte au début du jeu
         if (muzzleFlashLight != null)
         {
             muzzleFlashLight.enabled = false;
@@ -34,13 +33,13 @@ public class PlayerCombat : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.R) && !Cursor.visible)
         {
             Reload();
-            
-            if (Input.GetKeyDown(KeyCode.Alpha1)) // Ou ta touche de sélection
+
+            if (Input.GetKeyDown(KeyCode.Alpha1))
             {
                 ItemData weapon = HotbarManager.Instance.GetEquippedItem();
                 if (weapon != null && weapon.isWeapon && weapon.isIllegal)
                 {
-                    GameManager.Instance.ReportCrime(5); // Petit gain pour exhibition
+                    GameManager.Instance.ReportCrime(5);
                 }
             }
         }
@@ -48,7 +47,7 @@ public class PlayerCombat : MonoBehaviour
 
     void AttemptShoot()
     {
-        if (Time.time < nextFireTime) return; // Empêche de tirer trop vite
+        if (Time.time < nextFireTime) return;
 
         ItemData weapon = HotbarManager.Instance.GetEquippedItem();
 
@@ -60,48 +59,37 @@ public class PlayerCombat : MonoBehaviour
                 return;
             }
 
-            // On consomme une balle
             currentAmmo--;
             nextFireTime = Time.time + weapon.fireRate;
 
-            // On fait apparaître la balle physique
             if (weapon.bulletPrefab != null && firePoint != null)
             {
-                // --- NOUVEAU : Calcul de la VISÉE CORRECTIVE 🎯 ---
-
-                // 1. On trouve où la souris pointe EXACTEMENT sur le sol
                 Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                // Crée un sol plat imaginaire à la hauteur du joueur pour la visée
                 Plane groundPlane = new Plane(Vector3.up, new Vector3(0, transform.position.y, 0));
 
                 if (groundPlane.Raycast(ray, out float distance))
                 {
-                    // C'est le point d'impact idéal que le joueur VOUDRAIT toucher
                     Vector3 targetPoint = ray.GetPoint(distance);
-
-                    // 2. On calcule la direction corrective : (Target - Canon)
                     Vector3 correctiveDirection = (targetPoint - firePoint.position).normalized;
-
-                    // On ne veut pas que la balle pique vers le sol, on garde Y plat (optionnel mais recommandé en top down)
                     correctiveDirection.y = 0;
 
-                    // 3. On crée la balle avec cette rotation CORRECTIVE (et pas firePoint.rotation)
                     GameObject newBullet = Instantiate(weapon.bulletPrefab, firePoint.position, Quaternion.LookRotation(correctiveDirection));
 
-                    // On transmet les dégâts de l'arme à la balle
                     Bullet bulletScript = newBullet.GetComponent<Bullet>();
-                    if (bulletScript != null) bulletScript.damage = weapon.damage;
+                    if (bulletScript != null)
+                    {
+                        bulletScript.damage = weapon.damage;
+                        bulletScript.shooter = this.gameObject; // <--- SÉCURITÉ DU JOUEUR ICI
+                    }
 
-                    // ---> DÉCLENCHE LE FLASH DE LUMIÈRE <---
                     if (muzzleFlashLight != null)
-                        GameManager.Instance.ReportCrime(10); // Tirer fait monter la notoriété
+                        GameManager.Instance.ReportCrime(10);
                     {
                         StartCoroutine(ShowMuzzleFlash());
                     }
                 }
             }
 
-            // On met à jour l'affichage HUD permanent (Solution Pro)
             UIManager.Instance.UpdateAmmoDisplay(currentAmmo, weapon.maxAmmo, true);
         }
     }
@@ -113,17 +101,14 @@ public class PlayerCombat : MonoBehaviour
         {
             currentAmmo = weapon.maxAmmo;
             UIManager.Instance.ShowNotification("Rechargement terminé !");
-
-            // ✅ AJOUTE CETTE LIGNE :
             UIManager.Instance.UpdateAmmoDisplay(currentAmmo, weapon.maxAmmo, true);
         }
     }
 
-    // --- LA FONCTION MAGIQUE POUR LE FLASH ---
     private IEnumerator ShowMuzzleFlash()
     {
-        muzzleFlashLight.enabled = true; // Allume la lumière
-        yield return new WaitForSeconds(flashDuration); // Attend 0.05 secondes
-        muzzleFlashLight.enabled = false; // Éteint la lumière
+        muzzleFlashLight.enabled = true;
+        yield return new WaitForSeconds(flashDuration);
+        muzzleFlashLight.enabled = false;
     }
 }

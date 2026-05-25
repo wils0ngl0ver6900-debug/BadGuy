@@ -242,14 +242,12 @@ public class NPCBrain : MonoBehaviour
 
         if (currentTarget == null) { ChangeState(AIState.Patrouille); return; }
 
-        // CORRECTIF : Si c'est une voiture de police et que le conducteur est déjà descendu, elle ne tire plus
         if (role == NPCRole.Policier && hasSpawnedCops)
         {
             ChaseVehicle();
             return;
         }
 
-        // Sinon, le comportement normal s'applique (tir + poursuite)
         ShootAtTarget();
         ChaseVehicle();
     }
@@ -268,6 +266,7 @@ public class NPCBrain : MonoBehaviour
             {
                 b.isEnemyBullet = true;
                 b.damage = attackDamage;
+                b.shooter = this.gameObject; // <--- C'EST ICI : On donne l'identité du tireur à la balle
             }
 
             if (muzzleFlashLight != null) StartCoroutine(FlashMuzzleLight());
