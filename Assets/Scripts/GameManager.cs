@@ -125,7 +125,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // --- SÉQUENCES DE FIN FINALES ---
+    // --- SÉQUENCES DE FIN MINUTÉES ---
 
     public void Busted()
     {
@@ -150,14 +150,17 @@ public class GameManager : MonoBehaviour
         PlayerController pc = FindObjectOfType<PlayerController>();
         if (pc != null) pc.enabled = false;
 
+        // 1. On te laisse réaliser l'action pendant 3 secondes
         yield return new WaitForSeconds(3f);
 
-        // Activation de l'écran noir dynamique généré par l'UI
+        // 2. FONDU AU NOIR TRÈS RAPIDE (0.3 seconde)
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
             UIManager.Instance.transitionPanel.SetActive(true);
+            yield return StartCoroutine(UIManager.Instance.FadeToBlack(0.3f));
         }
 
+        // 3. NETTOYAGE PENDANT QUE L'ÉCRAN EST NOIR
         if (isBusted)
         {
             dirtyMoney = 0;
@@ -176,8 +179,10 @@ public class GameManager : MonoBehaviour
 
         if (PoliceManager.Instance != null) PoliceManager.Instance.DespawnAllCops();
 
-        yield return new WaitForSeconds(2f);
+        // 4. SUSPENSE DANS LE NOIR ABSOLU (2.5 secondes au lieu de 1s)
+        yield return new WaitForSeconds(2.5f);
 
+        // 5. TÉLÉPORTATION DU JOUEUR (L'écran est toujours 100% noir)
         if (pc != null)
         {
             Transform targetPoint = isBusted ? policeStationSpawnPoint : hospitalSpawnPoint;
@@ -192,8 +197,14 @@ public class GameManager : MonoBehaviour
             pc.enabled = true;
         }
 
+        // 6. PAUSE DE STABILISATION (0.5s)
+        // Permet à la caméra et à la physique de se mettre à jour sans effet visuel de "glissade"
+        yield return new WaitForSeconds(0.5f);
+
+        // 7. FONDU DE RÉVEIL LENT ET CINÉMATIQUE (2 secondes)
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
+            yield return StartCoroutine(UIManager.Instance.FadeToClear(2f));
             UIManager.Instance.transitionPanel.SetActive(false);
         }
 

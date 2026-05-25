@@ -164,21 +164,28 @@ public class PoliceManager : MonoBehaviour
         return bestNode;
     }
 
-    // --- LE NETTOYEUR INVISIBLE ---
+    // --- NETTOYAGE SÉLECTIF ET INVISIBLE ---
     public void DespawnAllCops()
     {
+        // 1. On détruit uniquement les renforts dynamiques (voitures + flics embarqués)
         foreach (GameObject cop in activeCops)
         {
             if (cop != null) Destroy(cop);
         }
         activeCops.Clear();
 
+        // 2. On scanne la scène pour nettoyer les flics placés à la main UNIQUEMENT s'ils sont morts
         NPCBrain[] allNPCs = FindObjectsOfType<NPCBrain>();
         foreach (NPCBrain npc in allNPCs)
         {
-            if (npc.role == NPCBrain.NPCRole.Policier)
+            if (npc != null && npc.role == NPCBrain.NPCRole.Policier)
             {
-                Destroy(npc.gameObject);
+                TargetHealth health = npc.GetComponent<TargetHealth>();
+                // S'il a un script de vie et qu'il est marqué comme mort, on le supprime
+                if (health != null && health.isDead)
+                {
+                    Destroy(npc.gameObject);
+                }
             }
         }
 

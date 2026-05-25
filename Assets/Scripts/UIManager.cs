@@ -37,7 +37,8 @@ public class UIManager : MonoBehaviour
     public Slider qteSlider;
 
     [Header("Écran Noir (Transition) 🎬")]
-    public GameObject transitionPanel; // Plus besoin de le glisser obligatoirement dans l'inspecteur !
+    public GameObject transitionPanel;
+    private CanvasGroup transitionCanvasGroup; // Le secret du fondu !
 
     private Coroutine notificationCoroutine;
 
@@ -48,7 +49,6 @@ public class UIManager : MonoBehaviour
 
     void Start()
     {
-        // Génération automatique et propre de l'écran noir de transition
         SetupTransitionPanel();
 
         UpdateHUD();
@@ -62,19 +62,27 @@ public class UIManager : MonoBehaviour
         if (textDistrictControl != null) textDistrictControl.gameObject.SetActive(false);
     }
 
-    // --- CRÉATION PROGRAMMATIQUE DE L'ÉCRAN NOIR ---
+    // --- CRÉATION DE L'ÉCRAN NOIR DANS LE CANVAS ---
     private void SetupTransitionPanel()
     {
-        // Si tu en as glissé un manuellement, on garde le tien
-        if (transitionPanel != null) return;
+        if (transitionPanel != null)
+        {
+            transitionCanvasGroup = transitionPanel.GetComponent<CanvasGroup>();
+            if (transitionCanvasGroup == null) transitionCanvasGroup = transitionPanel.AddComponent<CanvasGroup>();
+            return;
+        }
 
-        // Sinon, on crée un panneau noir full stretch à la volée sous le Canvas
+        // CORRECTIF : On cherche le Canvas principal de ta scène !
+        Canvas mainCanvas = FindObjectOfType<Canvas>();
+        if (mainCanvas == null) return;
+
         GameObject panelObj = new GameObject("DynamicTransitionPanel");
-        panelObj.transform.SetParent(this.transform, false);
+        // On place l'image DANS le Canvas, sinon elle est invisible !
+        panelObj.transform.SetParent(mainCanvas.transform, false);
 
         Image bgImage = panelObj.AddComponent<Image>();
         bgImage.color = Color.black;
-        bgImage.raycastTarget = true; // Bloque les clics de souris pendant l'écran noir
+        bgImage.raycastTarget = false;
 
         RectTransform rect = panelObj.GetComponent<RectTransform>();
         rect.anchorMin = Vector2.zero;
@@ -82,17 +90,52 @@ public class UIManager : MonoBehaviour
         rect.sizeDelta = Vector2.zero;
         rect.anchoredPosition = Vector2.zero;
 
-        // Force l'écran noir à passer par-dessus toutes les autres interfaces du HUD
-        rect.SetAsLastSibling();
+        transitionCanvasGroup = panelObj.AddComponent<CanvasGroup>();
+        transitionCanvasGroup.alpha = 0f; // Invisible au début
+        transitionCanvasGroup.blocksRaycasts = false;
+        transitionCanvasGroup.interactable = false;
+
+        rect.SetAsLastSibling(); // Met l'écran noir par-dessus tout le reste
 
         transitionPanel = panelObj;
-        transitionPanel.SetActive(false); // Reste masqué par défaut
     }
+
+    // --- LES FONCTIONS DE FONDU ---
+    public IEnumerator FadeToBlack(float duration)
+    {
+        if (transitionCanvasGroup == null) yield break;
+
+        transitionCanvasGroup.blocksRaycasts = true; // Bloque les clics de souris
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            transitionCanvasGroup.alpha = Mathf.Clamp01(elapsed / duration);
+            yield return null;
+        }
+        transitionCanvasGroup.alpha = 1f;
+    }
+
+    public IEnumerator FadeToClear(float duration)
+    {
+        if (transitionCanvasGroup == null) yield break;
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            transitionCanvasGroup.alpha = 1f - Mathf.Clamp01(elapsed / duration);
+            yield return null;
+        }
+        transitionCanvasGroup.alpha = 0f;
+        transitionCanvasGroup.blocksRaycasts = false; // Libère la souris
+    }
+
+    // ... (Le reste de tes fonctions UIManager habituelles) ...
 
     public void UpdateHUD()
     {
         if (GameManager.Instance == null) return;
-
         if (textDirtyMoney != null) textDirtyMoney.text = $"Argent Sale: {GameManager.Instance.dirtyMoney}$";
         if (textCleanMoney != null) textCleanMoney.text = $"Argent Propre: {GameManager.Instance.cleanMoney}$";
 
@@ -103,10 +146,8 @@ public class UIManager : MonoBehaviour
 
             for (int i = 1; i <= 5; i++)
             {
-                if (i <= GameManager.Instance.wantedLevel)
-                    stars += $"{activeColor}★</color> ";
-                else
-                    stars += "<color=#444444>★</color> ";
+                if (i <= GameManager.Instance.wantedLevel) stars += $"{activeColor}★</color> ";
+                else stars += "<color=#444444>★</color> ";
             }
             textNotoriety.text = stars;
         }
@@ -230,7 +271,6 @@ public class UIManager : MonoBehaviour
         if (TerritoryManager.Instance != null && TerritoryManager.Instance.currentDistrictName != "Inconnu")
         {
             var d = TerritoryManager.Instance.cityDistricts.Find(x => x.districtName == TerritoryManager.Instance.currentDistrictName);
-
             if (d != null && textDistrictControl != null)
             {
                 textDistrictControl.text = $"[{d.playerControlPercentage}%]";
@@ -250,7 +290,6 @@ public class UIManager : MonoBehaviour
             textDistrictName.text = name.ToUpper();
             textDistrictName.gameObject.SetActive(true);
         }
-
         UpdateDistrictControlHUD();
     }
 
