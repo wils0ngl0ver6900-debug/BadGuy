@@ -5,7 +5,7 @@ public class CarAI : MonoBehaviour
 {
     [Header("Navigation routière")]
     public TrafficNode currentNode;
-    public float waypointThreshold = 5f; // Recommandé : 5 pour les camions
+    public float waypointThreshold = 5f;
 
     [Header("Détection d'obstacles (Les Yeux)")]
     public float sensorLength = 6f;
@@ -19,8 +19,13 @@ public class CarAI : MonoBehaviour
     private Rigidbody rb;
     private bool isBraking = false;
 
+    // Systèmes de Secours (Blocage et Contournement)
     private float stuckTimer = 0f;
     private bool isReversing = false;
+
+    private float obstacleTimer = 0f;
+    private float avoidDirection = 1f;
+    private bool isAvoidingObstacle = false;
 
     void Start()
     {
@@ -45,6 +50,9 @@ public class CarAI : MonoBehaviour
 
         carController.isHandbraking = false;
 
+        // Si on est en train de contourner un obstacle, on ignore le chemin classique temporairement
+        if (isAvoidingObstacle) return;
+
         if (currentNode != null) Drive();
     }
 
@@ -52,7 +60,6 @@ public class CarAI : MonoBehaviour
     {
         float dist = Vector3.Distance(transform.position, currentNode.transform.position);
 
-        // Validation du noeud de trafic
         if (dist < waypointThreshold)
         {
             if (currentNode.nextNodes.Count > 0)
@@ -63,12 +70,12 @@ public class CarAI : MonoBehaviour
         float angle = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
         float targetTurn = Mathf.Clamp(angle / 45f, -1f, 1f);
 
-        // Système Anti-Blocage
-        if (rb.linearVelocity.magnitude < 0.5f)
+        // Système Anti-Blocage Total (Marche Arrière)
+        if (rb.linearVelocity.magnitude < 0.5f && !isAvoidingObstacle)
         {
             stuckTimer += Time.deltaTime;
-            if (stuckTimer > 2.5f) isReversing = true;
-            if (stuckTimer > 5f)
+            if (stuckTimer > 3f) isReversing = true;
+            if (stuckTimer > 6f)
             {
                 isReversing = false;
                 stuckTimer = 0f;
@@ -87,38 +94,35 @@ public class CarAI : MonoBehaviour
             return;
         }
 
-        // Le volant tourne vers la cible
         carController.turnInput = Mathf.MoveTowards(carController.turnInput, targetTurn, Time.deltaTime * steerSmoothing);
 
-        // --- NOUVELLE LOGIQUE DE VIRAGE PRO (Freinage et Filet de gaz) ---
         float angleAbs = Mathf.Abs(angle);
         float currentSpeed = rb.linearVelocity.magnitude;
 
         if (angleAbs > 30f && currentSpeed > 10f)
         {
-            // VIRAGE BRUTAL + VITESSE ÉLEVÉE : L'IA écrase le frein !
             carController.moveInput = -0.8f;
         }
         else if (angleAbs > 15f)
         {
-            // VIRAGE CLASSIQUE : Filet de gaz (40%) pour garder de l'élan sans déborder
             carController.moveInput = 0.40f;
         }
         else
         {
-            // LIGNE DROITE : On accélère à fond (proportionnellement à la ligne droite)
             carController.moveInput = 1f - (Mathf.Abs(carController.turnInput) * 0.2f);
         }
     }
 
     void CheckSensors()
     {
+        isAvoidingObstacle = false;
         isBraking = false;
+
         Vector3 sensorStartPos = transform.position + (transform.forward * sensorFrontOffset) + (Vector3.up * 0.5f);
 
         Vector3 frontCenter = transform.forward;
-        Vector3 frontLeft = Quaternion.Euler(0, -25, 0) * transform.forward;
-        Vector3 frontRight = Quaternion.Euler(0, 25, 0) * transform.forward;
+        Vector3 frontLeft = Quaternion.Euler(0, -35, 0) * transform.forward; // J'ai écarté un peu les capteurs (35 degrés)
+        Vector3 frontRight = Quaternion.Euler(0, 35, 0) * transform.forward;
 
         Debug.DrawRay(sensorStartPos, frontCenter * sensorLength, Color.red);
         Debug.DrawRay(sensorStartPos, frontLeft * (sensorLength * 0.8f), Color.red);
@@ -126,8 +130,7 @@ public class CarAI : MonoBehaviour
 
         bool CheckRay(Vector3 dir, float length)
         {
-            RaycastHit hit;
-            if (Physics.Raycast(sensorStartPos, dir, out hit, length, obstacleMask))
+            if (Physics.Raycast(sensorStartPos, dir, out RaycastHit hit, length, obstacleMask))
             {
                 if (hit.collider.transform.root == transform.root) return false;
                 if (hit.normal.y > 0.5f) return false;
@@ -136,11 +139,37 @@ public class CarAI : MonoBehaviour
             return false;
         }
 
-        if (CheckRay(frontCenter, sensorLength) ||
-            CheckRay(frontLeft, sensorLength * 0.8f) ||
-            CheckRay(frontRight, sensorLength * 0.8f))
+        bool hitCenter = CheckRay(frontCenter, sensorLength);
+        bool hitLeft = CheckRay(frontLeft, sensorLength * 0.8f);
+        bool hitRight = CheckRay(frontRight, sensorLength * 0.8f);
+
+        if (hitCenter || hitLeft || hitRight)
         {
-            isBraking = true;
+            obstacleTimer += Time.deltaTime;
+
+            // SI ÇA FAIT PLUS DE 1.5 SECONDE QU'ON EST BLOQUÉ -> MODE CONTOURNEMENT
+            if (obstacleTimer > 1.5f)
+            {
+                isAvoidingObstacle = true;
+                carController.moveInput = 0.4f; // On donne un petit coup de gaz pour forcer le passage
+
+                // On cherche la voie libre !
+                if (hitLeft && !hitRight) avoidDirection = 1f; // Obstacle à gauche ? Tourne à droite !
+                else if (hitRight && !hitLeft) avoidDirection = -1f; // Obstacle à droite ? Tourne à gauche !
+                else if (hitCenter) avoidDirection = 1f; // Par défaut, esquive par la droite
+
+                carController.turnInput = Mathf.MoveTowards(carController.turnInput, avoidDirection, Time.deltaTime * steerSmoothing * 2f);
+            }
+            else
+            {
+                // FREINAGE CLASSIQUE
+                isBraking = true;
+            }
+        }
+        else
+        {
+            // Voie libre !
+            obstacleTimer = 0f;
         }
     }
 }

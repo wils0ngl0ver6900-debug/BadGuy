@@ -28,7 +28,7 @@ public class NPCBrain : MonoBehaviour
     public float fireRate = 0.5f;
 
     [Tooltip("Glisse ici ton Point Light pour l'éclair de tir")]
-    public Light muzzleFlashLight; // NOUVEAU : La lumière du coup de feu !
+    public Light muzzleFlashLight; // La lumière du coup de feu !
 
     private float nextFireTime = 0f;
     private Transform currentTarget;
@@ -61,7 +61,7 @@ public class NPCBrain : MonoBehaviour
             if (car != null) car.isDrivenByAI = true;
         }
 
-        // NOUVEAU : On s'assure que la lumière est éteinte au démarrage du jeu
+        // On s'assure que la lumière est éteinte au démarrage du jeu
         if (muzzleFlashLight != null)
         {
             muzzleFlashLight.enabled = false;
@@ -203,6 +203,13 @@ public class NPCBrain : MonoBehaviour
 
     private void CombatVehicle()
     {
+        // LA CORRECTION EST ICI : Si la voiture est détruite, on arrête de tirer et on panique !
+        if (car != null && car.isEngineDead)
+        {
+            ChangeState(AIState.Panique);
+            return;
+        }
+
         if (currentTarget == null) { ChangeState(AIState.Patrouille); return; }
         ShootAtTarget();
     }
@@ -215,7 +222,7 @@ public class NPCBrain : MonoBehaviour
             Vector3 aimDir = (currentTarget.position + Vector3.up * 1f) - firePoint.position;
             Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(aimDir));
 
-            // NOUVEAU : On lance l'effet d'éclair de bouche
+            // On lance l'effet d'éclair de bouche
             if (muzzleFlashLight != null)
             {
                 StartCoroutine(FlashMuzzleLight());
@@ -223,7 +230,7 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
-    // NOUVEAU : La Coroutine qui allume et éteint la lumière super vite
+    // La Coroutine qui allume et éteint la lumière super vite
     private IEnumerator FlashMuzzleLight()
     {
         muzzleFlashLight.enabled = true; // Allume

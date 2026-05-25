@@ -16,8 +16,8 @@ public class TerritoryManager : MonoBehaviour
         public bool rivalGangDefeated = false;
 
         [Header("Guerre de Territoire ⚔️")]
-        public int sabotagesDone = 0;      // Objectif : 3
-        public int lieutenantsKilled = 0;  // Objectif : 3
+        public int sabotagesDone = 0;
+        public int lieutenantsKilled = 0;
 
         [Header("Progression du Contrôle 📈")]
         [Range(0, 100)] public int playerControlPercentage = 0;
@@ -73,7 +73,6 @@ public class TerritoryManager : MonoBehaviour
         }
     }
 
-    // --- LE MOTEUR DE LA GUERRE DE GANGS ---
     public void RegisterObjectiveCompletion(string district, GangObjective.ObjectiveType type)
     {
         District d = cityDistricts.Find(x => x.districtName == district);
@@ -183,5 +182,16 @@ public class TerritoryManager : MonoBehaviour
                     UIManager.Instance.ShowNotification($"<color=yellow>Réseau criminel ({activeWorkersCount} équipes) : +{totalIncome}$ (Argent sale)</color>");
             }
         }
+    }
+
+    // NOUVEAU : Fonction qui dit au reste du jeu qui contrôle le quartier actuel !
+    public Faction GetDominantFactionInCurrentDistrict()
+    {
+        District d = cityDistricts.Find(x => x.districtName == currentDistrictName);
+        if (d != null && !d.rivalGangDefeated)
+        {
+            return d.rivalGang; // Renvoie le gang ennemi si le quartier n'est pas encore conquis
+        }
+        return Faction.None; // Renvoie "None" si c'est au joueur ou vide
     }
 }

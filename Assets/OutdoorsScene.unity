@@ -1007,8 +1007,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 844fdd7f60ac3c343a8693765682fefd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RandomEventManager
-  minTimeBetweenEvents: 5
-  maxTimeBetweenEvents: 10
+  minTimeBetweenEvents: 500
+  maxTimeBetweenEvents: 100
   minSpawnRadius: 25
   maxSpawnRadius: 60
   copCarPrefab: {fileID: 6452960307185440482, guid: 4e02fecc53d13e94b9f5a05a847ee4d2, type: 3}

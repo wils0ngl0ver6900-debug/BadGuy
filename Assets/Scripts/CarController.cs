@@ -43,8 +43,8 @@ public class CarController : MonoBehaviour
     [HideInInspector] public bool isHandbraking = false;
 
     private Rigidbody rb;
-    private bool isEngineDead = false;
-    private float spawnProtectionTimer = 2f; // NOUVEAU : 2 secondes d'invincibilité au spawn !
+    [HideInInspector] public bool isEngineDead = false;
+    private float spawnProtectionTimer = 2f; // 2 secondes d'invincibilité au spawn !
 
     void Start()
     {
@@ -238,6 +238,39 @@ public class CarController : MonoBehaviour
         }
     }
 
+    // ==========================================
+    // SYSTÈME DE DÉGÂTS (Crash & Balles)
+    // ==========================================
+    public void TakeDamage(float amount)
+    {
+        if (isEngineDead || spawnProtectionTimer > 0f) return;
+
+        currentHealth = Mathf.Clamp(currentHealth - amount, 0, maxHealth);
+
+        if (currentHealth <= 0)
+        {
+            Die();
+        }
+    }
+
+    private void Die()
+    {
+        isEngineDead = true; // Verrouille la voiture
+
+        if (isDrivenByPlayer && UIManager.Instance != null)
+        {
+            UIManager.Instance.ShowNotification("<color=red>Moteur détruit ! Véhicule HS.</color>");
+        }
+
+        // Apparition de la fumée noire
+        if (smokeEffectPrefab != null && hoodPosition != null)
+        {
+            GameObject smoke = Instantiate(smokeEffectPrefab, hoodPosition);
+            smoke.transform.localPosition = Vector3.zero;
+            smoke.transform.localRotation = smokeEffectPrefab.transform.rotation;
+        }
+    }
+
     private void OnCollisionEnter(Collision collision)
     {
         // Si la voiture vient juste d'apparaître, elle est invincible !
@@ -250,24 +283,7 @@ public class CarController : MonoBehaviour
         if (impactForce > 6f)
         {
             float damage = impactForce * 1.5f;
-            currentHealth = Mathf.Clamp(currentHealth - damage, 0, maxHealth);
-
-            if (currentHealth <= 0 && !isEngineDead)
-            {
-                isEngineDead = true;
-
-                if (isDrivenByPlayer && UIManager.Instance != null)
-                {
-                    UIManager.Instance.ShowNotification("<color=red>Moteur détruit ! Véhicule HS.</color>");
-                }
-
-                if (smokeEffectPrefab != null && hoodPosition != null)
-                {
-                    GameObject smoke = Instantiate(smokeEffectPrefab, hoodPosition);
-                    smoke.transform.localPosition = Vector3.zero;
-                    smoke.transform.localRotation = smokeEffectPrefab.transform.rotation;
-                }
-            }
+            TakeDamage(damage); // On utilise la nouvelle fonction publique !
         }
     }
 }
