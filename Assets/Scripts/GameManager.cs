@@ -150,17 +150,14 @@ public class GameManager : MonoBehaviour
         PlayerController pc = FindObjectOfType<PlayerController>();
         if (pc != null) pc.enabled = false;
 
-        // 1. On te laisse réaliser l'action pendant 3 secondes
         yield return new WaitForSeconds(3f);
 
-        // 2. FONDU AU NOIR TRÈS RAPIDE (0.3 seconde)
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
             UIManager.Instance.transitionPanel.SetActive(true);
             yield return StartCoroutine(UIManager.Instance.FadeToBlack(0.3f));
         }
 
-        // 3. NETTOYAGE PENDANT QUE L'ÉCRAN EST NOIR
         if (isBusted)
         {
             dirtyMoney = 0;
@@ -176,15 +173,16 @@ public class GameManager : MonoBehaviour
         }
 
         LoseCops();
-
         if (PoliceManager.Instance != null) PoliceManager.Instance.DespawnAllCops();
 
-        // 4. SUSPENSE DANS LE NOIR ABSOLU (2.5 secondes au lieu de 1s)
         yield return new WaitForSeconds(2.5f);
 
-        // 5. TÉLÉPORTATION DU JOUEUR (L'écran est toujours 100% noir)
+        // --- CORRECTIF CHUTE LIBRE : LA TÉLÉPORTATION SÉCURISÉE ---
         if (pc != null)
         {
+            // 1. On le détache de n'importe quel véhicule au cas où il y était coincé
+            pc.transform.SetParent(null);
+
             Transform targetPoint = isBusted ? policeStationSpawnPoint : hospitalSpawnPoint;
 
             if (targetPoint != null)
@@ -193,15 +191,32 @@ public class GameManager : MonoBehaviour
                 pc.transform.rotation = targetPoint.rotation;
             }
 
+            // 2. On tue l'élan physique
+            Rigidbody playerRb = pc.GetComponent<Rigidbody>();
+            if (playerRb != null)
+            {
+                playerRb.linearVelocity = Vector3.zero;
+                playerRb.angularVelocity = Vector3.zero;
+            }
+
+            // 3. CORRECTIF MESH : On force la réactivation de tout ce qui est visuel sur le joueur !
+            // Si c'est le GameObject du modèle qui était désactivé :
+            foreach (Transform child in pc.transform)
+            {
+                child.gameObject.SetActive(true);
+            }
+            // Si ce sont les MeshRenderers qui étaient éteints :
+            foreach (Renderer r in pc.GetComponentsInChildren<Renderer>(true))
+            {
+                r.enabled = true;
+            }
+
             pc.Heal(pc.maxHealth);
             pc.enabled = true;
         }
 
-        // 6. PAUSE DE STABILISATION (0.5s)
-        // Permet à la caméra et à la physique de se mettre à jour sans effet visuel de "glissade"
         yield return new WaitForSeconds(0.5f);
 
-        // 7. FONDU DE RÉVEIL LENT ET CINÉMATIQUE (2 secondes)
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
             yield return StartCoroutine(UIManager.Instance.FadeToClear(2f));

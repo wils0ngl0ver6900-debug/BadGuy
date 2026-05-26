@@ -1272,7 +1272,18 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
       insertIndex: -1
       addedObject: {fileID: 6473894812177587497}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -5636367762076911361}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 7094907661517533901}
   m_SourcePrefab: {fileID: 100100000, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
+--- !u!33 &4721053342265355466 stripped
+MeshFilter:
+  m_CorrespondingSourceObject: {fileID: -5754084199372789682, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
+  m_PrefabInstance: {fileID: 8188089378855699588}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &8514994718984807279 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
@@ -1370,3 +1381,39 @@ MonoBehaviour:
   moveInput: 0
   turnInput: 0
   isHandbraking: 0
+  isEngineDead: 0
+--- !u!114 &-5636367762076911361
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9034368435028163029}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb6ab4c9fed0cd141be42c47c75eab2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarExplosion
+  delayBeforeExplosion: 5
+  explosionForce: 15
+  explosionRadius: 10
+  explosionDamage: 50
+  debrisMaterialTemplate: {fileID: 2100000, guid: 6a08578255b03464b94a01129b64913e, type: 2}
+  bigExplosionPrefab: {fileID: 2140037346408830436, guid: 8b82fdbc769ef1c4fb9d4bb20e502d80, type: 3}
+--- !u!114 &7094907661517533901
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9034368435028163029}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2b61c47b9e5db64ca11907ac745a5a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarDeformation
+  minForceToDamage: 1
+  damageRadius: 5
+  maxDeformation: 5
+  impactMultiplier: 0.05
+  carBodyMeshFilter: {fileID: 4721053342265355466}

@@ -12,7 +12,10 @@ public class CarExplosionImproved : MonoBehaviour
 
     [Header("Visuel HDRP 🎨")]
     [Tooltip("Glissez ici le matériau M_Debris_Template (HDRP/Lit avec Émission cochée)")]
-    public Material debrisMaterialTemplate; // Le modèle de base pour les débris !
+    public Material debrisMaterialTemplate;
+
+    [Tooltip("Glissez ici votre Prefab BigExplosion !")]
+    public GameObject bigExplosionPrefab;
 
     private CarController car;
     private bool isTriggered = false;
@@ -34,6 +37,11 @@ public class CarExplosionImproved : MonoBehaviour
     private IEnumerator ExplosionSequence()
     {
         yield return new WaitForSeconds(delayBeforeExplosion);
+
+        if (bigExplosionPrefab != null)
+        {
+            Instantiate(bigExplosionPrefab, transform.position, Quaternion.identity);
+        }
 
         SetupExplosionLight();
 
@@ -64,10 +72,9 @@ public class CarExplosionImproved : MonoBehaviour
         lightObj.transform.position = transform.position + Vector3.up * 1f;
         Light light = lightObj.AddComponent<Light>();
 
-        // Configuration HDRP pour un flash surpuissant mais très court
         light.type = LightType.Point;
         light.color = new Color(1f, 0.4f, 0f);
-        light.intensity = 150000f; // Les valeurs HDRP sont énormes !
+        light.intensity = 150000f;
         light.range = 30f;
 
         Destroy(lightObj, 0.15f);
@@ -93,9 +100,7 @@ public class CarExplosionImproved : MonoBehaviour
             Material mat = null;
             if (debrisMaterialTemplate != null)
             {
-                // On clone le matériau pour chaque débris
                 mat = new Material(debrisMaterialTemplate);
-                // On lui donne sa couleur de feu initiale (Intensité HDRP)
                 mat.SetColor("_EmissiveColor", new Color(1f, 0.3f, 0f) * 15f);
                 rend.material = mat;
             }
@@ -107,9 +112,10 @@ public class CarExplosionImproved : MonoBehaviour
             rb.AddExplosionForce(explosionForce * 0.8f, transform.position - Vector3.up * 0.5f, explosionRadius, 1.5f, ForceMode.Impulse);
             rb.AddTorque(Random.insideUnitSphere * 500f, ForceMode.Impulse);
 
-            if (mat != null)
+            if (mat != null && GameManager.Instance != null)
             {
-                StartCoroutine(DebrisCoolingAndCleanup(debris, mat, Random.Range(3.5f, 5f)));
+                // CORRECTIF : On passe le relais au GameManager car cette voiture va mourir dans une milliseconde !
+                GameManager.Instance.StartCoroutine(DebrisCoolingAndCleanup(debris, mat, Random.Range(3.5f, 5f)));
             }
             else
             {
@@ -131,13 +137,13 @@ public class CarExplosionImproved : MonoBehaviour
 
             if (mat != null)
             {
-                // HDRP utilise _EmissiveColor
                 mat.SetColor("_EmissiveColor", Color.Lerp(startEmission, endEmission, normalizedTime));
             }
 
             yield return null;
         }
 
+        // Les débris s'effaceront enfin !
         if (debris != null) Destroy(debris);
     }
 }
