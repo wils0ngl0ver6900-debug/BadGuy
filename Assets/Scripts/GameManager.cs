@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
 
 public class GameManager : MonoBehaviour
 {
@@ -32,6 +34,9 @@ public class GameManager : MonoBehaviour
     private NPCBrain[] allNPCsInScene;
     private float scanTimer = 0f;
 
+    // NOUVEAU : Mémoire pour éviter le spam de l'interface
+    private bool lastEvadingState = false;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -54,9 +59,19 @@ public class GameManager : MonoBehaviour
             scanTimer = 0f;
         }
 
+        // CORRECTIF HUD : Ne met à jour l'interface QUE s'il y a un changement de couleur (fuite)
         if (wantedLevel > 0)
         {
-            if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
+            bool currentlyEvading = isEvading;
+            if (currentlyEvading != lastEvadingState)
+            {
+                lastEvadingState = currentlyEvading;
+                if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
+            }
+        }
+        else
+        {
+            lastEvadingState = false; // Reset quand on a 0 étoile
         }
     }
 
@@ -125,8 +140,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // --- SÉQUENCES DE FIN MINUTÉES ---
-
     public void Busted()
     {
         PlayerController pc = FindObjectOfType<PlayerController>();
@@ -150,12 +163,61 @@ public class GameManager : MonoBehaviour
         PlayerController pc = FindObjectOfType<PlayerController>();
         if (pc != null) pc.enabled = false;
 
-        yield return new WaitForSeconds(3f);
+        ColorAdjustments colorAdjustments = null;
+        GameObject volumeObj = GameObject.FindWithTag("GameController");
+        if (volumeObj != null)
+        {
+            Volume globalVolume = volumeObj.GetComponent<Volume>();
+            if (globalVolume != null && globalVolume.profile != null)
+            {
+                globalVolume.profile.TryGet(out colorAdjustments);
+            }
+        }
+
+        Time.timeScale = 0.25f;
+        Time.fixedDeltaTime = 0.02f * Time.timeScale;
+
+        NPCBrain[] allBrains = FindObjectsOfType<NPCBrain>();
+        foreach (NPCBrain brain in allBrains)
+        {
+            if (brain != null && brain.role == NPCBrain.NPCRole.Policier)
+            {
+                UnityEngine.AI.NavMeshAgent agent = brain.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                if (agent != null && agent.isOnNavMesh)
+                {
+                    agent.isStopped = true;
+                    agent.velocity = Vector3.zero;
+                }
+                brain.enabled = false;
+            }
+        }
+
+        float elapsedColor = 0f;
+        float fadeColorDuration = 3f;
+        float initialSaturation = colorAdjustments != null ? colorAdjustments.saturation.value : 0f;
+
+        while (elapsedColor < fadeColorDuration)
+        {
+            elapsedColor += Time.unscaledDeltaTime;
+            if (colorAdjustments != null)
+            {
+                colorAdjustments.saturation.value = Mathf.Lerp(initialSaturation, -100f, elapsedColor / fadeColorDuration);
+            }
+            yield return null;
+        }
+
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = 0.02f;
 
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
             UIManager.Instance.transitionPanel.SetActive(true);
             yield return StartCoroutine(UIManager.Instance.FadeToBlack(0.3f));
+        }
+
+        if (colorAdjustments != null)
+        {
+            colorAdjustments.saturation.value = initialSaturation;
         }
 
         if (isBusted)
@@ -175,13 +237,30 @@ public class GameManager : MonoBehaviour
         LoseCops();
         if (PoliceManager.Instance != null) PoliceManager.Instance.DespawnAllCops();
 
+        foreach (NPCBrain brain in allBrains)
+        {
+            if (brain != null && brain.role == NPCBrain.NPCRole.Policier)
+            {
+                brain.enabled = true;
+                UnityEngine.AI.NavMeshAgent agent = brain.GetComponent<UnityEngine.AI.NavMeshAgent>();
+                if (agent != null && agent.isOnNavMesh)
+                {
+                    agent.isStopped = false;
+                }
+            }
+        }
+
         yield return new WaitForSeconds(2.5f);
 
-        // --- CORRECTIF CHUTE LIBRE : LA TÉLÉPORTATION SÉCURISÉE ---
         if (pc != null)
         {
-            // 1. On le détache de n'importe quel véhicule au cas où il y était coincé
             pc.transform.SetParent(null);
+            pc.gameObject.SetActive(true);
+
+            if (MinimapFollow.Instance != null)
+            {
+                MinimapFollow.Instance.target = pc.transform;
+            }
 
             Transform targetPoint = isBusted ? policeStationSpawnPoint : hospitalSpawnPoint;
 
@@ -191,7 +270,6 @@ public class GameManager : MonoBehaviour
                 pc.transform.rotation = targetPoint.rotation;
             }
 
-            // 2. On tue l'élan physique
             Rigidbody playerRb = pc.GetComponent<Rigidbody>();
             if (playerRb != null)
             {
@@ -199,13 +277,10 @@ public class GameManager : MonoBehaviour
                 playerRb.angularVelocity = Vector3.zero;
             }
 
-            // 3. CORRECTIF MESH : On force la réactivation de tout ce qui est visuel sur le joueur !
-            // Si c'est le GameObject du modèle qui était désactivé :
             foreach (Transform child in pc.transform)
             {
                 child.gameObject.SetActive(true);
             }
-            // Si ce sont les MeshRenderers qui étaient éteints :
             foreach (Renderer r in pc.GetComponentsInChildren<Renderer>(true))
             {
                 r.enabled = true;

@@ -18,11 +18,40 @@ public class CarExplosionImproved : MonoBehaviour
     public GameObject bigExplosionPrefab;
 
     private CarController car;
+    private CarInteraction carInteraction;
     private bool isTriggered = false;
 
     void Start()
     {
         car = GetComponent<CarController>();
+
+        // NOUVEAU : La tête chercheuse pour trouver ton script de portière !
+        carInteraction = FindMyCarInteraction();
+    }
+
+    // --- LA TÊTE CHERCHEUSE INFAILLIBLE ---
+    private CarInteraction FindMyCarInteraction()
+    {
+        // 1. On cherche d'abord sur l'objet actuel (au cas où)
+        CarInteraction ci = GetComponent<CarInteraction>();
+        if (ci != null) return ci;
+
+        // 2. On cherche dans les enfants (la portière, le trigger, etc.)
+        ci = GetComponentInChildren<CarInteraction>();
+        if (ci != null) return ci;
+
+        // 3. BLINDAGE TOTAL : On fouille toute la scène pour trouver celui relié à CETTE voiture !
+        CarInteraction[] allInteractions = FindObjectsOfType<CarInteraction>();
+        foreach (CarInteraction interaction in allInteractions)
+        {
+            if (interaction.carController == this.car)
+            {
+                return interaction;
+            }
+        }
+
+        Debug.LogError($"[CarExplosion] Impossible de trouver le script CarInteraction pour la voiture {gameObject.name} !");
+        return null;
     }
 
     void Update()
@@ -30,42 +59,22 @@ public class CarExplosionImproved : MonoBehaviour
         if (car != null && car.isEngineDead && !isTriggered)
         {
             isTriggered = true;
-            EjectPlayerIfInside(); // NOUVEAU : On éjecte le joueur immédiatement !
+            EjectPlayerIfInside();
             StartCoroutine(ExplosionSequence());
         }
     }
 
-    // --- LA FONCTION D'ÉJECTION ---
+    // --- L'ÉJECTION D'URGENCE ---
     private void EjectPlayerIfInside()
     {
-        // On cherche si le joueur est actuellement un enfant de cette voiture (donc à l'intérieur)
-        PlayerController pc = GetComponentInChildren<PlayerController>(true); // 'true' pour le trouver même s'il est masqué
-
-        if (pc != null)
+        if (carInteraction != null && car != null && car.isDrivenByPlayer)
         {
-            // 1. On le détache de la voiture
-            pc.transform.SetParent(null);
+            // On force ta propre fonction de sortie !
+            carInteraction.ExitCar();
 
-            // 2. On le téléporte juste à côté de la voiture (à gauche) pour éviter qu'il soit coincé dans le moteur
-            pc.transform.position = transform.position + Vector3.up * 1f - transform.right * 2f;
-
-            // 3. On rallume son modèle 3D (mesh)
-            foreach (Transform child in pc.transform)
-            {
-                child.gameObject.SetActive(true);
-            }
-            foreach (Renderer r in pc.GetComponentsInChildren<Renderer>(true))
-            {
-                r.enabled = true;
-            }
-
-            // 4. On lui rend ses contrôles
-            pc.enabled = true;
-
-            // 5. Petit message de panique !
             if (UIManager.Instance != null)
             {
-                UIManager.Instance.ShowNotification("<color=red>MOTEUR HS ! FUYEZ !</color>");
+                UIManager.Instance.ShowNotification("<color=red>MOTEUR EN FEU ! ÉJECTION !</color>");
             }
         }
     }
@@ -93,7 +102,6 @@ public class CarExplosionImproved : MonoBehaviour
             TargetHealth target = hit.GetComponent<TargetHealth>();
             if (target != null) target.TakeDamage(explosionDamage);
 
-            // Le joueur subira les dégâts s'il n'a pas couru assez loin !
             PlayerController player = hit.GetComponentInParent<PlayerController>();
             if (player != null) player.TakeDamage(explosionDamage);
         }
