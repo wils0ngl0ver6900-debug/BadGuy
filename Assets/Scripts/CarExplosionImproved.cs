@@ -30,7 +30,43 @@ public class CarExplosionImproved : MonoBehaviour
         if (car != null && car.isEngineDead && !isTriggered)
         {
             isTriggered = true;
+            EjectPlayerIfInside(); // NOUVEAU : On éjecte le joueur immédiatement !
             StartCoroutine(ExplosionSequence());
+        }
+    }
+
+    // --- LA FONCTION D'ÉJECTION ---
+    private void EjectPlayerIfInside()
+    {
+        // On cherche si le joueur est actuellement un enfant de cette voiture (donc à l'intérieur)
+        PlayerController pc = GetComponentInChildren<PlayerController>(true); // 'true' pour le trouver même s'il est masqué
+
+        if (pc != null)
+        {
+            // 1. On le détache de la voiture
+            pc.transform.SetParent(null);
+
+            // 2. On le téléporte juste à côté de la voiture (à gauche) pour éviter qu'il soit coincé dans le moteur
+            pc.transform.position = transform.position + Vector3.up * 1f - transform.right * 2f;
+
+            // 3. On rallume son modèle 3D (mesh)
+            foreach (Transform child in pc.transform)
+            {
+                child.gameObject.SetActive(true);
+            }
+            foreach (Renderer r in pc.GetComponentsInChildren<Renderer>(true))
+            {
+                r.enabled = true;
+            }
+
+            // 4. On lui rend ses contrôles
+            pc.enabled = true;
+
+            // 5. Petit message de panique !
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.ShowNotification("<color=red>MOTEUR HS ! FUYEZ !</color>");
+            }
         }
     }
 
@@ -57,6 +93,7 @@ public class CarExplosionImproved : MonoBehaviour
             TargetHealth target = hit.GetComponent<TargetHealth>();
             if (target != null) target.TakeDamage(explosionDamage);
 
+            // Le joueur subira les dégâts s'il n'a pas couru assez loin !
             PlayerController player = hit.GetComponentInParent<PlayerController>();
             if (player != null) player.TakeDamage(explosionDamage);
         }
@@ -114,7 +151,6 @@ public class CarExplosionImproved : MonoBehaviour
 
             if (mat != null && GameManager.Instance != null)
             {
-                // CORRECTIF : On passe le relais au GameManager car cette voiture va mourir dans une milliseconde !
                 GameManager.Instance.StartCoroutine(DebrisCoolingAndCleanup(debris, mat, Random.Range(3.5f, 5f)));
             }
             else
@@ -143,7 +179,6 @@ public class CarExplosionImproved : MonoBehaviour
             yield return null;
         }
 
-        // Les débris s'effaceront enfin !
         if (debris != null) Destroy(debris);
     }
 }

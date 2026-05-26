@@ -988,7 +988,7 @@ MonoBehaviour:
   damageRadius: 1
   maxDeformation: 0.4
   impactMultiplier: 0.05
-  carBodyMeshFilter: {fileID: -5754084199372789682, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
+  carBodyMeshFilter: {fileID: 0}
 --- !u!4 &4253789979030341455 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}

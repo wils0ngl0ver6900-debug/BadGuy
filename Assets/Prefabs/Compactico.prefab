@@ -1411,4 +1411,4 @@ MonoBehaviour:
   damageRadius: 1
   maxDeformation: 0.4
   impactMultiplier: 0.05
-  carBodyMeshFilter: {fileID: -5754084199372789682, guid: 479bd64bd0eb14d47a9189dab8f05695, type: 3}
+  carBodyMeshFilter: {fileID: 0}
