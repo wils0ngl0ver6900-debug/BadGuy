@@ -10926,6 +10926,8 @@ GameObject:
   - component: {fileID: 1218266818860775594}
   - component: {fileID: 6539125083142406906}
   - component: {fileID: 4742096999813549191}
+  - component: {fileID: 4391421537593777479}
+  - component: {fileID: 4438350273009394253}
   m_Layer: 11
   m_Name: Car_Police_AI
   m_TagString: Untagged
@@ -11174,6 +11176,41 @@ MonoBehaviour:
   exitDoors:
   - {fileID: 8971179365180283684}
   isSeeingPlayer: 0
+--- !u!114 &4391421537593777479
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6452960307185440482}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb6ab4c9fed0cd141be42c47c75eab2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarExplosion
+  delayBeforeExplosion: 5
+  explosionForce: 15
+  explosionRadius: 10
+  explosionDamage: 50
+  debrisMaterialTemplate: {fileID: 2100000, guid: 6a08578255b03464b94a01129b64913e, type: 2}
+  bigExplosionPrefab: {fileID: 2140037346408830436, guid: 8b82fdbc769ef1c4fb9d4bb20e502d80, type: 3}
+--- !u!114 &4438350273009394253
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6452960307185440482}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2b61c47b9e5db64ca11907ac745a5a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarDeformation
+  minForceToDamage: 3
+  damageRadius: 1
+  maxDeformation: 0.4
+  impactMultiplier: 0.05
+  carBodyMeshFilter: {fileID: 0}
 --- !u!1 &6482192431256895737
 GameObject:
   m_ObjectHideFlags: 0

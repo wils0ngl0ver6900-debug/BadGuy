@@ -10686,6 +10686,8 @@ GameObject:
   - component: {fileID: 1218266818860775594}
   - component: {fileID: 6539125083142406906}
   - component: {fileID: 8449122087115888376}
+  - component: {fileID: 6735586459119757789}
+  - component: {fileID: 3998076589025134003}
   m_Layer: 11
   m_Name: Car_Gang_Skullls_AI
   m_TagString: Untagged
@@ -10845,6 +10847,7 @@ MonoBehaviour:
   moveInput: 0
   turnInput: 0
   isHandbraking: 0
+  isEngineDead: 0
 --- !u!65 &8062807443172673962
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -10886,6 +10889,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 10248
   steerSmoothing: 20
+  chaseTarget: {fileID: 0}
 --- !u!114 &6539125083142406906
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10925,10 +10929,46 @@ MonoBehaviour:
   bulletPrefab: {fileID: 391651947737662775, guid: f9d1872e85697a44e97ba3e4503c04a2, type: 3}
   firePoint: {fileID: 855249770488440321}
   fireRate: 0.5
+  attackDamage: 15
   muzzleFlashLight: {fileID: 12531313153766733}
   copPedestrianPrefab: {fileID: 0}
   exitDoors: []
   isSeeingPlayer: 0
+--- !u!114 &6735586459119757789
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6452960307185440482}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb6ab4c9fed0cd141be42c47c75eab2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarExplosion
+  delayBeforeExplosion: 5
+  explosionForce: 15
+  explosionRadius: 10
+  explosionDamage: 50
+  debrisMaterialTemplate: {fileID: 2100000, guid: 6a08578255b03464b94a01129b64913e, type: 2}
+  bigExplosionPrefab: {fileID: 2140037346408830436, guid: 8b82fdbc769ef1c4fb9d4bb20e502d80, type: 3}
+--- !u!114 &3998076589025134003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6452960307185440482}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2b61c47b9e5db64ca11907ac745a5a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarDeformation
+  minForceToDamage: 3
+  damageRadius: 1
+  maxDeformation: 0.4
+  impactMultiplier: 0.05
+  carBodyMeshFilter: {fileID: 0}
 --- !u!1 &6482192431256895737
 GameObject:
   m_ObjectHideFlags: 0

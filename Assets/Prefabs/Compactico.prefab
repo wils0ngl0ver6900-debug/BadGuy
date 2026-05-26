@@ -1277,13 +1277,8 @@ PrefabInstance:
       addedObject: {fileID: -5636367762076911361}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 7094907661517533901}
+      addedObject: {fileID: -6048710340164091167}
   m_SourcePrefab: {fileID: 100100000, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
---- !u!33 &4721053342265355466 stripped
-MeshFilter:
-  m_CorrespondingSourceObject: {fileID: -5754084199372789682, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
-  m_PrefabInstance: {fileID: 8188089378855699588}
-  m_PrefabAsset: {fileID: 0}
 --- !u!4 &8514994718984807279 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
@@ -1400,7 +1395,7 @@ MonoBehaviour:
   explosionDamage: 50
   debrisMaterialTemplate: {fileID: 2100000, guid: 6a08578255b03464b94a01129b64913e, type: 2}
   bigExplosionPrefab: {fileID: 2140037346408830436, guid: 8b82fdbc769ef1c4fb9d4bb20e502d80, type: 3}
---- !u!114 &7094907661517533901
+--- !u!114 &-6048710340164091167
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -1412,8 +1407,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d2b61c47b9e5db64ca11907ac745a5a0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarDeformation
-  minForceToDamage: 1
-  damageRadius: 5
-  maxDeformation: 5
+  minForceToDamage: 3
+  damageRadius: 1
+  maxDeformation: 0.4
   impactMultiplier: 0.05
-  carBodyMeshFilter: {fileID: 4721053342265355466}
+  carBodyMeshFilter: {fileID: -5754084199372789682, guid: 479bd64bd0eb14d47a9189dab8f05695, type: 3}

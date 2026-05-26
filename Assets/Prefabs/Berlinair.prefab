@@ -854,6 +854,12 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2210364505177104927}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 979987051997478379}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: -1865604976620302227}
   m_SourcePrefab: {fileID: 100100000, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
 --- !u!1 &3477816706679184885 stripped
 GameObject:
@@ -947,6 +953,42 @@ MonoBehaviour:
   moveInput: 0
   turnInput: 0
   isHandbraking: 0
+  isEngineDead: 0
+--- !u!114 &979987051997478379
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3477816706679184885}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb6ab4c9fed0cd141be42c47c75eab2b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarExplosion
+  delayBeforeExplosion: 5
+  explosionForce: 15
+  explosionRadius: 10
+  explosionDamage: 50
+  debrisMaterialTemplate: {fileID: 2100000, guid: 6a08578255b03464b94a01129b64913e, type: 2}
+  bigExplosionPrefab: {fileID: 2140037346408830436, guid: 8b82fdbc769ef1c4fb9d4bb20e502d80, type: 3}
+--- !u!114 &-1865604976620302227
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3477816706679184885}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2b61c47b9e5db64ca11907ac745a5a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarDeformation
+  minForceToDamage: 3
+  damageRadius: 1
+  maxDeformation: 0.4
+  impactMultiplier: 0.05
+  carBodyMeshFilter: {fileID: -5754084199372789682, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
 --- !u!4 &4253789979030341455 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
