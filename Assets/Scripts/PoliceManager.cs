@@ -80,7 +80,8 @@ public class PoliceManager : MonoBehaviour
 
     private void ManageEscape()
     {
-        if (!isPlayerSpotted)
+        // --- CORRECTIF : On utilise la logique stabilisée du GameManager ! ---
+        if (GameManager.Instance != null && GameManager.Instance.isEvading)
         {
             escapeTimer -= Time.deltaTime;
 
@@ -90,8 +91,7 @@ public class PoliceManager : MonoBehaviour
                 lastStars = 0;
             }
         }
-
-        isPlayerSpotted = false;
+        // J'ai supprimé la ligne qui forçait isPlayerSpotted à "false" en boucle et qui cassait l'UI.
     }
 
     private void UpdateMaxCops(int stars)
@@ -164,24 +164,20 @@ public class PoliceManager : MonoBehaviour
         return bestNode;
     }
 
-    // --- NETTOYAGE SÉLECTIF ET INVISIBLE ---
     public void DespawnAllCops()
     {
-        // 1. On détruit uniquement les renforts dynamiques (voitures + flics embarqués)
         foreach (GameObject cop in activeCops)
         {
             if (cop != null) Destroy(cop);
         }
         activeCops.Clear();
 
-        // 2. On scanne la scène pour nettoyer les flics placés à la main UNIQUEMENT s'ils sont morts
         NPCBrain[] allNPCs = FindObjectsOfType<NPCBrain>();
         foreach (NPCBrain npc in allNPCs)
         {
             if (npc != null && npc.role == NPCBrain.NPCRole.Policier)
             {
                 TargetHealth health = npc.GetComponent<TargetHealth>();
-                // S'il a un script de vie et qu'il est marqué comme mort, on le supprime
                 if (health != null && health.isDead)
                 {
                     Destroy(npc.gameObject);

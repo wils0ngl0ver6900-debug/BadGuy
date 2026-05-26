@@ -21,21 +21,20 @@ public class GameManager : MonoBehaviour
     public Transform hospitalSpawnPoint;
     public Transform policeStationSpawnPoint;
 
+    // --- LE CORRECTIF EST ICI ---
     public bool isEvading
     {
         get
         {
-            return PoliceManager.Instance != null &&
-                   !PoliceManager.Instance.isPlayerSpotted &&
-                   wantedLevel > 0;
+            // On se base uniquement sur le scan global, fini les clignotements !
+            return wantedLevel > 0 && !isBeingSeen;
         }
     }
 
     private NPCBrain[] allNPCsInScene;
     private float scanTimer = 0f;
-
-    // NOUVEAU : Mémoire pour éviter le spam de l'interface
     private bool lastEvadingState = false;
+
 
     private void Awake()
     {
