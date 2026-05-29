@@ -125,12 +125,15 @@ public class CarAI : MonoBehaviour
                 if (hit.collider.transform.root == transform.root) return false;
                 if (hit.normal.y > 0.5f) return false;
 
-                // --- CORRECTIF KAMIKAZE ---
+                // --- CORRECTIF KAMIKAZE ULTIME ---
                 if (chaseTarget != null)
                 {
+                    // Si le rayon touche directement le joueur à pied, on l'écrase
                     if (hit.collider.CompareTag("Player")) return false;
-                    // Si on détecte la voiture du joueur, on ne freine surtout pas ! On lui rentre dedans.
-                    if (hit.collider.transform.root == chaseTarget.root) return false;
+
+                    // Si le rayon touche une voiture conduite par le joueur, on l'écrase aussi !
+                    CarController hitCar = hit.collider.GetComponentInParent<CarController>();
+                    if (hitCar != null && hitCar.isDrivenByPlayer) return false;
                 }
 
                 return true;

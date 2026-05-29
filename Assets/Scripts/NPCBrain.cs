@@ -45,6 +45,8 @@ public class NPCBrain : MonoBehaviour
     private bool hasSpawnedCops = false;
     private float callPoliceTimer = 0f;
 
+    private float bustTimer = 0f;
+
     void Awake()
     {
         GameObject p = GameObject.FindGameObjectWithTag("Player");
@@ -145,7 +147,7 @@ public class NPCBrain : MonoBehaviour
                         ChangeState(AIState.Poursuite);
                         return;
                     }
-                    else if (stars == 3)
+                    else if (stars == 3 || stars == 4)
                     {
                         if (isPlayerInCar && locomotion == Locomotion.Vehicule)
                         {
@@ -219,6 +221,12 @@ public class NPCBrain : MonoBehaviour
     public void ChangeState(AIState newState)
     {
         if (currentState == newState) return;
+
+        if (newState == AIState.Combat && currentState != AIState.Combat)
+        {
+            nextFireTime = Time.time + Random.Range(0.1f, 0.8f);
+        }
+
         currentState = newState;
 
         if (locomotion == Locomotion.Pieton && agent != null)
@@ -232,9 +240,8 @@ public class NPCBrain : MonoBehaviour
     private void OnCollisionEnter(Collision collision)
     {
         TargetHealth myHealth = GetComponent<TargetHealth>();
-        if (myHealth != null && myHealth.isDead) return; // Un mort n'arrête personne
+        if (myHealth != null && (myHealth.isDead || myHealth.isKnockedOut)) return;
 
-        // Une voiture vide n'arrête personne non plus
         if (locomotion == Locomotion.Vehicule && car != null && !car.isDrivenByAI) return;
 
         if (role == NPCRole.Policier && currentState == AIState.Poursuite)
@@ -322,7 +329,8 @@ public class NPCBrain : MonoBehaviour
     {
         if (Time.time >= nextFireTime && bulletPrefab != null && firePoint != null && currentTarget != null)
         {
-            nextFireTime = Time.time + fireRate;
+            nextFireTime = Time.time + fireRate * Random.Range(0.8f, 1.2f);
+
             Vector3 aimDir = (currentTarget.position + Vector3.up * 1f) - firePoint.position;
 
             GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(aimDir));
@@ -349,6 +357,9 @@ public class NPCBrain : MonoBehaviour
     private void PatrolPedestrian()
     {
         if (agent == null || !agent.isOnNavMesh) return;
+
+        agent.stoppingDistance = 0f;
+
         if (!agent.pathPending && agent.remainingDistance < 1f)
         {
             Vector3 randomDir = Random.insideUnitSphere * 15f + transform.position;
@@ -365,6 +376,9 @@ public class NPCBrain : MonoBehaviour
     private void FleePedestrian()
     {
         if (agent == null || player == null || !agent.isOnNavMesh) return;
+
+        agent.stoppingDistance = 0f;
+
         Vector3 directionAway = (transform.position - player.position).normalized;
         agent.SetDestination(transform.position + directionAway * 20f);
 
@@ -383,13 +397,77 @@ public class NPCBrain : MonoBehaviour
     {
         if (agent == null || !agent.isOnNavMesh) return;
 
+        Vector3 targetDest = transform.position;
+
         if (isSeeingPlayer && player != null)
         {
-            agent.SetDestination(player.position);
+            targetDest = player.position;
         }
         else if (PoliceManager.Instance != null)
         {
-            agent.SetDestination(PoliceManager.Instance.lastKnownPosition);
+            targetDest = PoliceManager.Instance.lastKnownPosition;
+        }
+
+        agent.stoppingDistance = 1.0f; // Distance de base par défaut
+
+        if (Vector3.Distance(agent.destination, targetDest) > 1.0f)
+        {
+            agent.SetDestination(targetDest);
+        }
+
+        bool isPlayerInCar = player != null && player.GetComponentInParent<CarController>() != null;
+
+        // --- NOUVEAU : DÉTECTION INTELLIGENTE DU COFFRE ET DU CAPOT ---
+        if (role == NPCRole.Policier && isPlayerInCar && isSeeingPlayer)
+        {
+            CarController targetCar = player.GetComponentInParent<CarController>();
+            if (targetCar != null)
+            {
+                // On scanne la carrosserie pour savoir à quelle distance exacte on est du métal
+                Collider carCol = targetCar.GetComponentInChildren<Collider>();
+                float distToHull = 5f;
+
+                if (carCol != null)
+                {
+                    Vector3 closestPoint = carCol.ClosestPoint(transform.position);
+                    distToHull = Vector3.Distance(transform.position, closestPoint);
+                }
+                else
+                {
+                    distToHull = Vector3.Distance(transform.position, targetCar.transform.position) - 2f;
+                }
+
+                Rigidbody carRb = targetCar.GetComponent<Rigidbody>();
+
+                // Si le flic touche la carrosserie (<= 1.5m) ET que la voiture roule à l'allure d'un piéton
+                if (distToHull <= 1.5f && carRb != null && carRb.linearVelocity.magnitude < 1.5f)
+                {
+                    agent.isStopped = true; // COUPE LE MOTEUR DU FLIC : Il arrête de pousser !
+
+                    Vector3 lookDir = player.position - transform.position;
+                    lookDir.y = 0;
+                    if (lookDir != Vector3.zero)
+                        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5f);
+
+                    bustTimer += Time.deltaTime;
+
+                    if (bustTimer >= 2.0f)
+                    {
+                        if (GameManager.Instance != null) GameManager.Instance.Busted();
+                        bustTimer = 0f;
+                    }
+                }
+                else
+                {
+                    agent.isStopped = false; // La voiture accélère ? Il recommence à courir !
+                    bustTimer = 0f;
+                }
+            }
+        }
+        else
+        {
+            agent.isStopped = false;
+            bustTimer = 0f;
         }
     }
 

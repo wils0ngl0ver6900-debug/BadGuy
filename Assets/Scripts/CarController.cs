@@ -35,7 +35,6 @@ public class CarController : MonoBehaviour
     public ParticleSystem[] tireSmokeParticles;
     public TrailRenderer[] skidMarks;
 
-    // États
     [HideInInspector] public bool isDrivenByPlayer = false;
     [HideInInspector] public bool isDrivenByAI = false;
     [HideInInspector] public float moveInput;
@@ -46,12 +45,16 @@ public class CarController : MonoBehaviour
     [HideInInspector] public bool isEngineDead = false;
     private float spawnProtectionTimer = 2f;
 
+    private float lastHumanHitTime = 0f;
+
     void Start()
     {
         currentHealth = maxHealth;
         rb = GetComponent<Rigidbody>();
         rb.centerOfMass = new Vector3(0, centerOfMassOffset, 0);
         rb.interpolation = RigidbodyInterpolation.Interpolate;
+
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
         foreach (ParticleSystem smoke in tireSmokeParticles)
         {
@@ -98,6 +101,11 @@ public class CarController : MonoBehaviour
     void FixedUpdate()
     {
         if (!isDrivenByPlayer && !isDrivenByAI && rb.linearVelocity.magnitude < 0.1f && !isEngineDead) return;
+
+        if (rb.linearVelocity.magnitude > maxSpeed * 1.5f)
+        {
+            rb.linearVelocity = rb.linearVelocity.normalized * maxSpeed;
+        }
 
         ProcessEngine();
         ProcessSteering();
@@ -226,7 +234,8 @@ public class CarController : MonoBehaviour
     private void ApplyDownforce()
     {
         float speed = rb.linearVelocity.magnitude;
-        rb.AddForce(Vector3.down * downforce * speed, ForceMode.Force);
+        float clampedSpeed = Mathf.Clamp(speed, 0f, maxSpeed);
+        rb.AddForce(Vector3.down * downforce * clampedSpeed, ForceMode.Force);
     }
 
     private void AutoRighting()
@@ -278,47 +287,53 @@ public class CarController : MonoBehaviour
         NPCBrain npc = collision.gameObject.GetComponentInParent<NPCBrain>();
         PlayerController player = collision.gameObject.GetComponentInParent<PlayerController>();
 
+        // --- LE CORRECTIF EST ICI : L'ANTI-COUP DU LAPIN ---
+        // Si la voiture percute le joueur, mais que ce joueur est LE CONDUCTEUR actuel de la voiture, on ignore l'impact !
+        if (player != null && isDrivenByPlayer) return;
+
+        bool isLightObject = collision.rigidbody != null && collision.rigidbody.mass < 50f;
+
         bool isHuman = false;
         if (player != null) isHuman = true;
         if (npc != null && npc.locomotion == NPCBrain.Locomotion.Pieton) isHuman = true;
 
-        if (isHuman)
+        if (isHuman || isLightObject)
         {
-            // --- CORRECTIF : VOITURE PLUS RÉSISTANTE ---
-            // Dégâts divisés, et on plafonne l'usure max à 5 PV
+            if (Time.time - lastHumanHitTime < 0.2f) return;
+            lastHumanHitTime = Time.time;
+
             float carDamage = Mathf.Clamp(impactForce * 0.05f, 0f, 5f);
             if (carDamage > 1f) TakeDamage(carDamage);
 
-            // --- CORRECTIF : PIÉTON MOINS FRAGILE ---
-            // Exposant et multiplicateur rabaissés. Il survivra aux petits/moyens chocs.
-            int meatDamage = Mathf.RoundToInt(Mathf.Pow(impactForce, 1.35f) * 1.2f);
-
-            // --- CORRECTIF : VOL MOINS EXTRÊME ---
-            // Le piéton est poussé moins fort
-            Vector3 pushForce = (rb.linearVelocity.normalized + (Vector3.up * 0.2f)) * impactForce * 0.35f;
-
-            if (player != null)
+            if (isHuman)
             {
-                player.TakeDamage(meatDamage);
-                if (player.currentHealth > 0) player.Knockdown(pushForce);
-            }
-            if (npc != null)
-            {
-                TargetHealth health = npc.GetComponent<TargetHealth>();
-                if (health != null)
+                int meatDamage = Mathf.RoundToInt(Mathf.Pow(impactForce, 1.4f));
+                Vector3 pushForce = (rb.linearVelocity.normalized + (Vector3.up * 0.4f)) * impactForce * 0.4f;
+
+                if (player != null)
                 {
-                    GameObject attacker = isDrivenByPlayer ? GameObject.FindGameObjectWithTag("Player") : this.gameObject;
-                    health.TakeDamage(meatDamage, attacker);
-
-                    if (health.currentHealth > 0)
+                    player.TakeDamage(meatDamage);
+                    if (player.currentHealth > 0) player.Knockdown(pushForce);
+                }
+                if (npc != null)
+                {
+                    TargetHealth health = npc.GetComponent<TargetHealth>();
+                    if (health != null)
                     {
-                        health.TemporaryRagdoll(pushForce);
+                        GameObject attacker = isDrivenByPlayer ? GameObject.FindGameObjectWithTag("Player") : this.gameObject;
+                        health.TakeDamage(meatDamage, attacker);
+
+                        if (health.currentHealth > 0)
+                        {
+                            health.TemporaryRagdoll(pushForce);
+                        }
                     }
                 }
             }
         }
         else
         {
+            // Les accidents contre les murs endommagent toujours la voiture
             if (impactForce > 6f)
             {
                 float damage = impactForce * 1.5f;

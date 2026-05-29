@@ -33,8 +33,10 @@ public class GameManager : MonoBehaviour
     private float scanTimer = 0f;
     private bool lastEvadingState = false;
 
-    // NOUVEAU : Bloqueur de spam pour les crimes
     private float lastHitReportTime = 0f;
+
+    // --- CORRECTIF : VERROU ANTI-DOUBLE DÉCLENCHEMENT ---
+    private bool isDefeated = false;
 
     private void Awake()
     {
@@ -95,26 +97,23 @@ public class GameManager : MonoBehaviour
         UpdateWantedLevel();
     }
 
-    // --- NOUVEAU : RÈGLE STRICTE DE NOTORIÉTÉ POUR MEURTRE/ACCIDENT ---
     public void ReportHitOrMurder()
     {
-        // Anti-spam : 1 seconde de délai entre deux augmentations (si on écrase 2 personnes d'un coup)
         if (Time.time - lastHitReportTime < 1.0f) return;
         lastHitReportTime = Time.time;
 
         if (wantedLevel < 2)
         {
-            crimePoints = 30; // Passe directement à 2 étoiles
+            crimePoints = 30;
         }
         else if (wantedLevel == 2)
         {
-            crimePoints = 60; // Passe à 3 étoiles
+            crimePoints = 60;
         }
         else if (wantedLevel == 3)
         {
-            crimePoints = 100; // Passe à 4 étoiles
+            crimePoints = 100;
         }
-        // Si on a 4 ou 5 étoiles, on n'ajoute pas de sanction supplémentaire pour un piéton.
 
         UpdateWantedLevel();
     }
@@ -164,6 +163,7 @@ public class GameManager : MonoBehaviour
 
     public void Busted()
     {
+        if (isDefeated) return; // On bloque si on est déjà en train de se faire arrêter !
         PlayerController pc = FindObjectOfType<PlayerController>();
         if (pc != null && pc.currentHealth <= 0) return;
 
@@ -172,18 +172,33 @@ public class GameManager : MonoBehaviour
 
     public void Wasted()
     {
+        if (isDefeated) return; // On bloque si on est déjà mort !
         StartCoroutine(DefeatSequence(false));
     }
 
     private IEnumerator DefeatSequence(bool isBusted)
     {
+        isDefeated = true; // On verrouille la séquence
+
         if (UIManager.Instance != null)
         {
             UIManager.Instance.ShowNotification(isBusted ? "<color=blue>ARRÊTÉ !</color>" : "<color=red>VOUS ÊTES MORT !</color>");
         }
 
         PlayerController pc = FindObjectOfType<PlayerController>();
-        if (pc != null) pc.enabled = false;
+        MonoBehaviour playerAim = null;
+        MonoBehaviour playerCombat = null;
+
+        if (pc != null)
+        {
+            pc.enabled = false;
+
+            playerAim = pc.GetComponent("PlayerAim") as MonoBehaviour;
+            playerCombat = pc.GetComponent("PlayerCombat") as MonoBehaviour;
+
+            if (playerAim != null) playerAim.enabled = false;
+            if (playerCombat != null) playerCombat.enabled = false;
+        }
 
         ColorAdjustments colorAdjustments = null;
         GameObject volumeObj = GameObject.FindWithTag("GameController");
@@ -237,10 +252,26 @@ public class GameManager : MonoBehaviour
             yield return StartCoroutine(UIManager.Instance.FadeToBlack(0.3f));
         }
 
+        // --- CORRECTIF NOIR ET BLANC ---
+        // On ne remet pas 'initialSaturation' car il a peut-être été corrompu, on force le reset à 0 !
         if (colorAdjustments != null)
         {
-            colorAdjustments.saturation.value = initialSaturation;
+            colorAdjustments.saturation.value = 0f;
         }
+
+        // --- CORRECTIF RESPAWN VOITURE ---
+        // Pendant que l'écran est noir, on éjecte secrètement le joueur de la voiture !
+        CarInteraction[] allInteractions = FindObjectsOfType<CarInteraction>();
+        foreach (CarInteraction interaction in allInteractions)
+        {
+            if (interaction.carController != null && interaction.carController.isDrivenByPlayer)
+            {
+                interaction.ExitCar();
+            }
+        }
+
+        // Comme ExitCar a réactivé les contrôles, on les re-bloque en attendant la fin de la cinématique
+        if (pc != null) pc.enabled = false;
 
         if (isBusted)
         {
@@ -310,6 +341,9 @@ public class GameManager : MonoBehaviour
 
             pc.Heal(pc.maxHealth);
             pc.enabled = true;
+
+            if (playerAim != null) playerAim.enabled = true;
+            if (playerCombat != null) playerCombat.enabled = true;
         }
 
         yield return new WaitForSeconds(0.5f);
@@ -321,5 +355,7 @@ public class GameManager : MonoBehaviour
         }
 
         if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
+
+        isDefeated = false; // On déverrouille pour la prochaine fois !
     }
 }

@@ -1,6 +1,15 @@
 ﻿using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
+using System.Collections.Generic;
+
+[System.Serializable]
+public class BoneTransform
+{
+    public Transform bone;
+    public Vector3 originalLocalPos;
+    public Quaternion originalLocalRot;
+}
 
 public class TargetHealth : MonoBehaviour
 {
@@ -13,13 +22,29 @@ public class TargetHealth : MonoBehaviour
     [Range(0, 100)] public int dropChance = 50;
 
     [HideInInspector] public bool isDead = false;
+    [HideInInspector] public bool isKnockedOut = false;
 
     private float spawnProtectionEndTime = 0f;
+    private List<BoneTransform> boneSnapshots = new List<BoneTransform>();
 
     void Start()
     {
         currentHealth = maxHealth;
         spawnProtectionEndTime = Time.time + 1.5f;
+
+        Rigidbody[] rbs = GetComponentsInChildren<Rigidbody>();
+        foreach (Rigidbody rb in rbs)
+        {
+            if (rb.gameObject == this.gameObject) continue;
+
+            boneSnapshots.Add(new BoneTransform
+            {
+                bone = rb.transform,
+                originalLocalPos = rb.transform.localPosition,
+                originalLocalRot = rb.transform.localRotation
+            });
+        }
+
         DisableRagdoll();
     }
 
@@ -39,7 +64,6 @@ public class TargetHealth : MonoBehaviour
         }
         else
         {
-            // --- CORRECTIF : Notoriété uniquement quand le joueur blesse un civil/flic ---
             if (attacker != null && attacker.CompareTag("Player") && GameManager.Instance != null)
             {
                 GameManager.Instance.ReportHitOrMurder();
@@ -52,7 +76,6 @@ public class TargetHealth : MonoBehaviour
         isDead = true;
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Cible éliminée !");
 
-        // --- CORRECTIF : On utilise la nouvelle limite max 4 étoiles ---
         if (attacker != null && attacker.CompareTag("Player") && GameManager.Instance != null)
         {
             GameManager.Instance.ReportHitOrMurder();
@@ -76,6 +99,8 @@ public class TargetHealth : MonoBehaviour
         {
             if (rb.gameObject == this.gameObject) continue;
             rb.isKinematic = true;
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
         }
     }
 
@@ -124,12 +149,15 @@ public class TargetHealth : MonoBehaviour
 
     public void TemporaryRagdoll(Vector3 pushForce)
     {
-        if (isDead) return;
+        // CORRECTIF ICI : On vérifie spawnProtectionEndTime pour l'empêcher d'être K.O en sortant du véhicule !
+        if (isDead || isKnockedOut || Time.time < spawnProtectionEndTime) return;
         StartCoroutine(TempRagdollRoutine(pushForce));
     }
 
     private IEnumerator TempRagdollRoutine(Vector3 pushForce)
     {
+        isKnockedOut = true;
+
         Animator anim = GetComponentInChildren<Animator>();
         if (anim != null) anim.enabled = false;
 
@@ -159,7 +187,11 @@ public class TargetHealth : MonoBehaviour
 
         yield return new WaitForSeconds(3f);
 
-        if (isDead) yield break;
+        if (isDead)
+        {
+            isKnockedOut = false;
+            yield break;
+        }
 
         if (hips != null)
         {
@@ -173,13 +205,27 @@ public class TargetHealth : MonoBehaviour
 
         DisableRagdoll();
 
+        foreach (var snap in boneSnapshots)
+        {
+            snap.bone.localPosition = snap.originalLocalPos;
+            snap.bone.localRotation = snap.originalLocalRot;
+        }
+
         if (mainCollider != null) mainCollider.enabled = true;
         if (agent != null)
         {
             agent.Warp(transform.position);
             agent.enabled = true;
         }
-        if (anim != null) anim.enabled = true;
+
+        if (anim != null)
+        {
+            anim.enabled = true;
+            anim.Rebind();
+            anim.Update(0f);
+        }
+
+        isKnockedOut = false;
 
         if (brain != null)
         {
