@@ -408,22 +408,23 @@ public class NPCBrain : MonoBehaviour
             targetDest = PoliceManager.Instance.lastKnownPosition;
         }
 
-        agent.stoppingDistance = 1.0f; // Distance de base par défaut
+        bool isPlayerInCar = player != null && player.GetComponentInParent<CarController>() != null;
+
+        // --- CORRECTIF MAJEUR ANTI-POUSSÉE ---
+        // Le flic stoppe sa navigation à 2.5m de la voiture pour ne pas forcer le passage
+        agent.stoppingDistance = isPlayerInCar ? 2.5f : 1.0f;
 
         if (Vector3.Distance(agent.destination, targetDest) > 1.0f)
         {
             agent.SetDestination(targetDest);
         }
 
-        bool isPlayerInCar = player != null && player.GetComponentInParent<CarController>() != null;
-
-        // --- NOUVEAU : DÉTECTION INTELLIGENTE DU COFFRE ET DU CAPOT ---
+        // --- LOGIQUE D'ARRESTATION INTELLIGENTE ---
         if (role == NPCRole.Policier && isPlayerInCar && isSeeingPlayer)
         {
             CarController targetCar = player.GetComponentInParent<CarController>();
             if (targetCar != null)
             {
-                // On scanne la carrosserie pour savoir à quelle distance exacte on est du métal
                 Collider carCol = targetCar.GetComponentInChildren<Collider>();
                 float distToHull = 5f;
 
@@ -439,10 +440,10 @@ public class NPCBrain : MonoBehaviour
 
                 Rigidbody carRb = targetCar.GetComponent<Rigidbody>();
 
-                // Si le flic touche la carrosserie (<= 1.5m) ET que la voiture roule à l'allure d'un piéton
-                if (distToHull <= 1.5f && carRb != null && carRb.linearVelocity.magnitude < 1.5f)
+                // Si le flic est très proche de la carrosserie (<= 2m) et que la voiture est presque à l'arrêt
+                if (distToHull <= 2.0f && carRb != null && carRb.linearVelocity.magnitude < 1.0f)
                 {
-                    agent.isStopped = true; // COUPE LE MOTEUR DU FLIC : Il arrête de pousser !
+                    agent.isStopped = true; // COUPE LE MOTEUR : Le flic s'arrête de pousser définitivement !
 
                     Vector3 lookDir = player.position - transform.position;
                     lookDir.y = 0;

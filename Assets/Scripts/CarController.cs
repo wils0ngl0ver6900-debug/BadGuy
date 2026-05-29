@@ -35,6 +35,7 @@ public class CarController : MonoBehaviour
     public ParticleSystem[] tireSmokeParticles;
     public TrailRenderer[] skidMarks;
 
+    // États du véhicule
     [HideInInspector] public bool isDrivenByPlayer = false;
     [HideInInspector] public bool isDrivenByAI = false;
     [HideInInspector] public float moveInput;
@@ -44,7 +45,6 @@ public class CarController : MonoBehaviour
     private Rigidbody rb;
     [HideInInspector] public bool isEngineDead = false;
     private float spawnProtectionTimer = 2f;
-
     private float lastHumanHitTime = 0f;
 
     void Start()
@@ -54,6 +54,7 @@ public class CarController : MonoBehaviour
         rb.centerOfMass = new Vector3(0, centerOfMassOffset, 0);
         rb.interpolation = RigidbodyInterpolation.Interpolate;
 
+        // Anti-glitch sous-map : Calcul de collision continu et dynamique
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
 
         foreach (ParticleSystem smoke in tireSmokeParticles)
@@ -102,6 +103,7 @@ public class CarController : MonoBehaviour
     {
         if (!isDrivenByPlayer && !isDrivenByAI && rb.linearVelocity.magnitude < 0.1f && !isEngineDead) return;
 
+        // Anti-glitch effet sandwich : Si la physique s'emballe, on bride la vélocité maximale
         if (rb.linearVelocity.magnitude > maxSpeed * 1.5f)
         {
             rb.linearVelocity = rb.linearVelocity.normalized * maxSpeed;
@@ -234,6 +236,7 @@ public class CarController : MonoBehaviour
     private void ApplyDownforce()
     {
         float speed = rb.linearVelocity.magnitude;
+        // On bride la vitesse utilisée pour la downforce afin d'éviter l'écrasement sous la map en cas de saccade physique
         float clampedSpeed = Mathf.Clamp(speed, 0f, maxSpeed);
         rb.AddForce(Vector3.down * downforce * clampedSpeed, ForceMode.Force);
     }
@@ -287,10 +290,10 @@ public class CarController : MonoBehaviour
         NPCBrain npc = collision.gameObject.GetComponentInParent<NPCBrain>();
         PlayerController player = collision.gameObject.GetComponentInParent<PlayerController>();
 
-        // --- LE CORRECTIF EST ICI : L'ANTI-COUP DU LAPIN ---
-        // Si la voiture percute le joueur, mais que ce joueur est LE CONDUCTEUR actuel de la voiture, on ignore l'impact !
+        // Anti-coup du lapin : Si le véhicule touche le joueur alors qu'il est au volant, on annule immédiatement
         if (player != null && isDrivenByPlayer) return;
 
+        // On filtre aussi les collisions avec les objets légers ou les os isolés du ragdoll
         bool isLightObject = collision.rigidbody != null && collision.rigidbody.mass < 50f;
 
         bool isHuman = false;
@@ -299,14 +302,17 @@ public class CarController : MonoBehaviour
 
         if (isHuman || isLightObject)
         {
+            // Anti-spam des 15 os du ragdoll : maximum un impact calculé toutes les 0.2 secondes
             if (Time.time - lastHumanHitTime < 0.2f) return;
             lastHumanHitTime = Time.time;
 
+            // Dégâts légers et bridés sur la voiture lors des impacts piétons
             float carDamage = Mathf.Clamp(impactForce * 0.05f, 0f, 5f);
             if (carDamage > 1f) TakeDamage(carDamage);
 
             if (isHuman)
             {
+                // Calcul de dégâts équilibré pour la chair
                 int meatDamage = Mathf.RoundToInt(Mathf.Pow(impactForce, 1.4f));
                 Vector3 pushForce = (rb.linearVelocity.normalized + (Vector3.up * 0.4f)) * impactForce * 0.4f;
 
@@ -333,7 +339,7 @@ public class CarController : MonoBehaviour
         }
         else
         {
-            // Les accidents contre les murs endommagent toujours la voiture
+            // Dégâts classiques contre les éléments solides du décor (murs, bâtiments)
             if (impactForce > 6f)
             {
                 float damage = impactForce * 1.5f;
