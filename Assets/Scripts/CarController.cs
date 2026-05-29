@@ -44,7 +44,7 @@ public class CarController : MonoBehaviour
 
     private Rigidbody rb;
     [HideInInspector] public bool isEngineDead = false;
-    private float spawnProtectionTimer = 2f; // 2 secondes d'invincibilité au spawn !
+    private float spawnProtectionTimer = 2f;
 
     void Start()
     {
@@ -71,7 +71,7 @@ public class CarController : MonoBehaviour
 
     void Update()
     {
-        if (spawnProtectionTimer > 0f) spawnProtectionTimer -= Time.deltaTime; // Fait baisser le chrono de protection
+        if (spawnProtectionTimer > 0f) spawnProtectionTimer -= Time.deltaTime;
 
         if (isEngineDead)
         {
@@ -238,9 +238,6 @@ public class CarController : MonoBehaviour
         }
     }
 
-    // ==========================================
-    // SYSTÈME DE DÉGÂTS (Crash & Balles)
-    // ==========================================
     public void TakeDamage(float amount)
     {
         if (isEngineDead || spawnProtectionTimer > 0f) return;
@@ -255,14 +252,13 @@ public class CarController : MonoBehaviour
 
     private void Die()
     {
-        isEngineDead = true; // Verrouille la voiture
+        isEngineDead = true;
 
         if (isDrivenByPlayer && UIManager.Instance != null)
         {
             UIManager.Instance.ShowNotification("<color=red>Moteur détruit ! Véhicule HS.</color>");
         }
 
-        // Apparition de la fumée noire
         if (smokeEffectPrefab != null && hoodPosition != null)
         {
             GameObject smoke = Instantiate(smokeEffectPrefab, hoodPosition);
@@ -273,17 +269,61 @@ public class CarController : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        // Si la voiture vient juste d'apparaître, elle est invincible !
         if (spawnProtectionTimer > 0f) return;
-
         if (collision.contacts.Length > 0 && collision.contacts[0].normal.y > 0.5f) return;
 
         float impactForce = collision.relativeVelocity.magnitude;
+        if (impactForce < 2f) return;
 
-        if (impactForce > 6f)
+        NPCBrain npc = collision.gameObject.GetComponentInParent<NPCBrain>();
+        PlayerController player = collision.gameObject.GetComponentInParent<PlayerController>();
+
+        bool isHuman = false;
+        if (player != null) isHuman = true;
+        if (npc != null && npc.locomotion == NPCBrain.Locomotion.Pieton) isHuman = true;
+
+        if (isHuman)
         {
-            float damage = impactForce * 1.5f;
-            TakeDamage(damage); // On utilise la nouvelle fonction publique !
+            // --- CORRECTIF : VOITURE PLUS RÉSISTANTE ---
+            // Dégâts divisés, et on plafonne l'usure max à 5 PV
+            float carDamage = Mathf.Clamp(impactForce * 0.05f, 0f, 5f);
+            if (carDamage > 1f) TakeDamage(carDamage);
+
+            // --- CORRECTIF : PIÉTON MOINS FRAGILE ---
+            // Exposant et multiplicateur rabaissés. Il survivra aux petits/moyens chocs.
+            int meatDamage = Mathf.RoundToInt(Mathf.Pow(impactForce, 1.35f) * 1.2f);
+
+            // --- CORRECTIF : VOL MOINS EXTRÊME ---
+            // Le piéton est poussé moins fort
+            Vector3 pushForce = (rb.linearVelocity.normalized + (Vector3.up * 0.2f)) * impactForce * 0.35f;
+
+            if (player != null)
+            {
+                player.TakeDamage(meatDamage);
+                if (player.currentHealth > 0) player.Knockdown(pushForce);
+            }
+            if (npc != null)
+            {
+                TargetHealth health = npc.GetComponent<TargetHealth>();
+                if (health != null)
+                {
+                    GameObject attacker = isDrivenByPlayer ? GameObject.FindGameObjectWithTag("Player") : this.gameObject;
+                    health.TakeDamage(meatDamage, attacker);
+
+                    if (health.currentHealth > 0)
+                    {
+                        health.TemporaryRagdoll(pushForce);
+                    }
+                }
+            }
+        }
+        else
+        {
+            if (impactForce > 6f)
+            {
+                float damage = impactForce * 1.5f;
+                TakeDamage(damage);
+            }
         }
     }
 }

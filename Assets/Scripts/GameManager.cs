@@ -21,12 +21,10 @@ public class GameManager : MonoBehaviour
     public Transform hospitalSpawnPoint;
     public Transform policeStationSpawnPoint;
 
-    // --- LE CORRECTIF EST ICI ---
     public bool isEvading
     {
         get
         {
-            // On se base uniquement sur le scan global, fini les clignotements !
             return wantedLevel > 0 && !isBeingSeen;
         }
     }
@@ -35,6 +33,8 @@ public class GameManager : MonoBehaviour
     private float scanTimer = 0f;
     private bool lastEvadingState = false;
 
+    // NOUVEAU : Bloqueur de spam pour les crimes
+    private float lastHitReportTime = 0f;
 
     private void Awake()
     {
@@ -58,7 +58,6 @@ public class GameManager : MonoBehaviour
             scanTimer = 0f;
         }
 
-        // CORRECTIF HUD : Ne met à jour l'interface QUE s'il y a un changement de couleur (fuite)
         if (wantedLevel > 0)
         {
             bool currentlyEvading = isEvading;
@@ -70,7 +69,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            lastEvadingState = false; // Reset quand on a 0 étoile
+            lastEvadingState = false;
         }
     }
 
@@ -93,6 +92,30 @@ public class GameManager : MonoBehaviour
     public void ReportCrime(int points)
     {
         crimePoints += points;
+        UpdateWantedLevel();
+    }
+
+    // --- NOUVEAU : RÈGLE STRICTE DE NOTORIÉTÉ POUR MEURTRE/ACCIDENT ---
+    public void ReportHitOrMurder()
+    {
+        // Anti-spam : 1 seconde de délai entre deux augmentations (si on écrase 2 personnes d'un coup)
+        if (Time.time - lastHitReportTime < 1.0f) return;
+        lastHitReportTime = Time.time;
+
+        if (wantedLevel < 2)
+        {
+            crimePoints = 30; // Passe directement à 2 étoiles
+        }
+        else if (wantedLevel == 2)
+        {
+            crimePoints = 60; // Passe à 3 étoiles
+        }
+        else if (wantedLevel == 3)
+        {
+            crimePoints = 100; // Passe à 4 étoiles
+        }
+        // Si on a 4 ou 5 étoiles, on n'ajoute pas de sanction supplémentaire pour un piéton.
+
         UpdateWantedLevel();
     }
 

@@ -25,6 +25,7 @@ public class PlayerController : MonoBehaviour
     public GameObject inventoryPanel;
 
     [HideInInspector] public bool isDoingQTE = false;
+    [HideInInspector] public bool isKnockedDown = false; // NOUVEAU
 
     private Rigidbody rb;
     private Vector3 moveInput;
@@ -65,7 +66,7 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        if (isDoingQTE)
+        if (isDoingQTE || isKnockedDown)
         {
             moveInput = Vector3.zero;
             return;
@@ -178,9 +179,9 @@ public class PlayerController : MonoBehaviour
                          (LaundromatManager.Instance != null && LaundromatManager.Instance.laundromatPanel != null && LaundromatManager.Instance.laundromatPanel.activeSelf) ||
                          (SafehouseManager.Instance != null && SafehouseManager.Instance.safehousePanel != null && SafehouseManager.Instance.safehousePanel.activeSelf);
 
-        if (isUIOpen || isDoingQTE)
+        if (isUIOpen || isDoingQTE || isKnockedDown)
         {
-            rb.linearVelocity = Vector3.zero;
+            if (!isKnockedDown) rb.linearVelocity = Vector3.zero; // Ne pas forcer la vélocité à zéro si on vole dans les airs !
             return;
         }
 
@@ -239,7 +240,6 @@ public class PlayerController : MonoBehaviour
 
     private void Die()
     {
-        // CORRECTIF : On appelle la séquence de mort globale
         if (GameManager.Instance != null)
         {
             GameManager.Instance.Wasted();
@@ -316,5 +316,41 @@ public class PlayerController : MonoBehaviour
 
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification("L'effet de la substance s'est totalement dissipé.");
+    }
+
+    // --- LA CULBUTE DU JOUEUR SUITE À UN CHOC ---
+    public void Knockdown(Vector3 pushForce)
+    {
+        if (currentHealth <= 0 || isKnockedDown) return;
+        StartCoroutine(PlayerKnockdownRoutine(pushForce));
+    }
+
+    private IEnumerator PlayerKnockdownRoutine(Vector3 pushForce)
+    {
+        isKnockedDown = true;
+        this.enabled = false; // Bloque les commandes
+
+        if (rb != null)
+        {
+            // Libère la rotation pour rouler par terre !
+            rb.constraints = RigidbodyConstraints.None;
+            rb.AddForce(pushForce, ForceMode.Impulse);
+            rb.AddTorque(Random.insideUnitSphere * pushForce.magnitude, ForceMode.Impulse);
+        }
+
+        yield return new WaitForSeconds(3f);
+
+        if (currentHealth > 0)
+        {
+            if (rb != null)
+            {
+                // Remet le joueur sur ses pieds
+                transform.rotation = Quaternion.Euler(0, transform.eulerAngles.y, 0);
+                rb.constraints = RigidbodyConstraints.FreezeRotation;
+            }
+            this.enabled = true; // Rend les commandes
+        }
+
+        isKnockedDown = false;
     }
 }

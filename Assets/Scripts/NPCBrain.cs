@@ -18,7 +18,7 @@ public class NPCBrain : MonoBehaviour
 
     [Header("Paramètres de Déplacement ⚙️")]
     public float walkSpeed = 1.5f;
-    public float runSpeed = 6.0f; // BOOSTÉ : Le flic court plus vite que le joueur (5.0f)
+    public float runSpeed = 4.5f;
     public float visionRange = 25f;
     public TrafficNode currentTrafficNode;
 
@@ -53,11 +53,7 @@ public class NPCBrain : MonoBehaviour
         if (locomotion == Locomotion.Pieton)
         {
             agent = GetComponent<NavMeshAgent>();
-            if (agent != null)
-            {
-                agent.speed = walkSpeed;
-                agent.stoppingDistance = 1.5f; // ANTI-SACCADE : Il s'arrête poliment à 1.5m de toi !
-            }
+            if (agent != null) agent.speed = walkSpeed;
         }
         else if (locomotion == Locomotion.Vehicule)
         {
@@ -235,6 +231,12 @@ public class NPCBrain : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
+        TargetHealth myHealth = GetComponent<TargetHealth>();
+        if (myHealth != null && myHealth.isDead) return; // Un mort n'arrête personne
+
+        // Une voiture vide n'arrête personne non plus
+        if (locomotion == Locomotion.Vehicule && car != null && !car.isDrivenByAI) return;
+
         if (role == NPCRole.Policier && currentState == AIState.Poursuite)
         {
             bool isPlayerInCar = player != null && player.GetComponentInParent<CarController>() != null;
@@ -381,21 +383,13 @@ public class NPCBrain : MonoBehaviour
     {
         if (agent == null || !agent.isOnNavMesh) return;
 
-        Vector3 targetDest = transform.position;
-
         if (isSeeingPlayer && player != null)
         {
-            targetDest = player.position;
+            agent.SetDestination(player.position);
         }
         else if (PoliceManager.Instance != null)
         {
-            targetDest = PoliceManager.Instance.lastKnownPosition;
-        }
-
-        // ANTI-SACCADES : On ne modifie la destination que si tu as bougé d'un mètre !
-        if (Vector3.Distance(agent.destination, targetDest) > 1.0f)
-        {
-            agent.SetDestination(targetDest);
+            agent.SetDestination(PoliceManager.Instance.lastKnownPosition);
         }
     }
 
