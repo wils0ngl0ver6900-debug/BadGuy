@@ -393,81 +393,108 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
+    // --- LE BOUCLIER ANTI-POUSSÉE DÉFINITIF ---
     private void ChasePedestrian()
     {
         if (agent == null || !agent.isOnNavMesh) return;
 
-        Vector3 targetDest = transform.position;
-
-        if (isSeeingPlayer && player != null)
-        {
-            targetDest = player.position;
-        }
-        else if (PoliceManager.Instance != null)
-        {
-            targetDest = PoliceManager.Instance.lastKnownPosition;
-        }
-
         bool isPlayerInCar = player != null && player.GetComponentInParent<CarController>() != null;
+        Vector3 targetDest = transform.position;
+        CarController targetCar = null;
 
-        // --- CORRECTIF MAJEUR ANTI-POUSSÉE ---
-        // Le flic stoppe sa navigation à 2.5m de la voiture pour ne pas forcer le passage
-        agent.stoppingDistance = isPlayerInCar ? 2.5f : 1.0f;
-
-        if (Vector3.Distance(agent.destination, targetDest) > 1.0f)
+        if (isPlayerInCar)
         {
+            targetCar = player.GetComponentInParent<CarController>();
+            Transform doorPoint = null;
+
+            // Le flic vise la portière
+            Transform[] allChildren = targetCar.GetComponentsInChildren<Transform>();
+            foreach (Transform t in allChildren)
+            {
+                if (t.name == "ExitPoint" || t.name == "DoorTrigger" || t.name == "ExitPoint (1)")
+                {
+                    doorPoint = t;
+                    break;
+                }
+            }
+
+            if (doorPoint != null) targetDest = doorPoint.position;
+            else targetDest = targetCar.transform.position;
+        }
+        else
+        {
+            if (isSeeingPlayer && player != null) targetDest = player.position;
+            else if (PoliceManager.Instance != null) targetDest = PoliceManager.Instance.lastKnownPosition;
+        }
+
+        // --- SCAN DE LA CARROSSERIE ---
+        float distToHull = 5f;
+        if (isPlayerInCar && targetCar != null)
+        {
+            Collider[] allCols = targetCar.GetComponentsInChildren<Collider>();
+            float minDist = Mathf.Infinity;
+
+            foreach (Collider col in allCols)
+            {
+                if (col.isTrigger) continue;
+                Vector3 cp = col.ClosestPoint(transform.position);
+                float d = Vector3.Distance(transform.position, cp);
+                if (d < minDist) minDist = d;
+            }
+            distToHull = minDist;
+        }
+
+        // Si le flic est à 1.2 mètre de N'IMPORTE QUELLE partie de la voiture, on le considère comme "à contact"
+        bool isTouchingCar = isPlayerInCar && (distToHull <= 1.2f);
+
+        agent.stoppingDistance = isPlayerInCar ? 0.5f : 1.0f;
+
+        // Si on ne touche pas la voiture, on marche vers la cible
+        if (!isTouchingCar && Vector3.Distance(agent.transform.position, targetDest) > agent.stoppingDistance)
+        {
+            agent.isStopped = false;
             agent.SetDestination(targetDest);
         }
-
-        // --- LOGIQUE D'ARRESTATION INTELLIGENTE ---
-        if (role == NPCRole.Policier && isPlayerInCar && isSeeingPlayer)
+        else if (isTouchingCar)
         {
-            CarController targetCar = player.GetComponentInParent<CarController>();
-            if (targetCar != null)
+            // STOP IMMÉDIAT : Le flic est trop près du coffre/capot/portière, on tue son inertie pour ne pas pousser !
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+
+        // --- LOGIQUE D'ARRESTATION ---
+        if (role == NPCRole.Policier && isPlayerInCar && isSeeingPlayer && targetCar != null)
+        {
+            Rigidbody carRb = targetCar.GetComponent<Rigidbody>();
+            float distToTargetDoor = Vector3.Distance(transform.position, targetDest);
+
+            // On arrête le joueur si le flic est soit arrivé à la portière, soit bloqué contre le coffre (isTouchingCar)
+            // ET que la voiture roule à moins de 5 km/h.
+            if ((distToTargetDoor <= 2.0f || isTouchingCar) && carRb != null && carRb.linearVelocity.magnitude < 5.0f)
             {
-                Collider carCol = targetCar.GetComponentInChildren<Collider>();
-                float distToHull = 5f;
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
 
-                if (carCol != null)
+                Vector3 lookDir = player.position - transform.position;
+                lookDir.y = 0;
+                if (lookDir != Vector3.zero)
+                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5f);
+
+                bustTimer += Time.deltaTime;
+
+                if (bustTimer >= 1.5f)
                 {
-                    Vector3 closestPoint = carCol.ClosestPoint(transform.position);
-                    distToHull = Vector3.Distance(transform.position, closestPoint);
-                }
-                else
-                {
-                    distToHull = Vector3.Distance(transform.position, targetCar.transform.position) - 2f;
-                }
-
-                Rigidbody carRb = targetCar.GetComponent<Rigidbody>();
-
-                // Si le flic est très proche de la carrosserie (<= 2m) et que la voiture est presque à l'arrêt
-                if (distToHull <= 2.0f && carRb != null && carRb.linearVelocity.magnitude < 1.0f)
-                {
-                    agent.isStopped = true; // COUPE LE MOTEUR : Le flic s'arrête de pousser définitivement !
-
-                    Vector3 lookDir = player.position - transform.position;
-                    lookDir.y = 0;
-                    if (lookDir != Vector3.zero)
-                        transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5f);
-
-                    bustTimer += Time.deltaTime;
-
-                    if (bustTimer >= 2.0f)
-                    {
-                        if (GameManager.Instance != null) GameManager.Instance.Busted();
-                        bustTimer = 0f;
-                    }
-                }
-                else
-                {
-                    agent.isStopped = false; // La voiture accélère ? Il recommence à courir !
+                    if (GameManager.Instance != null) GameManager.Instance.Busted();
                     bustTimer = 0f;
                 }
+            }
+            else
+            {
+                bustTimer = 0f;
             }
         }
         else
         {
-            agent.isStopped = false;
             bustTimer = 0f;
         }
     }
