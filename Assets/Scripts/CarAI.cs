@@ -28,6 +28,9 @@ public class CarAI : MonoBehaviour
     private float avoidDirection = 1f;
     private bool isAvoidingObstacle = false;
 
+    // --- NOUVEAU : Chrono pour la technique du Bélier (Bump) ---
+    private float ramTimer = 0f;
+
     void Start()
     {
         carController = GetComponent<CarController>();
@@ -58,6 +61,16 @@ public class CarAI : MonoBehaviour
     void Drive()
     {
         if (chaseTarget == null && currentNode == null) return;
+
+        // --- LA TECHNIQUE DU BÉLIER (BUMP) ---
+        // Si la voiture de flic vient de te percuter, elle recule pour reprendre de l'élan !
+        if (ramTimer > 0f)
+        {
+            ramTimer -= Time.deltaTime;
+            carController.moveInput = -1f; // Marche arrière toute
+            carController.turnInput = 0f;  // On garde les roues droites pour se dégager
+            return;
+        }
 
         Vector3 targetPos;
 
@@ -123,20 +136,28 @@ public class CarAI : MonoBehaviour
             if (Physics.Raycast(sensorStartPos, dir, out RaycastHit hit, length, obstacleMask))
             {
                 if (hit.collider.transform.root == transform.root) return false;
-                if (hit.normal.y > 0.5f) return false;
 
-                // --- CORRECTIF KAMIKAZE ULTIME ---
+                // --- CORRECTIF PIÉTONS ÉCRASÉS ---
+                // On vérifie d'abord si c'est un humain avant d'ignorer la pente !
+                NPCBrain npc = hit.collider.GetComponentInParent<NPCBrain>();
+                PlayerController pc = hit.collider.GetComponentInParent<PlayerController>();
+                bool isHuman = (npc != null || pc != null);
+
+                // Si ce n'est PAS un humain, et que c'est très plat (comme le sol), on ignore.
+                if (!isHuman && hit.normal.y > 0.8f) return false;
+
+                // --- CORRECTIF KAMIKAZE (Priorité Cible) ---
                 if (chaseTarget != null)
                 {
-                    // Si le rayon touche directement le joueur à pied, on l'écrase
-                    if (hit.collider.CompareTag("Player")) return false;
+                    // Si on vise le joueur à pied, on lui fonce dessus
+                    if (pc != null && hit.collider.CompareTag("Player")) return false;
 
-                    // Si le rayon touche une voiture conduite par le joueur, on l'écrase aussi !
+                    // Si on vise la voiture du joueur, on lui fonce dessus
                     CarController hitCar = hit.collider.GetComponentInParent<CarController>();
                     if (hitCar != null && hitCar.isDrivenByPlayer) return false;
                 }
 
-                return true;
+                return true; // Pour tout le reste (civil face à un piéton, flic face à un mur), on freine !
             }
             return false;
         }
@@ -160,5 +181,26 @@ public class CarAI : MonoBehaviour
             else isBraking = true;
         }
         else obstacleTimer = 0f;
+    }
+
+    // --- LE DÉTECTEUR DE CRASH POUR LE RECUL ---
+    void OnCollisionEnter(Collision collision)
+    {
+        if (carController == null || !carController.isDrivenByAI) return;
+
+        if (chaseTarget != null)
+        {
+            CarController targetCar = collision.collider.GetComponentInParent<CarController>();
+
+            // Si la police vient de taper la voiture que conduit le joueur
+            if (targetCar != null && targetCar.isDrivenByPlayer)
+            {
+                // Si l'impact a été assez fort, on enclenche la marche arrière pour reprendre de l'élan
+                if (collision.relativeVelocity.magnitude > 3f)
+                {
+                    ramTimer = 1.5f;
+                }
+            }
+        }
     }
 }

@@ -71,6 +71,16 @@ public class NPCBrain : MonoBehaviour
         StartCoroutine(BrainTick());
     }
 
+    private CarController GetPlayerCar()
+    {
+        CarController[] allCars = FindObjectsOfType<CarController>();
+        foreach (CarController c in allCars)
+        {
+            if (c != null && c.isDrivenByPlayer) return c;
+        }
+        return null;
+    }
+
     private IEnumerator BrainTick()
     {
         while (true)
@@ -83,52 +93,50 @@ public class NPCBrain : MonoBehaviour
 
     private void AnalyzeEnvironment()
     {
-        if (player == null || currentState == AIState.Panique) return;
+        if (currentState == AIState.Panique) return;
 
-        float distToPlayer = Vector3.Distance(transform.position, player.position);
+        CarController playerCar = GetPlayerCar();
+        bool isPlayerInCar = playerCar != null;
+
+        Vector3 actualPlayerPos = isPlayerInCar ? playerCar.transform.position : (player != null ? player.position : transform.position);
+
+        float distToPlayer = Vector3.Distance(transform.position, actualPlayerPos);
         isSeeingPlayer = distToPlayer <= visionRange;
 
         if (role != NPCRole.Civil)
         {
-            Collider[] hitColliders = Physics.OverlapSphere(transform.position, visionRange);
             Transform bestEnemy = null;
             float minDistance = Mathf.Infinity;
 
+            if (role == NPCRole.Policier && GameManager.Instance != null && GameManager.Instance.wantedLevel > 0 && isSeeingPlayer)
+            {
+                bestEnemy = isPlayerInCar ? playerCar.transform : player;
+                minDistance = distToPlayer;
+                if (PoliceManager.Instance != null) PoliceManager.Instance.ReportPlayerSight(actualPlayerPos);
+            }
+
+            Collider[] hitColliders = Physics.OverlapSphere(transform.position, visionRange);
             foreach (Collider hit in hitColliders)
             {
-                TargetHealth health = hit.GetComponent<TargetHealth>();
-                PlayerController playerHealth = hit.GetComponent<PlayerController>();
-
-                if (health != null && health.isDead) continue;
-                if (playerHealth != null && playerHealth.currentHealth <= 0) continue;
-
-                if (health == null && playerHealth == null) continue;
-
                 NPCBrain otherNPC = hit.GetComponent<NPCBrain>();
-                bool isEnemy = false;
+                if (otherNPC != null && otherNPC != this)
+                {
+                    TargetHealth otherHealth = otherNPC.GetComponent<TargetHealth>();
+                    if (otherHealth != null && otherHealth.isDead) continue;
 
-                if (role == NPCRole.Policier)
-                {
-                    if (otherNPC != null && otherNPC.role == NPCRole.Gang) isEnemy = true;
-                    if (hit.CompareTag("Player") && GameManager.Instance != null && GameManager.Instance.wantedLevel > 0)
-                    {
-                        isEnemy = true;
-                        if (PoliceManager.Instance != null) PoliceManager.Instance.ReportPlayerSight(player.position);
-                    }
-                }
-                else if (role == NPCRole.Gang)
-                {
-                    if (otherNPC != null && otherNPC.role == NPCRole.Policier) isEnemy = true;
-                    if (otherNPC != null && otherNPC.role == NPCRole.Gang && otherNPC.faction != this.faction) isEnemy = true;
-                }
+                    bool isEnemy = false;
+                    if (role == NPCRole.Policier && otherNPC.role == NPCRole.Gang) isEnemy = true;
+                    if (role == NPCRole.Gang && otherNPC.role == NPCRole.Policier) isEnemy = true;
+                    if (role == NPCRole.Gang && otherNPC.role == NPCRole.Gang && otherNPC.faction != this.faction) isEnemy = true;
 
-                if (isEnemy)
-                {
-                    float dist = Vector3.Distance(transform.position, hit.transform.position);
-                    if (dist < minDistance)
+                    if (isEnemy)
                     {
-                        minDistance = dist;
-                        bestEnemy = hit.transform;
+                        float dist = Vector3.Distance(transform.position, hit.transform.position);
+                        if (dist < minDistance)
+                        {
+                            minDistance = dist;
+                            bestEnemy = hit.transform;
+                        }
                     }
                 }
             }
@@ -137,43 +145,23 @@ public class NPCBrain : MonoBehaviour
             {
                 currentTarget = bestEnemy;
 
-                if (role == NPCRole.Policier && bestEnemy.CompareTag("Player"))
+                if (role == NPCRole.Policier && (bestEnemy == player || (isPlayerInCar && bestEnemy == playerCar.transform)))
                 {
                     int stars = GameManager.Instance != null ? GameManager.Instance.wantedLevel : 0;
-                    bool isPlayerInCar = bestEnemy.GetComponentInParent<CarController>() != null;
-
-                    if (stars <= 2)
+                    if (stars <= 2) ChangeState(AIState.Poursuite);
+                    else if (stars >= 3)
                     {
-                        ChangeState(AIState.Poursuite);
-                        return;
+                        if (isPlayerInCar && locomotion == Locomotion.Vehicule) ChangeState(AIState.Poursuite);
+                        else ChangeState(AIState.Combat);
                     }
-                    else if (stars == 3 || stars == 4)
-                    {
-                        if (isPlayerInCar && locomotion == Locomotion.Vehicule)
-                        {
-                            ChangeState(AIState.Poursuite);
-                            return;
-                        }
-                        else
-                        {
-                            ChangeState(AIState.Combat);
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        ChangeState(AIState.Combat);
-                        return;
-                    }
+                    return;
                 }
 
                 ChangeState(AIState.Combat);
                 return;
             }
-            else
-            {
-                currentTarget = null;
-            }
+
+            currentTarget = null;
         }
 
         if (role == NPCRole.Civil)
@@ -183,11 +171,8 @@ public class NPCBrain : MonoBehaviour
         }
         else if (role == NPCRole.Policier)
         {
-            if (GameManager.Instance != null)
-            {
-                if (GameManager.Instance.wantedLevel == 0) ChangeState(AIState.Patrouille);
-                else ChangeState(AIState.Poursuite);
-            }
+            if (GameManager.Instance != null && GameManager.Instance.wantedLevel > 0) ChangeState(AIState.Poursuite);
+            else ChangeState(AIState.Patrouille);
         }
         else if (role == NPCRole.Gang)
         {
@@ -246,20 +231,17 @@ public class NPCBrain : MonoBehaviour
 
         if (role == NPCRole.Policier && currentState == AIState.Poursuite)
         {
-            bool isPlayerInCar = player != null && player.GetComponentInParent<CarController>() != null;
+            CarController targetCar = GetPlayerCar();
+            bool isPlayerInCar = targetCar != null;
 
-            if (collision.gameObject.CompareTag("Player"))
+            if (!isPlayerInCar && collision.gameObject.CompareTag("Player"))
             {
-                if (locomotion == Locomotion.Pieton || (locomotion == Locomotion.Vehicule && !isPlayerInCar))
-                {
-                    if (GameManager.Instance != null) GameManager.Instance.Busted();
-                }
+                if (GameManager.Instance != null) GameManager.Instance.Busted();
             }
 
             if (locomotion == Locomotion.Vehicule && isPlayerInCar)
             {
-                CarController targetCar = collision.gameObject.GetComponentInParent<CarController>();
-                if (targetCar != null && collision.gameObject.transform.root == player.root)
+                if (targetCar != null && collision.gameObject.transform.root == targetCar.transform.root)
                 {
                     Rigidbody myRb = GetComponent<Rigidbody>();
                     if (myRb != null && myRb.linearVelocity.magnitude > 8f)
@@ -379,7 +361,7 @@ public class NPCBrain : MonoBehaviour
 
         agent.stoppingDistance = 0f;
 
-        Vector3 directionAway = (transform.position - player.position).normalized;
+        Vector3 directionAway = (transform.position - (player != null ? player.position : transform.position)).normalized;
         agent.SetDestination(transform.position + directionAway * 20f);
 
         if (role == NPCRole.Civil)
@@ -393,25 +375,24 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
-    // --- LE BOUCLIER ANTI-POUSSÉE DÉFINITIF ---
+    // --- LOGIQUE DE CONTOURNEMENT POUR ATTEINDRE LA PORTIÈRE ---
     private void ChasePedestrian()
     {
         if (agent == null || !agent.isOnNavMesh) return;
 
-        bool isPlayerInCar = player != null && player.GetComponentInParent<CarController>() != null;
+        CarController targetCar = GetPlayerCar();
+        bool isPlayerInCar = targetCar != null;
+
         Vector3 targetDest = transform.position;
-        CarController targetCar = null;
+        float distToHull = 5f;
 
         if (isPlayerInCar)
         {
-            targetCar = player.GetComponentInParent<CarController>();
             Transform doorPoint = null;
-
-            // Le flic vise la portière
             Transform[] allChildren = targetCar.GetComponentsInChildren<Transform>();
             foreach (Transform t in allChildren)
             {
-                if (t.name == "ExitPoint" || t.name == "DoorTrigger" || t.name == "ExitPoint (1)")
+                if (t.name.Contains("ExitPoint") || t.name.Contains("DoorTrigger"))
                 {
                     doorPoint = t;
                     break;
@@ -420,20 +401,10 @@ public class NPCBrain : MonoBehaviour
 
             if (doorPoint != null) targetDest = doorPoint.position;
             else targetDest = targetCar.transform.position;
-        }
-        else
-        {
-            if (isSeeingPlayer && player != null) targetDest = player.position;
-            else if (PoliceManager.Instance != null) targetDest = PoliceManager.Instance.lastKnownPosition;
-        }
 
-        // --- SCAN DE LA CARROSSERIE ---
-        float distToHull = 5f;
-        if (isPlayerInCar && targetCar != null)
-        {
+            // Calculer la distance réelle par rapport à la tôle
             Collider[] allCols = targetCar.GetComponentsInChildren<Collider>();
             float minDist = Mathf.Infinity;
-
             foreach (Collider col in allCols)
             {
                 if (col.isTrigger) continue;
@@ -442,47 +413,75 @@ public class NPCBrain : MonoBehaviour
                 if (d < minDist) minDist = d;
             }
             distToHull = minDist;
+
+            // --- DEVIATION INTELLIGENTE DE RECONCURRENCE ---
+            // Si le flic est bloqué contre un pare-chocs (ex: le coffre) mais loin de la portière
+            Vector3 localCopPos = targetCar.transform.InverseTransformPoint(transform.position);
+            float distToTargetDoor = Vector3.Distance(transform.position, targetDest);
+
+            if (distToHull <= 1.0f && distToTargetDoor > 2.0f)
+            {
+                // On force le NavMesh à contourner par le flanc de la voiture en créant un waypoint décalé
+                Vector3 localDoorPos = targetCar.transform.InverseTransformPoint(targetDest);
+                float detourX = localDoorPos.x * 1.6f;
+                float detourZ = localCopPos.z;
+
+                if (Mathf.Abs(detourX) < 0.5f) detourX = -2.2f;
+
+                Vector3 localDetour = new Vector3(detourX, 0f, detourZ);
+                targetDest = targetCar.transform.TransformPoint(localDetour);
+            }
+        }
+        else
+        {
+            if (isSeeingPlayer && player != null) targetDest = player.position;
+            else if (PoliceManager.Instance != null) targetDest = PoliceManager.Instance.lastKnownPosition;
         }
 
-        // Si le flic est à 1.2 mètre de N'IMPORTE QUELLE partie de la voiture, on le considère comme "à contact"
-        bool isTouchingCar = isPlayerInCar && (distToHull <= 1.2f);
+        bool isTouchingCar = isPlayerInCar && (distToHull <= 0.75f);
+        agent.stoppingDistance = isPlayerInCar ? 0.1f : 1.0f;
 
-        agent.stoppingDistance = isPlayerInCar ? 0.5f : 1.0f;
-
-        // Si on ne touche pas la voiture, on marche vers la cible
+        // Se déplacer si on n'est pas au contact immédiat de notre waypoint cible
         if (!isTouchingCar && Vector3.Distance(agent.transform.position, targetDest) > agent.stoppingDistance)
         {
             agent.isStopped = false;
             agent.SetDestination(targetDest);
         }
-        else if (isTouchingCar)
+        else if (isTouchingCar || Vector3.Distance(agent.transform.position, targetDest) <= agent.stoppingDistance)
         {
-            // STOP IMMÉDIAT : Le flic est trop près du coffre/capot/portière, on tue son inertie pour ne pas pousser !
             agent.isStopped = true;
             agent.velocity = Vector3.zero;
         }
 
-        // --- LOGIQUE D'ARRESTATION ---
+        // --- ARRESTATION VALIDÉE EXCLUSIVEMENT À LA PORTIÈRE ---
         if (role == NPCRole.Policier && isPlayerInCar && isSeeingPlayer && targetCar != null)
         {
             Rigidbody carRb = targetCar.GetComponent<Rigidbody>();
-            float distToTargetDoor = Vector3.Distance(transform.position, targetDest);
 
-            // On arrête le joueur si le flic est soit arrivé à la portière, soit bloqué contre le coffre (isTouchingCar)
-            // ET que la voiture roule à moins de 5 km/h.
-            if ((distToTargetDoor <= 2.0f || isTouchingCar) && carRb != null && carRb.linearVelocity.magnitude < 5.0f)
+            // On recalcule la distance par rapport à la vraie position de la portière (pas le waypoint de détour)
+            Transform realDoor = null;
+            Transform[] allChildren = targetCar.GetComponentsInChildren<Transform>();
+            foreach (Transform t in allChildren)
+            {
+                if (t.name.Contains("ExitPoint") || t.name.Contains("DoorTrigger")) { realDoor = t; break; }
+            }
+            Vector3 exactDoorPos = realDoor != null ? realDoor.position : targetCar.transform.position;
+            float distanceToRealDoor = Vector3.Distance(transform.position, exactDoorPos);
+
+            // Le flic doit être à moins de 1.8m du marqueur de la portière pour déclencher l'arrestation
+            if (distanceToRealDoor <= 1.8f && carRb != null && carRb.linearVelocity.magnitude < 5.0f)
             {
                 agent.isStopped = true;
                 agent.velocity = Vector3.zero;
 
-                Vector3 lookDir = player.position - transform.position;
+                Vector3 lookDir = targetCar.transform.position - transform.position;
                 lookDir.y = 0;
                 if (lookDir != Vector3.zero)
-                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5f);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), 0.5f);
 
-                bustTimer += Time.deltaTime;
+                bustTimer += 0.2f;
 
-                if (bustTimer >= 1.5f)
+                if (bustTimer >= 1.4f)
                 {
                     if (GameManager.Instance != null) GameManager.Instance.Busted();
                     bustTimer = 0f;
@@ -515,13 +514,14 @@ public class NPCBrain : MonoBehaviour
 
     private void ChaseVehicle()
     {
-        if (car == null || player == null || !car.isDrivenByAI) return;
+        CarController targetCar = GetPlayerCar();
+        bool isPlayerInCar = targetCar != null;
 
-        float distToPlayer = Vector3.Distance(transform.position, player.position);
+        if (car == null || !car.isDrivenByAI || (!isPlayerInCar && player == null)) return;
+
+        float distToPlayer = Vector3.Distance(transform.position, isPlayerInCar ? targetCar.transform.position : player.position);
         int stars = GameManager.Instance != null ? GameManager.Instance.wantedLevel : 0;
         CarAI ai = GetComponent<CarAI>();
-
-        bool isPlayerInCar = player.GetComponentInParent<CarController>() != null;
 
         if (stars <= 2 && !isPlayerInCar && distToPlayer < 15f && !hasSpawnedCops)
         {
@@ -536,7 +536,7 @@ public class NPCBrain : MonoBehaviour
 
         if (ai != null)
         {
-            ai.chaseTarget = player;
+            ai.chaseTarget = isPlayerInCar ? targetCar.transform : player;
         }
     }
 

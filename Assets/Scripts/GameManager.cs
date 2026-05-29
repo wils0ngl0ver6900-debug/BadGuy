@@ -32,10 +32,7 @@ public class GameManager : MonoBehaviour
     private NPCBrain[] allNPCsInScene;
     private float scanTimer = 0f;
     private bool lastEvadingState = false;
-
     private float lastHitReportTime = 0f;
-
-    // --- CORRECTIF : VERROU ANTI-DOUBLE DÉCLENCHEMENT ---
     private bool isDefeated = false;
 
     private void Awake()
@@ -102,18 +99,9 @@ public class GameManager : MonoBehaviour
         if (Time.time - lastHitReportTime < 1.0f) return;
         lastHitReportTime = Time.time;
 
-        if (wantedLevel < 2)
-        {
-            crimePoints = 30;
-        }
-        else if (wantedLevel == 2)
-        {
-            crimePoints = 60;
-        }
-        else if (wantedLevel == 3)
-        {
-            crimePoints = 100;
-        }
+        if (wantedLevel < 2) crimePoints = 30;
+        else if (wantedLevel == 2) crimePoints = 60;
+        else if (wantedLevel == 3) crimePoints = 100;
 
         UpdateWantedLevel();
     }
@@ -163,7 +151,7 @@ public class GameManager : MonoBehaviour
 
     public void Busted()
     {
-        if (isDefeated) return; // On bloque si on est déjà en train de se faire arrêter !
+        if (isDefeated) return;
         PlayerController pc = FindObjectOfType<PlayerController>();
         if (pc != null && pc.currentHealth <= 0) return;
 
@@ -172,13 +160,13 @@ public class GameManager : MonoBehaviour
 
     public void Wasted()
     {
-        if (isDefeated) return; // On bloque si on est déjà mort !
+        if (isDefeated) return;
         StartCoroutine(DefeatSequence(false));
     }
 
     private IEnumerator DefeatSequence(bool isBusted)
     {
-        isDefeated = true; // On verrouille la séquence
+        isDefeated = true;
 
         if (UIManager.Instance != null)
         {
@@ -192,7 +180,6 @@ public class GameManager : MonoBehaviour
         if (pc != null)
         {
             pc.enabled = false;
-
             playerAim = pc.GetComponent("PlayerAim") as MonoBehaviour;
             playerCombat = pc.GetComponent("PlayerCombat") as MonoBehaviour;
 
@@ -252,25 +239,23 @@ public class GameManager : MonoBehaviour
             yield return StartCoroutine(UIManager.Instance.FadeToBlack(0.3f));
         }
 
-        // --- CORRECTIF NOIR ET BLANC ---
-        // On ne remet pas 'initialSaturation' car il a peut-être été corrompu, on force le reset à 0 !
         if (colorAdjustments != null)
         {
             colorAdjustments.saturation.value = 0f;
         }
 
-        // --- CORRECTIF RESPAWN VOITURE ---
-        // Pendant que l'écran est noir, on éjecte secrètement le joueur de la voiture !
+        // --- CORRECTIF RESPAWN : DISPARITION DU VÉHICULE DURANT LE FADE ---
         CarInteraction[] allInteractions = FindObjectsOfType<CarInteraction>();
         foreach (CarInteraction interaction in allInteractions)
         {
             if (interaction.carController != null && interaction.carController.isDrivenByPlayer)
             {
+                GameObject vehicleToDestroy = interaction.carController.gameObject;
                 interaction.ExitCar();
+                Destroy(vehicleToDestroy); // Le véhicule disparaît proprement de la scène
             }
         }
 
-        // Comme ExitCar a réactivé les contrôles, on les re-bloque en attendant la fin de la cinématique
         if (pc != null) pc.enabled = false;
 
         if (isBusted)
@@ -356,6 +341,6 @@ public class GameManager : MonoBehaviour
 
         if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
 
-        isDefeated = false; // On déverrouille pour la prochaine fois !
+        isDefeated = false;
     }
 }

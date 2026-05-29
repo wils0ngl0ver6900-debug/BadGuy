@@ -2662,6 +2662,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 617076927802600117, guid: eaaf803b8d0781b48b6defb94e3718df, type: 3}
+      propertyPath: m_CullingMask.m_Bits
+      value: 4294967295
+      objectReference: {fileID: 0}
     - target: {fileID: 6917947066346012124, guid: eaaf803b8d0781b48b6defb94e3718df, type: 3}
       propertyPath: m_LocalPosition.x
       value: -49.30605
@@ -3106,7 +3110,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.16666667
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: 2e99b208461d2ad4291ba87c472ec0a0, type: 2}
+  m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
 --- !u!1 &347901416 stripped
 GameObject:
@@ -3187,6 +3191,10 @@ PrefabInstance:
     - target: {fileID: 1482316150721922743, guid: 4f6280f6eba1c2240af998f707fe36d2, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1791073723484435781, guid: 4f6280f6eba1c2240af998f707fe36d2, type: 3}
+      propertyPath: m_CullingMask.m_Bits
+      value: 4294967295
       objectReference: {fileID: 0}
     - target: {fileID: 2295127185568734221, guid: 4f6280f6eba1c2240af998f707fe36d2, type: 3}
       propertyPath: m_Name
@@ -11021,6 +11029,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4563792517565462748, guid: f36731e2b8f79e44ca78204cdaca892e, type: 3}
+      propertyPath: m_CullingMask.m_Bits
+      value: 4294967295
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -14438,6 +14450,10 @@ PrefabInstance:
       propertyPath: currentNode
       value: 
       objectReference: {fileID: 1842373318}
+    - target: {fileID: 3711987809930530496, guid: 6feb34c2472207e4fb21aca1a6f0b334, type: 3}
+      propertyPath: m_CullingMask.m_Bits
+      value: 4294967295
+      objectReference: {fileID: 0}
     - target: {fileID: 5964548873489452120, guid: 6feb34c2472207e4fb21aca1a6f0b334, type: 3}
       propertyPath: m_LocalPosition.x
       value: 26.947899
@@ -16228,7 +16244,7 @@ Transform:
   m_GameObject: {fileID: 1678989881}
   serializedVersion: 2
   m_LocalRotation: {x: -0.09229627, y: -0.70105743, z: -0.7010573, w: 0.09229631}
-  m_LocalPosition: {x: 6.77, y: 0.5, z: 9.45}
+  m_LocalPosition: {x: 3, y: 0.5, z: 30}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 1
   m_Children: []
@@ -16993,6 +17009,10 @@ PrefabInstance:
       propertyPath: carBodyMeshFilter
       value: 
       objectReference: {fileID: 1588776321}
+    - target: {fileID: 2557606155930215120, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_CullingMask.m_Bits
+      value: 4294967295
+      objectReference: {fileID: 0}
     - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
       propertyPath: m_LocalPosition.x
       value: -51.10009
@@ -20675,6 +20695,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1763547725862828353, guid: 2b054905b065a6f4f8698d7adf3f6189, type: 3}
+      propertyPath: m_CullingMask.m_Bits
+      value: 4294967295
+      objectReference: {fileID: 0}
     - target: {fileID: 8248137499403542883, guid: 2b054905b065a6f4f8698d7adf3f6189, type: 3}
       propertyPath: m_Name
       value: Car_Gang_Skullls_AI
