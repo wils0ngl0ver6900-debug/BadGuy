@@ -6,7 +6,7 @@ public class NPCBrain : MonoBehaviour
 {
     public enum NPCRole { Civil, Policier, Gang }
     public enum Locomotion { Pieton, Vehicule }
-    public enum AIState { Patrouille, Fuite, Poursuite, Panique, Combat }
+    public enum AIState { Patrouille, Fuite, Poursuite, Panique, Combat, GardeDuCorps } // NOUVEAU: GardeDuCorps
 
     [Header("Identité 🪪")]
     public NPCRole role = NPCRole.Civil;
@@ -38,6 +38,7 @@ public class NPCBrain : MonoBehaviour
     public Transform[] exitDoors;
 
     [HideInInspector] public bool isSeeingPlayer = false;
+    [HideInInspector] public Transform leader = null; // NOUVEAU : Le boss à suivre (Le Joueur)
 
     private NavMeshAgent agent;
     private CarController car;
@@ -176,7 +177,9 @@ public class NPCBrain : MonoBehaviour
         }
         else if (role == NPCRole.Gang)
         {
-            ChangeState(AIState.Patrouille);
+            // NOUVEAU : Retour à la protection du joueur si pas d'ennemis !
+            if (leader != null) ChangeState(AIState.GardeDuCorps);
+            else ChangeState(AIState.Patrouille);
         }
     }
 
@@ -200,6 +203,38 @@ public class NPCBrain : MonoBehaviour
                 if (locomotion == Locomotion.Pieton) CombatPedestrian();
                 else CombatVehicle();
                 break;
+            case AIState.GardeDuCorps:
+                if (locomotion == Locomotion.Pieton) FollowLeader();
+                break;
+        }
+    }
+
+    // --- NOUVEAU : LA LOGIQUE DU GARDE DU CORPS ---
+    private void FollowLeader()
+    {
+        if (leader == null || agent == null || !agent.isOnNavMesh) return;
+
+        float dist = Vector3.Distance(transform.position, leader.position);
+
+        // S'il est loin il court pour rattraper, sinon il marche avec classe
+        agent.speed = dist > 6f ? runSpeed : walkSpeed;
+        agent.stoppingDistance = 2.5f; // On ne colle pas le joueur
+
+        if (dist > agent.stoppingDistance)
+        {
+            agent.isStopped = false;
+            agent.SetDestination(leader.position);
+        }
+        else
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+
+            // Fait face dans la même direction que le joueur quand il est à l'arrêt
+            Vector3 lookDir = leader.forward;
+            lookDir.y = 0;
+            if (lookDir != Vector3.zero)
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5f);
         }
     }
 
@@ -271,7 +306,8 @@ public class NPCBrain : MonoBehaviour
         if (currentTarget == null || !IsTargetAlive(currentTarget))
         {
             currentTarget = null;
-            ChangeState(AIState.Patrouille);
+            if (leader != null) ChangeState(AIState.GardeDuCorps);
+            else ChangeState(AIState.Patrouille);
             return;
         }
 
@@ -375,7 +411,6 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
-    // --- LOGIQUE DE CONTOURNEMENT POUR ATTEINDRE LA PORTIÈRE ---
     private void ChasePedestrian()
     {
         if (agent == null || !agent.isOnNavMesh) return;
@@ -402,7 +437,6 @@ public class NPCBrain : MonoBehaviour
             if (doorPoint != null) targetDest = doorPoint.position;
             else targetDest = targetCar.transform.position;
 
-            // Calculer la distance réelle par rapport à la tôle
             Collider[] allCols = targetCar.GetComponentsInChildren<Collider>();
             float minDist = Mathf.Infinity;
             foreach (Collider col in allCols)
@@ -414,14 +448,11 @@ public class NPCBrain : MonoBehaviour
             }
             distToHull = minDist;
 
-            // --- DEVIATION INTELLIGENTE DE RECONCURRENCE ---
-            // Si le flic est bloqué contre un pare-chocs (ex: le coffre) mais loin de la portière
             Vector3 localCopPos = targetCar.transform.InverseTransformPoint(transform.position);
             float distToTargetDoor = Vector3.Distance(transform.position, targetDest);
 
             if (distToHull <= 1.0f && distToTargetDoor > 2.0f)
             {
-                // On force le NavMesh à contourner par le flanc de la voiture en créant un waypoint décalé
                 Vector3 localDoorPos = targetCar.transform.InverseTransformPoint(targetDest);
                 float detourX = localDoorPos.x * 1.6f;
                 float detourZ = localCopPos.z;
@@ -441,7 +472,6 @@ public class NPCBrain : MonoBehaviour
         bool isTouchingCar = isPlayerInCar && (distToHull <= 0.75f);
         agent.stoppingDistance = isPlayerInCar ? 0.1f : 1.0f;
 
-        // Se déplacer si on n'est pas au contact immédiat de notre waypoint cible
         if (!isTouchingCar && Vector3.Distance(agent.transform.position, targetDest) > agent.stoppingDistance)
         {
             agent.isStopped = false;
@@ -453,12 +483,10 @@ public class NPCBrain : MonoBehaviour
             agent.velocity = Vector3.zero;
         }
 
-        // --- ARRESTATION VALIDÉE EXCLUSIVEMENT À LA PORTIÈRE ---
         if (role == NPCRole.Policier && isPlayerInCar && isSeeingPlayer && targetCar != null)
         {
             Rigidbody carRb = targetCar.GetComponent<Rigidbody>();
 
-            // On recalcule la distance par rapport à la vraie position de la portière (pas le waypoint de détour)
             Transform realDoor = null;
             Transform[] allChildren = targetCar.GetComponentsInChildren<Transform>();
             foreach (Transform t in allChildren)
@@ -468,7 +496,6 @@ public class NPCBrain : MonoBehaviour
             Vector3 exactDoorPos = realDoor != null ? realDoor.position : targetCar.transform.position;
             float distanceToRealDoor = Vector3.Distance(transform.position, exactDoorPos);
 
-            // Le flic doit être à moins de 1.8m du marqueur de la portière pour déclencher l'arrestation
             if (distanceToRealDoor <= 1.8f && carRb != null && carRb.linearVelocity.magnitude < 5.0f)
             {
                 agent.isStopped = true;

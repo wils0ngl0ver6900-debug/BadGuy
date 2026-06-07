@@ -194,4 +194,14 @@ public class TerritoryManager : MonoBehaviour
         }
         return Faction.None; // Renvoie "None" si c'est au joueur ou vide
     }
+    // NOUVEAU : Vérifie si le joueur possède le quartier à 100%
+    public bool IsCurrentDistrictFullyControlled()
+    {
+        District d = cityDistricts.Find(x => x.districtName == currentDistrictName);
+        if (d != null)
+        {
+            return d.playerControlPercentage >= 100;
+        }
+        return false;
+    }
 }

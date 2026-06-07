@@ -7,31 +7,36 @@ public class CarAI : MonoBehaviour
     public TrafficNode currentNode;
     public float waypointThreshold = 5f;
 
-    [Header("Détection d'obstacles (Les Yeux)")]
-    public float sensorLength = 6f;
+    [Header("Détection d'obstacles (Matrice 360)")]
+    public float frontSensorLength = 7f;
+    public float rearSensorLength = 3f;
     public float sensorFrontOffset = 2.5f;
     public LayerMask obstacleMask;
 
-    [Header("Ajustements IA 🧠")]
-    public float steerSmoothing = 4f;
+    [Header("Simulation Humaine (Bras & Pieds) 🧠")]
+    public float steeringReactionTime = 0.15f; // Inertie des bras sur le volant
+    public float pedalSmoothing = 3f;
 
     [HideInInspector] public Transform chaseTarget = null;
 
     private CarController carController;
     private Rigidbody rb;
-    private bool isBraking = false;
 
-    // --- MANOEUVRES ET BLOCAGE ---
+    // --- VOLANT VIRTUEL ---
+    private float virtualSteeringWheel = 0f;
+    private float steeringVelocity = 0f;
+    private float virtualGasPedal = 0f;
+
+    // --- MACHINE À ÉTATS ORGANIQUE ---
+    private int maneuverState = 0; // 0=Drive, 1=Brake, 2=Reverse (K-Turn), 3=Shift Gear
+    private float maneuverTimer = 0f;
     private float stuckTimer = 0f;
-    private bool isReversing = false;
+    private float lockedAvoidDirection = 1f;
 
-    // --- ESQUIVE ---
-    private float obstacleTimer = 0f;
-    private bool isAvoidingObstacle = false;
-    private float avoidLockTimer = 0f;
-    private float lockedAvoidDirection = 0f;
-    private bool lockedHumanDanger = false;
-    private float closestObstacleDist = 10f; // NOUVEAU : Mémoire de la distance
+    // --- CAPTEURS DYNAMIQUES ---
+    private bool isHumanInDanger = false;
+    private float closestFrontDistance = 10f;
+    private float steerBias = 0f; // La volonté de dévier de sa trajectoire
 
     private float ramTimer = 0f;
 
@@ -46,81 +51,130 @@ public class CarAI : MonoBehaviour
     {
         if (!carController.isDrivenByAI) return;
 
-        // --- 1. GESTION DE LA MARCHE ARRIÈRE (Le Créneau d'urgence) ---
-        if (isReversing)
+        // 1. ANALYSE DE L'ENVIRONNEMENT (Les Yeux)
+        ScanEnvironment();
+
+        // 2. GESTION DU BLOCAGE (Si coincé contre un trottoir bas non détecté)
+        if (maneuverState == 0 && Mathf.Abs(virtualGasPedal) > 0.1f && rb.linearVelocity.magnitude < 0.5f)
         {
             stuckTimer += Time.deltaTime;
+            if (stuckTimer > 1.2f) StartHumanManeuver(steerBias != 0 ? Mathf.Sign(steerBias) : (Random.value > 0.5f ? 1f : -1f));
+        }
+        else { stuckTimer = 0f; }
 
-            // On recule pendant exactement 1.5 seconde
-            if (stuckTimer > 1.5f)
-            {
-                isReversing = false;
-                stuckTimer = 0f;
-                avoidLockTimer = 0.6f; // On force l'esquive en repartant en avant pour contourner
-            }
-            else
-            {
-                carController.moveInput = -1f; // Recule !
-                // On contre-braque pour dégager le nez de la voiture
-                carController.turnInput = Mathf.MoveTowards(carController.turnInput, -lockedAvoidDirection, Time.deltaTime * steerSmoothing);
-                carController.isHandbraking = false;
-                return; // On ne lit ni les lasers ni la route pendant la manoeuvre !
-            }
+        // 3. EXÉCUTION DU CRÉNEAU (Si bloqué)
+        if (maneuverState > 0)
+        {
+            ExecuteHumanManeuver();
         }
         else
         {
-            // Vérification anti-bug : Si la voiture force contre un trottoir bas non-détecté
-            if (Mathf.Abs(carController.moveInput) > 0.1f && rb.linearVelocity.magnitude < 1.0f)
+            // 4. CONDUITE NORMALE (Si la voie est libre)
+            Drive();
+        }
+
+        // --- APPLICATION PHYSIQUE (Simulation des muscles) ---
+        ApplyOrganicInputs();
+    }
+
+    private void ApplyOrganicInputs()
+    {
+        // Les pédales sont appuyées avec douceur (sauf freinage d'urgence)
+        carController.moveInput = Mathf.Lerp(carController.moveInput, virtualGasPedal, Time.deltaTime * pedalSmoothing);
+
+        // Le volant tourne de manière fluide, impossible de passer de -1 à 1 instantanément
+        carController.turnInput = Mathf.SmoothDamp(carController.turnInput, virtualSteeringWheel, ref steeringVelocity, steeringReactionTime);
+    }
+
+    // --- LA MANŒUVRE D'ÉVITEMENT 100% ORGANIQUE ---
+    private void StartHumanManeuver(float direction)
+    {
+        maneuverState = 1;
+        maneuverTimer = 0f;
+        // On décide de quel côté on va braquer pour le créneau
+        lockedAvoidDirection = direction;
+    }
+
+    private void ExecuteHumanManeuver()
+    {
+        maneuverTimer += Time.deltaTime;
+
+        if (maneuverState == 1) // Phase 1 : Piler sur les freins (Surprise !)
+        {
+            virtualGasPedal = 0f;
+            carController.isHandbraking = true;
+            virtualSteeringWheel = 0f;
+
+            if (rb.linearVelocity.magnitude < 0.2f || maneuverTimer > 0.8f)
             {
-                stuckTimer += Time.deltaTime;
+                maneuverState = 2; // On passe la marche arrière
+                maneuverTimer = 0f;
+            }
+        }
+        else if (maneuverState == 2) // Phase 2 : Le Créneau Dynamique (On recule en regardant derrière)
+        {
+            carController.isHandbraking = false;
+            virtualGasPedal = -0.5f; // Pédale de recul à moitié
+            virtualSteeringWheel = -lockedAvoidDirection; // On contre-braque à fond
+
+            bool isRearBlocked = CheckRearSensors(rearSensorLength);
+            bool isFrontClear = !CheckFrontSensors(frontSensorLength * 0.5f); // L'avant est-il assez dégagé pour repartir ?
+
+            // L'HUMAIN DÉCIDE DE S'ARRÊTER DE RECULER SI :
+            // 1. Il a assez de place devant (et a reculé au moins 0.8s pour l'élan)
+            // 2. Il touche un mur derrière lui
+            // 3. Ça fait trop longtemps qu'il recule (Sécurité anti-glitch, 4 secondes max)
+            if ((isFrontClear && maneuverTimer > 0.8f) || isRearBlocked || maneuverTimer > 4.0f)
+            {
+                // LE SECRET : Si on s'est arrêté de reculer car le cul touche un mur, MAIS que l'avant est toujours coincé...
+                if (isRearBlocked && !isFrontClear)
+                {
+                    // L'IA apprend ! Elle se dit : "Bon, braquer à gauche n'a pas marché, je vais braquer de l'autre côté à la prochaine tentative."
+                    lockedAvoidDirection *= -1f;
+                }
+
+                maneuverState = 3; // On passe la marche avant
+                maneuverTimer = 0f;
+            }
+        }
+        else if (maneuverState == 3) // Phase 3 : Le passage de vitesse (La pause de la boîte de vitesse)
+        {
+            carController.isHandbraking = false;
+
+            if (maneuverTimer < 0.35f) // Pause de 0.35 seconde (temps humain pour changer la vitesse)
+            {
+                virtualGasPedal = 0f;
             }
             else
             {
-                stuckTimer -= Time.deltaTime;
-                stuckTimer = Mathf.Max(0f, stuckTimer);
+                virtualGasPedal = 0.5f; // On repart !
             }
 
-            // Si elle force dans le vide pendant 1.5s, on déclenche la marche arrière
-            if (stuckTimer > 1.5f)
+            virtualSteeringWheel = lockedAvoidDirection; // On braque pour contourner l'obstacle
+
+            if (maneuverTimer > 1.8f)
             {
-                isReversing = true;
-                stuckTimer = 0f;
-                avoidLockTimer = 0f;
-                isAvoidingObstacle = false;
+                maneuverState = 0; // Fin de la manœuvre, retour à la conduite normale
             }
         }
-
-        // --- 2. LECTURE DES LASERS ---
-        CheckSensors();
-
-        // Freinage classique
-        if (isBraking && !isAvoidingObstacle)
-        {
-            carController.moveInput = 0f;
-            carController.turnInput = 0f;
-            carController.isHandbraking = true;
-            return;
-        }
-
-        carController.isHandbraking = false;
-
-        // Si on esquive, on laisse CheckSensors piloter
-        if (isAvoidingObstacle) return;
-
-        // --- 3. CONDUITE NORMALE ---
-        Drive();
     }
 
     void Drive()
     {
-        if (chaseTarget == null && currentNode == null) return;
+        if (chaseTarget == null && currentNode == null)
+        {
+            virtualGasPedal = 0f;
+            carController.isHandbraking = true;
+            return;
+        }
 
-        // Technique de la police qui percute le joueur
+        // Action de police agressive (Bélier)
         if (ramTimer > 0f)
         {
             ramTimer -= Time.deltaTime;
-            carController.moveInput = -1f;
-            carController.turnInput = 0f;
+            virtualGasPedal = -1f;
+            virtualSteeringWheel = 0f;
+            carController.isHandbraking = false;
             return;
         }
 
@@ -133,133 +187,139 @@ public class CarAI : MonoBehaviour
         else
         {
             targetPos = currentNode.transform.position;
-            float dist = Vector3.Distance(transform.position, targetPos);
-            if (dist < waypointThreshold && currentNode.nextNodes.Count > 0)
+            if (Vector3.Distance(transform.position, targetPos) < waypointThreshold && currentNode.nextNodes.Count > 0)
             {
                 currentNode = currentNode.nextNodes[Random.Range(0, currentNode.nextNodes.Count)];
             }
         }
 
+        // Calcul de la trajectoire idéale
         Vector3 localTarget = transform.InverseTransformPoint(targetPos);
-        float angle = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
-        float targetTurn = Mathf.Clamp(angle / 45f, -1f, 1f);
+        float angleToTarget = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
+        float idealSteer = Mathf.Clamp(angleToTarget / 45f, -1f, 1f);
 
-        carController.turnInput = Mathf.MoveTowards(carController.turnInput, targetTurn, Time.deltaTime * steerSmoothing);
+        // Intégration de l'évitement en douceur (steerBias)
+        // Si un obstacle est sur le côté, l'IA décale son volant (idéal pour doubler)
+        virtualSteeringWheel = Mathf.Clamp(idealSteer + steerBias, -1f, 1f);
 
-        float angleAbs = Mathf.Abs(angle);
+        // Logique d'accélération et de freinage dans les virages
+        float angleAbs = Mathf.Abs(angleToTarget);
         float currentSpeed = rb.linearVelocity.magnitude;
 
-        if (angleAbs > 30f && currentSpeed > 10f) carController.moveInput = -0.8f;
-        else if (angleAbs > 15f) carController.moveInput = 0.40f;
-        else carController.moveInput = 1f - (Mathf.Abs(carController.turnInput) * 0.2f);
-    }
-
-    void CheckSensors()
-    {
-        if (avoidLockTimer > 0f)
+        if (steerBias != 0f && closestFrontDistance < 4f)
         {
-            avoidLockTimer -= Time.deltaTime;
-            isAvoidingObstacle = true;
-            isBraking = false;
-
-            carController.moveInput = lockedHumanDanger ? -1f : 0.4f;
-            carController.turnInput = Mathf.Lerp(carController.turnInput, lockedAvoidDirection, Time.deltaTime * steerSmoothing * 1.5f);
-            return;
+            // On lâche l'accélérateur si on est en train de frôler un obstacle
+            virtualGasPedal = 0.2f;
+        }
+        else if (angleAbs > 30f && currentSpeed > 10f)
+        {
+            virtualGasPedal = -0.6f; // Freinage avant un gros virage
+        }
+        else if (angleAbs > 15f)
+        {
+            virtualGasPedal = 0.4f; // Ralentissement
+        }
+        else
+        {
+            virtualGasPedal = 1f - (Mathf.Abs(virtualSteeringWheel) * 0.2f); // Pied au plancher
         }
 
-        isAvoidingObstacle = false;
-        isBraking = false;
-        closestObstacleDist = sensorLength; // On réinitialise la distance
-
-        Vector3 sensorStartPos = transform.position + (transform.forward * sensorFrontOffset) + (Vector3.up * 0.5f);
-
-        Vector3 frontCenter = transform.forward;
-        Vector3 frontLeftInner = Quaternion.Euler(0, -15, 0) * transform.forward;
-        Vector3 frontRightInner = Quaternion.Euler(0, 15, 0) * transform.forward;
-        Vector3 frontLeftOuter = Quaternion.Euler(0, -35, 0) * transform.forward;
-        Vector3 frontRightOuter = Quaternion.Euler(0, 35, 0) * transform.forward;
-
-        bool humanInDanger = false;
-
-        bool CheckRay(Vector3 dir, float length, out bool isHumanObstacle)
+        // Freinage d'urgence absolu devant un mur ou un piéton
+        if (closestFrontDistance < 2.5f || (isHumanInDanger && closestFrontDistance < 5f))
         {
-            isHumanObstacle = false;
+            virtualGasPedal = -1f;
+            carController.isHandbraking = (closestFrontDistance < 1.5f); // Frein à main si vraiment trop proche
 
-            if (Physics.Raycast(sensorStartPos, dir, out RaycastHit hit, length, obstacleMask))
+            // Si le mur est VRAIMENT trop près et qu'on ne fait pas déjà un créneau, on le lance
+            if (closestFrontDistance < 1.5f && !isHumanInDanger)
             {
-                if (hit.collider.transform.root == transform.root) return false;
-
-                NPCBrain npc = hit.collider.GetComponentInParent<NPCBrain>();
-                PlayerController pc = hit.collider.GetComponentInParent<PlayerController>();
-                bool isHuman = (npc != null || pc != null);
-
-                if (isHuman) isHumanObstacle = true;
-                if (!isHuman && hit.normal.y > 0.8f) return false;
-
-                if (chaseTarget != null)
-                {
-                    if (pc != null && hit.collider.CompareTag("Player")) return false;
-                    CarController hitCar = hit.collider.GetComponentInParent<CarController>();
-                    if (hitCar != null && hitCar.isDrivenByPlayer) return false;
-                }
-
-                // NOUVEAU : On enregistre la distance la plus courte détectée !
-                if (hit.distance < closestObstacleDist) closestObstacleDist = hit.distance;
-
-                return true;
-            }
-            return false;
-        }
-
-        bool centerHuman, leftInnerHuman, rightInnerHuman, leftOuterHuman, rightOuterHuman;
-
-        bool hitCenter = CheckRay(frontCenter, sensorLength, out centerHuman);
-        bool hitLeftInner = CheckRay(frontLeftInner, sensorLength * 0.9f, out leftInnerHuman);
-        bool hitRightInner = CheckRay(frontRightInner, sensorLength * 0.9f, out rightInnerHuman);
-        bool hitLeftOuter = CheckRay(frontLeftOuter, sensorLength * 0.75f, out leftOuterHuman);
-        bool hitRightOuter = CheckRay(frontRightOuter, sensorLength * 0.75f, out rightOuterHuman);
-
-        humanInDanger = centerHuman || leftInnerHuman || rightInnerHuman || leftOuterHuman || rightOuterHuman;
-
-        bool hitAnyLeft = hitLeftInner || hitLeftOuter;
-        bool hitAnyRight = hitRightInner || hitRightOuter;
-
-        if (hitCenter || hitAnyLeft || hitAnyRight)
-        {
-            float reactionTime = humanInDanger ? 0.05f : 0.4f;
-            obstacleTimer += Time.deltaTime;
-
-            if (obstacleTimer > reactionTime)
-            {
-                if (hitAnyLeft && !hitAnyRight) lockedAvoidDirection = 1f;
-                else if (hitAnyRight && !hitAnyLeft) lockedAvoidDirection = -1f;
-                else if (hitCenter) lockedAvoidDirection = Random.value > 0.5f ? 1f : -1f;
-
-                lockedHumanDanger = humanInDanger;
-
-                // LE SECRET EST ICI : Si le mur est trop près (< 2 mètres), on ne force pas !
-                if (!humanInDanger && closestObstacleDist < 2.0f && !isReversing)
-                {
-                    isReversing = true;     // Déclenche la marche arrière tout de suite
-                    stuckTimer = 0f;
-                    avoidLockTimer = 0f;
-                    isAvoidingObstacle = false;
-                }
-                else
-                {
-                    avoidLockTimer = 0.7f;
-                }
-                obstacleTimer = 0f;
-            }
-            else
-            {
-                isBraking = true; // On freine le temps de réagir
+                StartHumanManeuver(steerBias != 0 ? Mathf.Sign(steerBias) : (Random.value > 0.5f ? 1f : -1f));
             }
         }
         else
         {
-            obstacleTimer = 0f;
+            carController.isHandbraking = false;
         }
+    }
+
+    // --- LE SYSTÈME DE VISION HAUTE-FIDÉLITÉ ---
+    private void ScanEnvironment()
+    {
+        closestFrontDistance = frontSensorLength;
+        steerBias = 0f;
+        isHumanInDanger = false;
+
+        CheckFrontSensors(frontSensorLength);
+    }
+
+    private bool CheckFrontSensors(float distanceToCheck)
+    {
+        Vector3 startPos = transform.position + (transform.forward * sensorFrontOffset) + (Vector3.up * 0.5f);
+
+        // 5 Rayons pour analyser la forme de l'obstacle devant
+        Vector3[] dirs = {
+            transform.forward,
+            Quaternion.Euler(0, -15, 0) * transform.forward, // Intérieur Gauche
+            Quaternion.Euler(0, 15, 0) * transform.forward,  // Intérieur Droit
+            Quaternion.Euler(0, -35, 0) * transform.forward, // Extérieur Gauche
+            Quaternion.Euler(0, 35, 0) * transform.forward   // Extérieur Droit
+        };
+
+        bool isBlocked = false;
+
+        for (int i = 0; i < dirs.Length; i++)
+        {
+            float length = (i == 0) ? distanceToCheck : (i < 3 ? distanceToCheck * 0.9f : distanceToCheck * 0.7f);
+
+            if (Physics.Raycast(startPos, dirs[i], out RaycastHit hit, length, obstacleMask))
+            {
+                if (hit.collider.transform.root == transform.root) continue;
+                if (hit.normal.y > 0.8f && !hit.collider.CompareTag("Player")) continue; // Ignore le sol sauf pour le joueur
+
+                // Est-ce un humain ?
+                bool hitHuman = hit.collider.GetComponentInParent<NPCBrain>() != null || hit.collider.GetComponentInParent<PlayerController>() != null;
+                if (hitHuman) isHumanInDanger = true;
+
+                // Enregistre la distance la plus critique
+                if (hit.distance < closestFrontDistance) closestFrontDistance = hit.distance;
+
+                // Calcul du "Poids" d'évitement (Le volant tourne proportionnellement au danger)
+                float biasWeight = (1f - (hit.distance / length));
+
+                if (i == 1) steerBias += biasWeight * 0.8f; // Obstacle léger gauche -> Braque fort à droite
+                else if (i == 2) steerBias -= biasWeight * 0.8f; // Obstacle léger droit -> Braque fort à gauche
+                else if (i == 3) steerBias += biasWeight * 0.4f; // Obstacle ext gauche -> Braque un peu à droite
+                else if (i == 4) steerBias -= biasWeight * 0.4f; // Obstacle ext droit -> Braque un peu à gauche
+                else if (i == 0) steerBias += (Random.value > 0.5f ? 1f : -1f) * biasWeight; // Face au mur -> Choisit un côté
+
+                isBlocked = true;
+            }
+        }
+        return isBlocked;
+    }
+
+    private bool CheckRearSensors(float distanceToCheck)
+    {
+        // Origine des lasers arrière (au niveau du coffre)
+        Vector3 startPos = transform.position - (transform.forward * sensorFrontOffset) + (Vector3.up * 0.5f);
+
+        Vector3[] dirs = {
+            -transform.forward, // Pile derrière
+            Quaternion.Euler(0, -25, 0) * -transform.forward, // Arrière Gauche
+            Quaternion.Euler(0, 25, 0) * -transform.forward   // Arrière Droite
+        };
+
+        foreach (Vector3 dir in dirs)
+        {
+            if (Physics.Raycast(startPos, dir, out RaycastHit hit, distanceToCheck, obstacleMask))
+            {
+                if (hit.collider.transform.root == transform.root) continue;
+                if (hit.normal.y > 0.8f) continue;
+
+                return true; // Un seul impact à l'arrière suffit pour stopper la marche arrière
+            }
+        }
+        return false;
     }
 
     void OnCollisionEnter(Collision collision)
@@ -269,13 +329,9 @@ public class CarAI : MonoBehaviour
         if (chaseTarget != null)
         {
             CarController targetCar = collision.collider.GetComponentInParent<CarController>();
-
-            if (targetCar != null && targetCar.isDrivenByPlayer)
+            if (targetCar != null && targetCar.isDrivenByPlayer && collision.relativeVelocity.magnitude > 3f)
             {
-                if (collision.relativeVelocity.magnitude > 3f)
-                {
-                    ramTimer = 1.5f;
-                }
+                ramTimer = 1.5f; // IA bélier
             }
         }
     }
