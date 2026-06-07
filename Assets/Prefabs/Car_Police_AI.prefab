@@ -11128,7 +11128,7 @@ MonoBehaviour:
   sensorFrontOffset: 2
   obstacleMask:
     serializedVersion: 2
-    m_Bits: 10248
+    m_Bits: 59400
   steerSmoothing: 20
   chaseTarget: {fileID: 0}
 --- !u!114 &6539125083142406906

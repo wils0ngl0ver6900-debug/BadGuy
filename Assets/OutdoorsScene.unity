@@ -1307,6 +1307,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: VipersPNJ (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 505361568207850071, guid: 2a28a0a057177cf4f828f453fee25b7c, type: 3}
+      propertyPath: m_Layer
+      value: 14
+      objectReference: {fileID: 0}
     - target: {fileID: 3103797337363224342, guid: 2a28a0a057177cf4f828f453fee25b7c, type: 3}
       propertyPath: faction
       value: 2
@@ -6128,7 +6132,7 @@ GameObject:
   - component: {fileID: 674137722}
   - component: {fileID: 674137721}
   - component: {fileID: 674137720}
-  m_Layer: 7
+  m_Layer: 14
   m_Name: Rich_PNJ (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -10432,6 +10436,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: SkullsPNJ (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 505361568207850071, guid: 2fdf8357ee8f3ad4cb0aa221c662725f, type: 3}
+      propertyPath: m_Layer
+      value: 14
+      objectReference: {fileID: 0}
     - target: {fileID: 9118997095166681928, guid: 2fdf8357ee8f3ad4cb0aa221c662725f, type: 3}
       propertyPath: m_LocalPosition.x
       value: -37.339306
@@ -14680,6 +14688,10 @@ PrefabInstance:
       propertyPath: currentNode
       value: 
       objectReference: {fileID: 1842373318}
+    - target: {fileID: 1218266818860775594, guid: 6feb34c2472207e4fb21aca1a6f0b334, type: 3}
+      propertyPath: obstacleMask.m_Bits
+      value: 59400
+      objectReference: {fileID: 0}
     - target: {fileID: 3711987809930530496, guid: 6feb34c2472207e4fb21aca1a6f0b334, type: 3}
       propertyPath: m_CullingMask.m_Bits
       value: 4294967295
@@ -15496,6 +15508,10 @@ PrefabInstance:
     - target: {fileID: 1497394389711808643, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
       propertyPath: m_Name
       value: Policier Variant
+      objectReference: {fileID: 0}
+    - target: {fileID: 1497394389711808643, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
+      propertyPath: m_Layer
+      value: 15
       objectReference: {fileID: 0}
     - target: {fileID: 4458403583273142204, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
       propertyPath: viewAngle
@@ -18598,7 +18614,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6512716062819704709, guid: 78d176dce376f074f838aa691b28db93, type: 3}
       propertyPath: m_Layer
-      value: 0
+      value: 14
       objectReference: {fileID: 0}
     - target: {fileID: 7782452568508912040, guid: 78d176dce376f074f838aa691b28db93, type: 3}
       propertyPath: m_Size.x
@@ -19723,7 +19739,7 @@ GameObject:
   - component: {fileID: 2056516131}
   - component: {fileID: 2056516130}
   - component: {fileID: 2056516129}
-  m_Layer: 7
+  m_Layer: 14
   m_Name: MuleLivraison
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -21169,6 +21185,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Rich_PNJ
       objectReference: {fileID: 0}
+    - target: {fileID: 6512716062819704709, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+      propertyPath: m_Layer
+      value: 14
+      objectReference: {fileID: 0}
     m_RemovedComponents:
     - {fileID: 4328779764877331323, guid: 78d176dce376f074f838aa691b28db93, type: 3}
     m_RemovedGameObjects: []
@@ -21251,6 +21271,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: VipersPNJ
       objectReference: {fileID: 0}
+    - target: {fileID: 505361568207850071, guid: 2a28a0a057177cf4f828f453fee25b7c, type: 3}
+      propertyPath: m_Layer
+      value: 14
+      objectReference: {fileID: 0}
     - target: {fileID: 3103797337363224342, guid: 2a28a0a057177cf4f828f453fee25b7c, type: 3}
       propertyPath: faction
       value: 2
@@ -21311,6 +21335,10 @@ PrefabInstance:
     - target: {fileID: 505361568207850071, guid: 2fdf8357ee8f3ad4cb0aa221c662725f, type: 3}
       propertyPath: m_Name
       value: SkullsPNJ
+      objectReference: {fileID: 0}
+    - target: {fileID: 505361568207850071, guid: 2fdf8357ee8f3ad4cb0aa221c662725f, type: 3}
+      propertyPath: m_Layer
+      value: 14
       objectReference: {fileID: 0}
     - target: {fileID: 9118997095166681928, guid: 2fdf8357ee8f3ad4cb0aa221c662725f, type: 3}
       propertyPath: m_LocalPosition.x
