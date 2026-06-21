@@ -8,13 +8,18 @@ public class PlayerAim : MonoBehaviour
     {
         mainCamera = Camera.main;
 
-        // CORRECTION : Curseur invisible en jeu, mais confiné à la fenêtre pour pouvoir tourner !
+        // Le curseur est confiné à la fenêtre pour pouvoir tourner !
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Confined;
     }
 
     void Update()
     {
+        // --- LE CORRECTIF EST ICI ---
+        // Si le jeu est figé (Map ouverte, Menu de pause...), on bloque la visée !
+        if (Time.timeScale == 0f) return;
+        // ----------------------------
+
         if (SafehouseManager.Instance != null && SafehouseManager.Instance.safehousePanel != null && SafehouseManager.Instance.safehousePanel.activeSelf) return;
         if (ShopManager.Instance != null && ShopManager.Instance.shopPanel != null && ShopManager.Instance.shopPanel.activeSelf) return;
         if (LaundromatManager.Instance != null && LaundromatManager.Instance.laundromatPanel != null && LaundromatManager.Instance.laundromatPanel.activeSelf) return;

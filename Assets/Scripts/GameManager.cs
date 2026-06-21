@@ -86,6 +86,9 @@ public class GameManager : MonoBehaviour
     {
         dirtyMoney += amount;
         if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
+
+        // ---> AJOUT POUR LA QUÊTE <---
+        if (QuestManager.Instance != null) QuestManager.Instance.OnMoneyGained(amount);
     }
 
     public void ReportCrime(int points)

@@ -86,6 +86,13 @@ public class TargetHealth : MonoBehaviour
 
         if (ContractManager.Instance != null) ContractManager.Instance.CompleteContract(ContractManager.ContractType.Hitman);
 
+        // ---> AJOUT POUR LA QUÊTE <---
+        NPCBrain brain = GetComponent<NPCBrain>();
+        if (brain != null && QuestManager.Instance != null)
+        {
+            QuestManager.Instance.OnEnemyKilled(brain.faction);
+        }
+
         SpawnLoot();
         EnableRagdoll();
 
@@ -149,7 +156,6 @@ public class TargetHealth : MonoBehaviour
 
     public void TemporaryRagdoll(Vector3 pushForce)
     {
-        // CORRECTIF ICI : On vérifie spawnProtectionEndTime pour l'empêcher d'être K.O en sortant du véhicule !
         if (isDead || isKnockedOut || Time.time < spawnProtectionEndTime) return;
         StartCoroutine(TempRagdollRoutine(pushForce));
     }

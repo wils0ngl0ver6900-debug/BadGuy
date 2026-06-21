@@ -40,7 +40,7 @@ public class MapManager : MonoBehaviour
         {
             // Reprend le jeu et cache la souris
             Time.timeScale = 1f;
-            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.lockState = CursorLockMode.Confined;
             Cursor.visible = false;
         }
     }

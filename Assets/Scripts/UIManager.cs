@@ -7,6 +7,9 @@ public class UIManager : MonoBehaviour
 {
     public static UIManager Instance;
 
+    [Header("HUD Principal (À masquer en cinématique) 🎬")]
+    public GameObject mainHUDGroup; // L'interrupteur global de ton HUD !
+
     [Header("HUD Quartiers / Zones 🏙️")]
     public TextMeshProUGUI textDistrictName;
     public TextMeshProUGUI textDistrictControl;
@@ -20,7 +23,6 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI textNotoriety;
     public TextMeshProUGUI textNotification;
     public TextMeshProUGUI textAmmo;
-
     public TextMeshProUGUI textVehicleName;
 
     [Header("Système de Tooltip (Panneau FIXE)")]
@@ -38,7 +40,7 @@ public class UIManager : MonoBehaviour
 
     [Header("Écran Noir (Transition) 🎬")]
     public GameObject transitionPanel;
-    private CanvasGroup transitionCanvasGroup; // Le secret du fondu !
+    private CanvasGroup transitionCanvasGroup;
 
     private Coroutine notificationCoroutine;
 
@@ -62,7 +64,13 @@ public class UIManager : MonoBehaviour
         if (textDistrictControl != null) textDistrictControl.gameObject.SetActive(false);
     }
 
-    // --- CRÉATION DE L'ÉCRAN NOIR DANS LE CANVAS ---
+    // --- LA NOUVELLE FONCTION POUR LE DIALOGUE ---
+    public void ToggleHUD(bool isVisible)
+    {
+        if (mainHUDGroup != null) mainHUDGroup.SetActive(isVisible);
+    }
+    // ---------------------------------------------
+
     private void SetupTransitionPanel()
     {
         if (transitionPanel != null)
@@ -72,12 +80,10 @@ public class UIManager : MonoBehaviour
             return;
         }
 
-        // CORRECTIF : On cherche le Canvas principal de ta scène !
         Canvas mainCanvas = FindObjectOfType<Canvas>();
         if (mainCanvas == null) return;
 
         GameObject panelObj = new GameObject("DynamicTransitionPanel");
-        // On place l'image DANS le Canvas, sinon elle est invisible !
         panelObj.transform.SetParent(mainCanvas.transform, false);
 
         Image bgImage = panelObj.AddComponent<Image>();
@@ -91,21 +97,20 @@ public class UIManager : MonoBehaviour
         rect.anchoredPosition = Vector2.zero;
 
         transitionCanvasGroup = panelObj.AddComponent<CanvasGroup>();
-        transitionCanvasGroup.alpha = 0f; // Invisible au début
+        transitionCanvasGroup.alpha = 0f;
         transitionCanvasGroup.blocksRaycasts = false;
         transitionCanvasGroup.interactable = false;
 
-        rect.SetAsLastSibling(); // Met l'écran noir par-dessus tout le reste
+        rect.SetAsLastSibling();
 
         transitionPanel = panelObj;
     }
 
-    // --- LES FONCTIONS DE FONDU ---
     public IEnumerator FadeToBlack(float duration)
     {
         if (transitionCanvasGroup == null) yield break;
 
-        transitionCanvasGroup.blocksRaycasts = true; // Bloque les clics de souris
+        transitionCanvasGroup.blocksRaycasts = true;
         float elapsed = 0f;
         while (elapsed < duration)
         {
@@ -128,10 +133,8 @@ public class UIManager : MonoBehaviour
             yield return null;
         }
         transitionCanvasGroup.alpha = 0f;
-        transitionCanvasGroup.blocksRaycasts = false; // Libère la souris
+        transitionCanvasGroup.blocksRaycasts = false;
     }
-
-    // ... (Le reste de tes fonctions UIManager habituelles) ...
 
     public void UpdateHUD()
     {
