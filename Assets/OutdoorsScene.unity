@@ -1119,7 +1119,9 @@ MonoBehaviour:
   gangCarPrefabs:
   - {fileID: 6452960307185440482, guid: 1fb5420143fd81848886a2b83d88066e, type: 3}
   - {fileID: 6452960307185440482, guid: 108ff068a24125341b49ac7a86401ddc, type: 3}
-  gangPedestrianPrefabs: []
+  gangPedestrianPrefabs:
+  - {fileID: 505361568207850071, guid: 2fdf8357ee8f3ad4cb0aa221c662725f, type: 3}
+  - {fileID: 505361568207850071, guid: 2a28a0a057177cf4f828f453fee25b7c, type: 3}
 --- !u!4 &84131863
 Transform:
   m_ObjectHideFlags: 0
@@ -12561,7 +12563,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerGang
   playerFaction: 3
-  recruitRange: 50
+  recruitRange: 10
   maxRecruits: 3
   gangMenuPanel: {fileID: 1433549525}
   recruitListText: {fileID: 718248981}
@@ -14562,6 +14564,9 @@ MonoBehaviour:
   thiefIncome: 30
   dealerIncome: 75
   robberIncome: 150
+  isUnderAttack: 0
+  attackedDistrictName: 
+  defenseTimer: 0
 --- !u!114 &1403774083
 MonoBehaviour:
   m_ObjectHideFlags: 0

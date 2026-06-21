@@ -37,6 +37,14 @@ public class TerritoryManager : MonoBehaviour
     public int dealerIncome = 75;
     public int robberIncome = 150;
 
+    [Header("Guerre de Gangs (Défense) 🚨")]
+    public bool isUnderAttack = false;
+    public string attackedDistrictName = "";
+    public float defenseTimer = 0f;
+    private bool waveSpawned = false;
+    private List<TargetHealth> currentAttackers = new List<TargetHealth>();
+    private float notificationTimer = 0f;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -46,6 +54,128 @@ public class TerritoryManager : MonoBehaviour
     private void Start()
     {
         StartCoroutine(EmployeeIncomeRoutine());
+    }
+
+    private void Update()
+    {
+        // --- TOUCHE DE DEBUG POUR TESTER L'ATTAQUE (Appuie sur F5) ---
+        if (Input.GetKeyDown(KeyCode.F5))
+        {
+            ForceAttackCurrentDistrict();
+        }
+        // -------------------------------------------------------------
+
+        if (isUnderAttack)
+        {
+            if (!waveSpawned)
+            {
+                defenseTimer -= Time.deltaTime;
+                notificationTimer -= Time.deltaTime;
+
+                if (notificationTimer <= 0f)
+                {
+                    if (UIManager.Instance != null)
+                        UIManager.Instance.ShowNotification($"<color=red>URGENT: {attackedDistrictName} est attaqué ! Temps : {Mathf.CeilToInt(defenseTimer)}s</color>");
+                    notificationTimer = 30f;
+                }
+
+                if (defenseTimer <= 0)
+                {
+                    FailDefense();
+                }
+                else if (currentDistrictName == attackedDistrictName)
+                {
+                    SpawnAttackWave();
+                }
+            }
+            else
+            {
+                currentAttackers.RemoveAll(a => a == null || a.isDead);
+
+                notificationTimer -= Time.deltaTime;
+                if (notificationTimer <= 0f)
+                {
+                    if (UIManager.Instance != null)
+                        UIManager.Instance.ShowNotification($"<color=orange>Défendez la zone ! Assaillants restants : {currentAttackers.Count}</color>");
+                    notificationTimer = 5f;
+                }
+
+                if (currentAttackers.Count <= 0)
+                {
+                    WinDefense();
+                }
+            }
+        }
+    }
+
+    // --- FONCTION DE DEBUG ---
+    private void ForceAttackCurrentDistrict()
+    {
+        if (isUnderAttack) return;
+        if (currentDistrictName == "Inconnu" || string.IsNullOrEmpty(currentDistrictName))
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Allez dans un vrai quartier pour tester l'attaque !");
+            return;
+        }
+
+        attackedDistrictName = currentDistrictName;
+        isUnderAttack = true;
+        waveSpawned = false;
+        defenseTimer = 180f;
+        notificationTimer = 0f;
+    }
+
+    // --- FONCTION ALÉATOIRE NORMALE ---
+    public void TriggerGangRetaliation()
+    {
+        if (isUnderAttack) return;
+
+        List<District> validDistricts = cityDistricts.FindAll(d => d.playerControlPercentage >= 30);
+        if (validDistricts.Count == 0) return;
+
+        District target = validDistricts[Random.Range(0, validDistricts.Count)];
+        attackedDistrictName = target.districtName;
+
+        isUnderAttack = true;
+        waveSpawned = false;
+        defenseTimer = 180f;
+        notificationTimer = 0f;
+    }
+
+    private void SpawnAttackWave()
+    {
+        waveSpawned = true;
+        if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=red>ILS SONT LÀ ! Éliminez les attaquants !</color>");
+
+        if (RandomEventManager.Instance != null)
+        {
+            currentAttackers = RandomEventManager.Instance.SpawnTargetedAttackWave();
+        }
+    }
+
+    private void FailDefense()
+    {
+        isUnderAttack = false;
+        District d = cityDistricts.Find(x => x.districtName == attackedDistrictName);
+        if (d != null)
+        {
+            d.playerControlPercentage = Mathf.Max(0, d.playerControlPercentage - 40);
+            CheckEmployeeUnlocks(d);
+
+            if (UIManager.Instance != null)
+                UIManager.Instance.ShowNotification($"<color=red>DÉFAITE : Vous avez abandonné {attackedDistrictName} ! (-40%)</color>");
+        }
+        if (UIManager.Instance != null) UIManager.Instance.UpdateDistrictControlHUD();
+    }
+
+    private void WinDefense()
+    {
+        isUnderAttack = false;
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ShowNotification($"<color=#00FF00>VICTOIRE : L'attaque sur {attackedDistrictName} a été écrasée !</color>");
+            UIManager.Instance.UpdateDistrictControlHUD();
+        }
     }
 
     public void IncreasePlayerControl(string districtName, int amount)
@@ -151,6 +281,22 @@ public class TerritoryManager : MonoBehaviour
             d.robbersUnlocked = true;
             TriggerUnlockMessage(d.districtName, "<color=red>ÉQUIPE DE BRAQUEURS</color>", "Les commerces locaux sont sous votre coupe !");
         }
+
+        if (d.playerControlPercentage < 85 && d.robbersUnlocked)
+        {
+            d.robbersUnlocked = false;
+            TriggerUnlockMessage(d.districtName, "<color=red>BRAQUEURS PERDUS</color>", "Vous n'avez plus assez d'emprise sur la zone.");
+        }
+        if (d.playerControlPercentage < 55 && d.dealersUnlocked)
+        {
+            d.dealersUnlocked = false;
+            TriggerUnlockMessage(d.districtName, "<color=orange>DEALERS PERDUS</color>", "Vos hommes se sont fait chasser de la rue.");
+        }
+        if (d.playerControlPercentage < 25 && d.thievesUnlocked)
+        {
+            d.thievesUnlocked = false;
+            TriggerUnlockMessage(d.districtName, "<color=cyan>VOLEURS PERDUS</color>", "Ils refusent de travailler pour des faibles.");
+        }
     }
 
     private void TriggerUnlockMessage(string district, string title, string desc)
@@ -184,24 +330,20 @@ public class TerritoryManager : MonoBehaviour
         }
     }
 
-    // NOUVEAU : Fonction qui dit au reste du jeu qui contrôle le quartier actuel !
     public Faction GetDominantFactionInCurrentDistrict()
     {
         District d = cityDistricts.Find(x => x.districtName == currentDistrictName);
         if (d != null && !d.rivalGangDefeated)
         {
-            return d.rivalGang; // Renvoie le gang ennemi si le quartier n'est pas encore conquis
+            return d.rivalGang;
         }
-        return Faction.None; // Renvoie "None" si c'est au joueur ou vide
+        return Faction.None;
     }
-    // NOUVEAU : Vérifie si le joueur possède le quartier à 100%
+
     public bool IsCurrentDistrictFullyControlled()
     {
         District d = cityDistricts.Find(x => x.districtName == currentDistrictName);
-        if (d != null)
-        {
-            return d.playerControlPercentage >= 100;
-        }
+        if (d != null) return d.playerControlPercentage >= 100;
         return false;
     }
 }

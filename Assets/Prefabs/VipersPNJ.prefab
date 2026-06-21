@@ -243,11 +243,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TargetHealth
   maxHealth: 100
+  currentHealth: 0
   lootPrefab: {fileID: 2235859751721978206, guid: b739db5c1c87c2b4fa605d42a4999b40, type: 3}
   possibleDrops:
   - {fileID: 11400000, guid: fd0cd672a9d4917449b62efd25f7c340, type: 2}
   - {fileID: 11400000, guid: 66152f32f738ea44bb1e1744161ec16d, type: 2}
   dropChance: 100
+  isDead: 0
+  isKnockedOut: 0
 --- !u!114 &3322488325252949352
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -301,7 +304,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::NPCBrain
   role: 2
-  faction: 1
+  faction: 2
   locomotion: 0
   currentState: 0
   walkSpeed: 1.5
@@ -316,6 +319,7 @@ MonoBehaviour:
   copPedestrianPrefab: {fileID: 0}
   exitDoors: []
   isSeeingPlayer: 0
+  leader: {fileID: 0}
 --- !u!1 &532938122104477586
 GameObject:
   m_ObjectHideFlags: 0

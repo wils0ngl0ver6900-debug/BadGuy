@@ -6,7 +6,7 @@ public class NPCBrain : MonoBehaviour
 {
     public enum NPCRole { Civil, Policier, Gang }
     public enum Locomotion { Pieton, Vehicule }
-    public enum AIState { Patrouille, Fuite, Poursuite, Panique, Combat, GardeDuCorps } // NOUVEAU: GardeDuCorps
+    public enum AIState { Patrouille, Fuite, Poursuite, Panique, Combat, GardeDuCorps }
 
     [Header("Identité 🪪")]
     public NPCRole role = NPCRole.Civil;
@@ -38,7 +38,7 @@ public class NPCBrain : MonoBehaviour
     public Transform[] exitDoors;
 
     [HideInInspector] public bool isSeeingPlayer = false;
-    [HideInInspector] public Transform leader = null; // NOUVEAU : Le boss à suivre (Le Joueur)
+    [HideInInspector] public Transform leader = null;
 
     private NavMeshAgent agent;
     private CarController car;
@@ -116,6 +116,19 @@ public class NPCBrain : MonoBehaviour
                 if (PoliceManager.Instance != null) PoliceManager.Instance.ReportPlayerSight(actualPlayerPos);
             }
 
+            // --- NOUVEAU : LES GANGS RIVAUX CIBLENT LE JOUEUR ---
+            // Si c'est un gang ennemi et qu'il te voit, il te prend comme cible potentielle
+            if (role == NPCRole.Gang && faction != TerritoryManager.Faction.Mafia && faction != TerritoryManager.Faction.None && isSeeingPlayer)
+            {
+                Transform potentialPlayerTarget = isPlayerInCar ? playerCar.transform : player;
+                if (IsTargetAlive(potentialPlayerTarget))
+                {
+                    bestEnemy = potentialPlayerTarget;
+                    minDistance = distToPlayer;
+                }
+            }
+            // -----------------------------------------------------
+
             Collider[] hitColliders = Physics.OverlapSphere(transform.position, visionRange);
             foreach (Collider hit in hitColliders)
             {
@@ -133,6 +146,8 @@ public class NPCBrain : MonoBehaviour
                     if (isEnemy)
                     {
                         float dist = Vector3.Distance(transform.position, hit.transform.position);
+
+                        // Si le garde du corps (ou un flic) est PLUS PROCHE que le joueur, il tirera dessus en priorité !
                         if (dist < minDistance)
                         {
                             minDistance = dist;
@@ -177,7 +192,6 @@ public class NPCBrain : MonoBehaviour
         }
         else if (role == NPCRole.Gang)
         {
-            // NOUVEAU : Retour à la protection du joueur si pas d'ennemis !
             if (leader != null) ChangeState(AIState.GardeDuCorps);
             else ChangeState(AIState.Patrouille);
         }
@@ -209,16 +223,14 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
-    // --- NOUVEAU : LA LOGIQUE DU GARDE DU CORPS ---
     private void FollowLeader()
     {
         if (leader == null || agent == null || !agent.isOnNavMesh) return;
 
         float dist = Vector3.Distance(transform.position, leader.position);
 
-        // S'il est loin il court pour rattraper, sinon il marche avec classe
         agent.speed = dist > 6f ? runSpeed : walkSpeed;
-        agent.stoppingDistance = 2.5f; // On ne colle pas le joueur
+        agent.stoppingDistance = 2.5f;
 
         if (dist > agent.stoppingDistance)
         {
@@ -230,7 +242,6 @@ public class NPCBrain : MonoBehaviour
             agent.isStopped = true;
             agent.velocity = Vector3.zero;
 
-            // Fait face dans la même direction que le joueur quand il est à l'arrêt
             Vector3 lookDir = leader.forward;
             lookDir.y = 0;
             if (lookDir != Vector3.zero)

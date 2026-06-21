@@ -51,16 +51,24 @@ public class RandomEventManager : MonoBehaviour
 
     private void TriggerRandomEvent()
     {
-        int randomEvent = Random.Range(0, 3);
-        switch (randomEvent)
+        int diceRoll = Random.Range(1, 11);
+
+        if (diceRoll <= 4) SpawnPolicePatrol();
+        else if (diceRoll <= 7) SpawnStreetBrawl();
+        else if (diceRoll <= 9) SpawnDriveBy();
+        else
         {
-            case 0: SpawnPolicePatrol(); break;
-            case 1: SpawnDriveBy(); break;
-            case 2: SpawnStreetBrawl(); break;
+            if (TerritoryManager.Instance != null && !TerritoryManager.Instance.isUnderAttack)
+            {
+                TerritoryManager.Instance.TriggerGangRetaliation();
+            }
+            else
+            {
+                SpawnStreetBrawl();
+            }
         }
     }
 
-    // CORRECTION ICI : Fait le lien direct avec ton TerritoryManager
     private TerritoryManager.Faction GetLocalDominantFaction()
     {
         if (TerritoryManager.Instance != null)
@@ -69,6 +77,62 @@ public class RandomEventManager : MonoBehaviour
         }
         return TerritoryManager.Faction.None;
     }
+
+    // --- VAGUE D'ASSAUT STRICTE ---
+    public List<TargetHealth> SpawnTargetedAttackWave()
+    {
+        List<TargetHealth> spawnedEnemies = new List<TargetHealth>();
+        if (gangPedestrianPrefabs.Length == 0 || player == null) return spawnedEnemies;
+
+        int enemiesToSpawn = Random.Range(8, 13);
+
+        TerritoryManager.Faction attackingFaction = (Random.value > 0.5f) ? TerritoryManager.Faction.Skulls : TerritoryManager.Faction.Vipers;
+
+        List<GameObject> correctFactionPrefabs = new List<GameObject>();
+        foreach (GameObject prefab in gangPedestrianPrefabs)
+        {
+            NPCBrain prefabBrain = prefab.GetComponent<NPCBrain>();
+            if (prefabBrain != null && prefabBrain.faction == attackingFaction)
+            {
+                correctFactionPrefabs.Add(prefab);
+            }
+        }
+
+        // LA NOUVELLE SÉCURITÉ : Si on ne trouve pas la bonne couleur, on affiche une erreur et on annule l'attaque
+        if (correctFactionPrefabs.Count == 0)
+        {
+            if (UIManager.Instance != null)
+            {
+                UIManager.Instance.ShowNotification($"<color=red>ERREUR : Aucun Prefab avec la faction {attackingFaction} dans l'Inspecteur !</color>");
+            }
+            return spawnedEnemies; // Empêche l'escouade arc-en-ciel d'apparaître
+        }
+
+        for (int i = 0; i < enemiesToSpawn; i++)
+        {
+            Vector3 randomDir = player.position + (Random.insideUnitSphere * Random.Range(15f, 30f));
+            if (NavMesh.SamplePosition(randomDir, out NavMeshHit hit, 20f, 1))
+            {
+                GameObject gangPrefab = correctFactionPrefabs[Random.Range(0, correctFactionPrefabs.Count)];
+                GameObject npcObj = Instantiate(gangPrefab, hit.position, Quaternion.identity);
+
+                NPCBrain brain = npcObj.GetComponent<NPCBrain>();
+                if (brain != null)
+                {
+                    brain.faction = attackingFaction;
+                    brain.role = NPCBrain.NPCRole.Gang;
+                    brain.ChangeState(NPCBrain.AIState.Combat);
+                }
+
+                TargetHealth th = npcObj.GetComponent<TargetHealth>();
+                if (th != null) spawnedEnemies.Add(th);
+            }
+        }
+
+        return spawnedEnemies;
+    }
+
+    // ----------------------------------------------------
 
     private void SpawnPolicePatrol()
     {
@@ -114,7 +178,6 @@ public class RandomEventManager : MonoBehaviour
         NavMeshHit hit;
         if (NavMesh.SamplePosition(randomDir, out hit, 10f, 1))
         {
-            // Récupère la faction du quartier actuel !
             TerritoryManager.Faction localFaction = GetLocalDominantFaction();
 
             GameObject gangPrefab = gangPedestrianPrefabs[Random.Range(0, gangPedestrianPrefabs.Length)];
@@ -124,8 +187,8 @@ public class RandomEventManager : MonoBehaviour
 
             if (prefabBrain != null)
             {
-                if (prefabBrain.faction == localFaction) groupSize = Random.Range(5, 9); // Surnombre chez eux !
-                else groupSize = Random.Range(1, 4); // Minorité
+                if (prefabBrain.faction == localFaction) groupSize = Random.Range(5, 9);
+                else groupSize = Random.Range(1, 4);
             }
 
             for (int i = 0; i < groupSize; i++)
