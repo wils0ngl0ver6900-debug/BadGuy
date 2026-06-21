@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.AI;
 using System.Collections.Generic;
 using TMPro;
 
@@ -20,40 +21,77 @@ public class PlayerGang : MonoBehaviour
     private NPCBrain currentTarget = null;
     private NPCBrain previousTarget = null;
 
+    // --- VISUEL PRO ---
+    private GameObject selectionMarker;
+
     void Start()
     {
         if (gangMenuPanel != null) gangMenuPanel.SetActive(false);
+        CreateSelectionMarker();
+    }
+
+    private void CreateSelectionMarker()
+    {
+        selectionMarker = new GameObject("SelectionMarker_Gang");
+        LineRenderer lr = selectionMarker.AddComponent<LineRenderer>();
+
+        lr.startWidth = 0.15f;
+        lr.endWidth = 0.15f;
+        lr.positionCount = 37; // 37 points pour boucler parfaitement le cercle
+        lr.useWorldSpace = false;
+
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.startColor = new Color(0f, 1f, 0.2f, 0.8f); // Vert fluo stylé
+        lr.endColor = new Color(0f, 1f, 0.2f, 0.8f);
+
+        float radius = 1.2f;
+        for (int i = 0; i <= 36; i++)
+        {
+            float angle = i * Mathf.PI * 2f / 36f;
+            lr.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, 0.15f, Mathf.Sin(angle) * radius));
+        }
+        selectionMarker.SetActive(false);
     }
 
     void Update()
     {
-        // CORRECTIF 1 : Sécurité absolue anti-crash
         currentRecruits.RemoveAll(npc =>
         {
             if (npc == null) return true;
             TargetHealth th = npc.GetComponent<TargetHealth>();
             if (th != null && th.isDead) return true;
-            return false; // On le garde s'il est vivant et valide
+            return false;
         });
 
         if (isMenuOpen) UpdateMenuText();
+        if (Input.GetKeyDown(KeyCode.G)) ToggleMenu();
 
-        if (Input.GetKeyDown(KeyCode.G))
+        if (isMenuOpen)
         {
-            ToggleMenu();
+            if (selectionMarker != null) selectionMarker.SetActive(false);
+            return;
         }
 
-        if (isMenuOpen) return;
+        // 1. RECHERCHE DE LA CIBLE (LASER VOLUMÉTRIQUE + MAGNÉTISME)
+        FindTargetWithVolumetricLaser();
 
-        // 1. RECHERCHE DE LA CIBLE
-        FindTargetWithMouse();
-
-        // 2. AFFICHAGE DES NOTIFICATIONS ET RECRUTEMENT
+        // 2. GESTION DU VISUEL ET RECRUTEMENT
         if (currentTarget != null)
         {
-            if (previousTarget != currentTarget)
+            // Glissement fluide de l'anneau de sélection
+            if (!selectionMarker.activeSelf)
             {
-                if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Appuyez sur [R] pour Recruter");
+                selectionMarker.transform.position = currentTarget.transform.position;
+                selectionMarker.SetActive(true);
+            }
+            else
+            {
+                selectionMarker.transform.position = Vector3.Lerp(selectionMarker.transform.position, currentTarget.transform.position, Time.deltaTime * 15f);
+            }
+
+            if (previousTarget != currentTarget && UIManager.Instance != null)
+            {
+                UIManager.Instance.ShowNotification("Appuyez sur [R] pour Recruter");
             }
 
             if (Input.GetKeyDown(KeyCode.R))
@@ -62,45 +100,63 @@ public class PlayerGang : MonoBehaviour
                 currentTarget = null;
             }
         }
-        else if (previousTarget != null)
+        else
         {
-            if (UIManager.Instance != null) UIManager.Instance.HideNotification();
+            selectionMarker.SetActive(false);
+
+            if (previousTarget != null && UIManager.Instance != null && UIManager.Instance.textNotification != null)
+            {
+                if (UIManager.Instance.textNotification.text == "Appuyez sur [R] pour Recruter")
+                {
+                    UIManager.Instance.HideNotification();
+                }
+            }
         }
 
         previousTarget = currentTarget;
     }
 
-    private void FindTargetWithMouse()
+    // --- LA VISÉE INFAILLIBLE DES JEUX AAA ---
+    private void FindTargetWithVolumetricLaser()
     {
-        currentTarget = null;
-        // CORRECTIF 2 : S'adapte à ta résolution QHD dynamiquement !
-        float minScreenDistance = Screen.height * 0.15f;
+        NPCBrain bestNPC = null;
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+
+        float searchRadius = 3.0f; // Épaisseur du "cylindre" laser
+        float minDistance = Mathf.Infinity;
 
         NPCBrain[] allNPCs = FindObjectsOfType<NPCBrain>();
 
         foreach (NPCBrain npc in allNPCs)
         {
-            if (npc.role == NPCBrain.NPCRole.Gang && npc.faction == playerFaction && npc.currentState != NPCBrain.AIState.GardeDuCorps)
+            if (npc.role == NPCBrain.NPCRole.Gang && npc.faction == playerFaction && npc.leader == null)
             {
                 float distToPlayer = Vector3.Distance(transform.position, npc.transform.position);
 
                 if (distToPlayer <= recruitRange)
                 {
-                    Vector3 screenPos = Camera.main.WorldToScreenPoint(npc.transform.position);
+                    // On vise le torse (à 1 mètre du sol), pas les pieds !
+                    Vector3 npcCenter = npc.transform.position + Vector3.up * 1.0f;
 
-                    if (screenPos.z > 0)
+                    // Calcul mathématique de la distance entre le rayon de la caméra et le torse du PNJ
+                    float distToLaser = Vector3.Cross(ray.direction, npcCenter - ray.origin).magnitude;
+
+                    // LE MAGNÉTISME : Si c'est notre cible actuelle, on la considère artificiellement plus proche pour qu'elle "colle" !
+                    if (currentTarget == npc)
                     {
-                        float distToMouse = Vector2.Distance(new Vector2(screenPos.x, screenPos.y), new Vector2(Input.mousePosition.x, Input.mousePosition.y));
+                        distToLaser -= 1.5f; // Impossible de décrocher sans le faire exprès
+                    }
 
-                        if (distToMouse < minScreenDistance)
-                        {
-                            minScreenDistance = distToMouse;
-                            currentTarget = npc;
-                        }
+                    if (distToLaser <= searchRadius && distToLaser < minDistance)
+                    {
+                        minDistance = distToLaser;
+                        bestNPC = npc;
                     }
                 }
             }
         }
+
+        currentTarget = bestNPC;
     }
 
     private void ToggleMenu()
@@ -109,16 +165,8 @@ public class PlayerGang : MonoBehaviour
 
         isMenuOpen = !isMenuOpen;
         gangMenuPanel.SetActive(isMenuOpen);
-
-        if (isMenuOpen)
-        {
-            Cursor.visible = true;
-            UpdateMenuText();
-        }
-        else
-        {
-            Cursor.visible = false;
-        }
+        Cursor.visible = isMenuOpen;
+        if (isMenuOpen) UpdateMenuText();
     }
 
     public void UpdateMenuText()
@@ -177,6 +225,12 @@ public class PlayerGang : MonoBehaviour
             {
                 npc.leader = null;
                 npc.ChangeState(NPCBrain.AIState.Patrouille);
+
+                if (npc.TryGetComponent<NavMeshAgent>(out NavMeshAgent agent))
+                {
+                    agent.isStopped = false;
+                    if (agent.isOnNavMesh) agent.ResetPath();
+                }
             }
         }
         currentRecruits.Clear();
