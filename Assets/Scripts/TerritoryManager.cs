@@ -58,12 +58,10 @@ public class TerritoryManager : MonoBehaviour
 
     private void Update()
     {
-        // --- TOUCHE DE DEBUG POUR TESTER L'ATTAQUE (Appuie sur F5) ---
         if (Input.GetKeyDown(KeyCode.F5))
         {
             ForceAttackCurrentDistrict();
         }
-        // -------------------------------------------------------------
 
         if (isUnderAttack)
         {
@@ -108,7 +106,6 @@ public class TerritoryManager : MonoBehaviour
         }
     }
 
-    // --- FONCTION DE DEBUG ---
     private void ForceAttackCurrentDistrict()
     {
         if (isUnderAttack) return;
@@ -125,7 +122,6 @@ public class TerritoryManager : MonoBehaviour
         notificationTimer = 0f;
     }
 
-    // --- FONCTION ALÉATOIRE NORMALE ---
     public void TriggerGangRetaliation()
     {
         if (isUnderAttack) return;
@@ -200,6 +196,10 @@ public class TerritoryManager : MonoBehaviour
                 UIManager.Instance.ShowNotification($"Emprise sur {d.districtName} : {d.playerControlPercentage}%");
 
             CheckEmployeeUnlocks(d);
+
+            // ---> AJOUT POUR LA QUÊTE <---
+            if (QuestManager.Instance != null)
+                QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.ControlerTerritoire, amount);
         }
     }
 
@@ -218,6 +218,10 @@ public class TerritoryManager : MonoBehaviour
 
                 if (d.sabotagesDone == 3 && UIManager.Instance != null)
                     UIManager.Instance.ShowNotification($"<color=red>Les opérations des {d.rivalGang} sont ruinées ! Leurs lieutenants sortent de leur cachette.</color>");
+
+                // ---> AJOUT POUR LA QUÊTE <---
+                if (QuestManager.Instance != null)
+                    QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.Saboter, 1);
             }
         }
         else if (type == GangObjective.ObjectiveType.Lieutenant)

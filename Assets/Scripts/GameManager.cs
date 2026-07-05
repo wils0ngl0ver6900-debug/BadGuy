@@ -87,8 +87,9 @@ public class GameManager : MonoBehaviour
         dirtyMoney += amount;
         if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
 
-        // ---> AJOUT POUR LA QUÊTE <---
-        if (QuestManager.Instance != null) QuestManager.Instance.OnMoneyGained(amount);
+        // ---> CORRECTIF DE LA QUÊTE <---
+        if (QuestManager.Instance != null)
+            QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.ArgentSale, amount);
     }
 
     public void ReportCrime(int points)
@@ -120,8 +121,15 @@ public class GameManager : MonoBehaviour
         else if (crimePoints >= 10) wantedLevel = 1;
         else wantedLevel = 0;
 
-        if (wantedLevel > oldLevel && UIManager.Instance != null)
-            UIManager.Instance.ShowNotification($"<color=red>RECHERCHÉ : {wantedLevel} ÉTOILE(S) !</color>");
+        if (wantedLevel > oldLevel)
+        {
+            if (UIManager.Instance != null)
+                UIManager.Instance.ShowNotification($"<color=red>RECHERCHÉ : {wantedLevel} ÉTOILE(S) !</color>");
+
+            // ---> AJOUT POUR LA QUÊTE <---
+            if (QuestManager.Instance != null)
+                QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.AttirerFlics, wantedLevel);
+        }
 
         if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
     }
@@ -136,6 +144,10 @@ public class GameManager : MonoBehaviour
             UIManager.Instance.ShowNotification("<color=yellow>Indice de recherche perdu.</color>");
             UIManager.Instance.UpdateHUD();
         }
+
+        // ---> AJOUT POUR LA QUÊTE <---
+        if (QuestManager.Instance != null)
+            QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.SemerFlics, 1);
     }
 
     public void DropOneStarFromDisguise()
@@ -247,7 +259,6 @@ public class GameManager : MonoBehaviour
             colorAdjustments.saturation.value = 0f;
         }
 
-        // --- CORRECTIF RESPAWN : DISPARITION DU VÉHICULE DURANT LE FADE ---
         CarInteraction[] allInteractions = FindObjectsOfType<CarInteraction>();
         foreach (CarInteraction interaction in allInteractions)
         {
@@ -255,7 +266,7 @@ public class GameManager : MonoBehaviour
             {
                 GameObject vehicleToDestroy = interaction.carController.gameObject;
                 interaction.ExitCar();
-                Destroy(vehicleToDestroy); // Le véhicule disparaît proprement de la scène
+                Destroy(vehicleToDestroy);
             }
         }
 

@@ -5,97 +5,73 @@ public class QuestManager : MonoBehaviour
 {
     public static QuestManager Instance;
 
-    // La liste de toutes les missions possibles dans ton jeu !
-    public enum QuestType { None, RecolterArgentSale, TuerVipers, TuerSkulls }
+    public enum QuestObjectiveType
+    {
+        None, Pickpocket, BraquerATM, BlanchirArgent, VolerVoiture, LivrerVoiture,
+        SemerFlics, AttirerFlics, ControlerTerritoire, Saboter, DetruireVoiture, RamenerObjet, TuerEnnemi, ArgentSale
+    }
 
     [Header("UI Quête")]
     public GameObject questPanel;
     public TextMeshProUGUI questObjectiveText;
 
     [HideInInspector] public bool hasActiveQuest = false;
-    [HideInInspector] public QuestType currentQuestType = QuestType.None;
+    [HideInInspector] public QuestObjectiveType currentQuestType;
+    [HideInInspector] public string targetObjectName = "";
 
-    private int currentProgress = 0;
+    // CORRECTION : On passe le currentProgress en public pour le DeliveryZone !
+    [HideInInspector] public int currentProgress = 0;
+
     private int targetGoal = 0;
-    private string baseDescription = "";
+    private string description = "";
 
-    private void Awake()
-    {
-        if (Instance == null) Instance = this;
-    }
+    private void Awake() { if (Instance == null) Instance = this; }
 
-    private void Start()
+    public void StartDynamicQuest(QuestObjectiveType type, int goal, string desc, string targetName = "")
     {
-        if (questPanel != null) questPanel.SetActive(false);
-    }
-
-    // Le PNJ appelle cette fonction pour lancer la quête
-    public void StartDynamicQuest(QuestType type, int goal, string description)
-    {
-        hasActiveQuest = true;
         currentQuestType = type;
         targetGoal = goal;
         currentProgress = 0;
-        baseDescription = description;
-
-        UpdateQuestUI();
+        description = desc;
+        targetObjectName = targetName.ToLower().Trim();
+        hasActiveQuest = true;
 
         if (questPanel != null) questPanel.SetActive(true);
+        UpdateUI();
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=yellow>NOUVELLE QUÊTE !</color>");
     }
 
-    private void UpdateQuestUI()
+    public void RegisterAction(QuestObjectiveType actionType, int amount = 1, string objName = "")
     {
-        if (questObjectiveText != null)
+        if (!hasActiveQuest || actionType != currentQuestType) return;
+
+        if (!string.IsNullOrEmpty(targetObjectName))
         {
-            // Affiche "Objectif : Voler les passants (10/50)"
-            questObjectiveText.text = $"Objectif : \n{baseDescription} ({currentProgress}/{targetGoal})";
+            if (string.IsNullOrEmpty(objName) || objName.ToLower().Trim() != targetObjectName)
+            {
+                return;
+            }
         }
-    }
-
-    // --- LES DÉTECTEURS DE GAMEPLAY ---
-
-    // 1. Appelée par ton GameManager quand tu gagnes de l'argent sale
-    public void OnMoneyGained(int amount)
-    {
-        if (!hasActiveQuest || currentQuestType != QuestType.RecolterArgentSale) return;
 
         currentProgress += amount;
-        if (currentProgress >= targetGoal)
-        {
-            currentProgress = targetGoal;
-            CompleteCurrentQuest();
-        }
-        else UpdateQuestUI();
+        UpdateUI();
+
+        if (currentProgress >= targetGoal) CompleteQuest();
     }
 
-    // 2. Appelée par le TargetHealth d'un ennemi quand il meurt
-    public void OnEnemyKilled(TerritoryManager.Faction enemyFaction)
+    private void UpdateUI()
     {
-        if (!hasActiveQuest) return;
-
-        if ((currentQuestType == QuestType.TuerVipers && enemyFaction == TerritoryManager.Faction.Vipers) ||
-            (currentQuestType == QuestType.TuerSkulls && enemyFaction == TerritoryManager.Faction.Skulls))
-        {
-            currentProgress++;
-            if (currentProgress >= targetGoal)
-            {
-                currentProgress = targetGoal;
-                CompleteCurrentQuest();
-            }
-            else UpdateQuestUI();
-        }
+        if (questObjectiveText != null)
+            questObjectiveText.text = $"Objectif : \n{description}\n({currentProgress} / {targetGoal})";
     }
 
-    private void CompleteCurrentQuest()
+    private void CompleteQuest()
     {
         hasActiveQuest = false;
-        currentQuestType = QuestType.None;
-
+        targetObjectName = "";
         if (questPanel != null) questPanel.SetActive(false);
-        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=#00FF00>QUÊTE ACCOMPLIE !</color>");
+        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=#00FF00>MISSION ACCOMPLIE !</color>");
 
-        // Bonus de réussite immédiat !
-        if (GameManager.Instance != null) GameManager.Instance.AddDirtyMoney(500);
+        if (GameManager.Instance != null) GameManager.Instance.AddDirtyMoney(1500);
     }
 }

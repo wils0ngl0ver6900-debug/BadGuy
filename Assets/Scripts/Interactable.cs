@@ -11,8 +11,8 @@ public class Interactable : MonoBehaviour
     public int bribeCost = 100;
 
     [Header("Mini-Jeu QTE (Effraction - Paramétrable) ⏱️")]
-    public float qteTimeToReact = 1.5f; // Temps max par touche
-    public int qteStepsRequired = 3; // Nombre de réussites à la suite
+    public float qteTimeToReact = 1.5f;
+    public int qteStepsRequired = 3;
     private KeyCode[] possibleQTEKeys = { KeyCode.H, KeyCode.J, KeyCode.K, KeyCode.L, KeyCode.M };
 
     [Header("Spécifique Pickpocket / PNJ")]
@@ -28,7 +28,6 @@ public class Interactable : MonoBehaviour
 
     public virtual void Interact()
     {
-        // 1. VÉRIFICATION DE L'OUTIL (Fouille de l'inventaire + Hotbar)
         if (requiresTool)
         {
             if (string.IsNullOrEmpty(requiredToolName))
@@ -38,7 +37,7 @@ public class Interactable : MonoBehaviour
             }
 
             bool playerHasTool = false;
-            string targetTool = requiredToolName.Trim().ToLower(); // On ignore les majuscules et espaces en trop
+            string targetTool = requiredToolName.Trim().ToLower();
 
             if (HotbarManager.Instance != null)
             {
@@ -72,7 +71,6 @@ public class Interactable : MonoBehaviour
             }
         }
 
-        // 2. LOGIQUE SELON LE TYPE D'ACTION
         switch (type)
         {
             case ActionType.HackATM:
@@ -111,7 +109,6 @@ public class Interactable : MonoBehaviour
         }
     }
 
-    // --- LE MINI-JEU DE QTE ---
     private IEnumerator QTERoutine()
     {
         string actionName = (type == ActionType.HackATM) ? "Piratage ATM" : "Pickpocket";
@@ -119,7 +116,7 @@ public class Interactable : MonoBehaviour
         bool caughtInTheAct = false;
 
         PlayerController pc = FindObjectOfType<PlayerController>();
-        if (pc != null) pc.isDoingQTE = true; // Bloque les mouvements à pied
+        if (pc != null) pc.isDoingQTE = true;
 
         yield return new WaitForSeconds(0.2f);
 
@@ -132,7 +129,7 @@ public class Interactable : MonoBehaviour
 
             float timer = qteTimeToReact;
             bool stepSuccess = false;
-            // Dans Interactable.cs, remplace la boucle while de QTERoutine par ceci :
+
             while (timer > 0)
             {
                 timer -= Time.deltaTime;
@@ -142,7 +139,6 @@ public class Interactable : MonoBehaviour
                     UIManager.Instance.qteSlider.value = timer / qteTimeToReact;
                 }
 
-                // FIX ICI : isBeingSeen
                 if (GameManager.Instance != null && GameManager.Instance.isBeingSeen)
                 {
                     caughtInTheAct = true;
@@ -187,20 +183,17 @@ public class Interactable : MonoBehaviour
         }
         else
         {
-            // ---> NOUVEAU : On s'adresse au NPCBrain ! <---
             NPCBrain civil = GetComponent<NPCBrain>();
 
             if (civil != null)
             {
-                // FIX NOTORIÉTÉ : Nouveau système
                 if (GameManager.Instance != null) GameManager.Instance.ReportCrime(10);
                 if (UIManager.Instance != null) UIManager.Instance.ShowNotification("ÉCHEC ! Le civil donne l'alerte !");
 
-                civil.ForcePanic(); // Le PNJ s'enfuit en hurlant
+                civil.ForcePanic();
             }
             else
             {
-                // C'est un objet (Piratage ATM), la police est prévenue automatiquement
                 if (GameManager.Instance != null) GameManager.Instance.ReportCrime(caughtInTheAct ? 30 : 15);
                 string failMsg = caughtInTheAct ? "VU EN FLAGRANT DÉLIT !" : $"ÉCHEC ({actionName}) !";
                 if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"{failMsg} L'alarme sonne !");
@@ -230,6 +223,15 @@ public class Interactable : MonoBehaviour
             string lootName = (itemToSteal != null) ? itemToSteal.itemName : $"{cashReward}$";
             UIManager.Instance.ShowNotification($"SUCCÈS ({actionName}) : +{lootName} !");
             UIManager.Instance.UpdateHUD();
+        }
+
+        // ---> AJOUT POUR LA QUÊTE <---
+        if (QuestManager.Instance != null)
+        {
+            if (type == ActionType.HackATM)
+                QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.BraquerATM, 1);
+            else if (type == ActionType.Pickpocket)
+                QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.Pickpocket, cashReward > 0 ? cashReward : 1);
         }
     }
 }

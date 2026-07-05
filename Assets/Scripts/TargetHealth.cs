@@ -86,11 +86,12 @@ public class TargetHealth : MonoBehaviour
 
         if (ContractManager.Instance != null) ContractManager.Instance.CompleteContract(ContractManager.ContractType.Hitman);
 
-        // ---> AJOUT POUR LA QUÊTE <---
+        // ---> CORRECTIF POUR LA QUÊTE <---
         NPCBrain brain = GetComponent<NPCBrain>();
         if (brain != null && QuestManager.Instance != null)
         {
-            QuestManager.Instance.OnEnemyKilled(brain.faction);
+            // On valide l'action de tuer, et on envoie la faction du mort (Vipers, Skulls...) comme nom de cible !
+            QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.TuerEnnemi, 1, brain.faction.ToString());
         }
 
         SpawnLoot();

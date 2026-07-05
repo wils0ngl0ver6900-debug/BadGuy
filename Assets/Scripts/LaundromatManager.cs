@@ -24,8 +24,6 @@ public class LaundromatManager : MonoBehaviour
     public void OpenLaundromat()
     {
         laundromatPanel.SetActive(true);
-
-        // On affiche la souris dans le menu
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
 
@@ -39,8 +37,6 @@ public class LaundromatManager : MonoBehaviour
     public void CloseLaundromat()
     {
         laundromatPanel.SetActive(false);
-
-        // CORRECTION : On cache la souris en jeu, mais on la confine pour que le joueur puisse tourner
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Confined;
     }
@@ -56,19 +52,18 @@ public class LaundromatManager : MonoBehaviour
 
         if (amount > 0 && GameManager.Instance.dirtyMoney >= amount)
         {
-            // --- NOUVEAU : Calcul de la taxe (30%) ---
             int tax = Mathf.RoundToInt(amount * 0.30f);
-            int laundered = amount - tax; // Ce qui reste pour le joueur
+            int laundered = amount - tax;
 
-            // On retire la totalité de l'argent sale sélectionné
             GameManager.Instance.dirtyMoney -= amount;
-            // On ajoute seulement l'argent propre déduit de la taxe
             GameManager.Instance.cleanMoney += laundered;
 
             UIManager.Instance.UpdateHUD();
-
-            // On affiche un joli message avec le détail
             UIManager.Instance.ShowNotification($"{laundered}$ blanchis (Taxe : {tax}$)");
+
+            // ---> AJOUT POUR LA QUÊTE <---
+            if (QuestManager.Instance != null)
+                QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.BlanchirArgent, amount);
 
             CloseLaundromat();
         }
