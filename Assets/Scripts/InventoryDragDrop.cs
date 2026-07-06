@@ -56,7 +56,11 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
         originalSiblingIndex = transform.GetSiblingIndex();
         originalHotbarSlot = GetComponentInParent<HotbarSlot>();
 
-        transform.SetParent(transform.root);
+        // --- CORRECTIF 1 : ON SÉCURISE LE PARENT (On force le maintien dans le Canvas) ---
+        Canvas mainCanvas = GetComponentInParent<Canvas>();
+        if (mainCanvas != null) transform.SetParent(mainCanvas.transform);
+        else transform.SetParent(transform.root);
+
         transform.SetAsLastSibling();
         canvasGroup.blocksRaycasts = false;
 
@@ -75,7 +79,11 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
         isDragging = false;
         canvasGroup.blocksRaycasts = true;
 
-        if (transform.parent == transform.root)
+        // --- CORRECTIF 2 : ON SÉCURISE LA VÉRIFICATION DU RETOUR ---
+        Canvas mainCanvas = originalParent != null ? originalParent.GetComponentInParent<Canvas>() : null;
+        bool isDirectChildOfCanvas = mainCanvas != null && transform.parent == mainCanvas.transform;
+
+        if (isDirectChildOfCanvas || transform.parent == transform.root)
         {
             if (originalHotbarSlot != null)
             {
@@ -128,7 +136,6 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
     {
         if (eventData.button == PointerEventData.InputButton.Right)
         {
-            // CAS 1 : L'objet est dans la Hotbar -> Retour à l'inventaire
             HotbarSlot currentHotbarSlot = GetComponentInParent<HotbarSlot>();
             if (currentHotbarSlot != null)
             {
@@ -136,7 +143,6 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
                 return;
             }
 
-            // CAS 2 : L'objet est dans l'Inventaire ET c'est un Vêtement -> On l'équipe !
             if (itemReference != null && itemReference.isClothing)
             {
                 if (EquipmentManager.Instance != null)

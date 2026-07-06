@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using TMPro;
 using System.Collections.Generic; // INDISPENSABLE pour le Dictionnaire
+
 public class ShopManager : MonoBehaviour
 {
     public static ShopManager Instance;
@@ -9,12 +10,14 @@ public class ShopManager : MonoBehaviour
     public GameObject shopPanel;
     public TextMeshProUGUI shopTitleText;
     public ShopSlot[] shopSlots;
+
     [Header("Économie Dynamique 📉")]
     public float demandDropPerSale = 0.15f; // Chaque vente fait chuter le prix de 15%
     public float minDemand = 0.20f; // Le prix ne peut pas descendre en dessous de 20% de sa valeur
 
     // Ce dictionnaire mémorise la "demande" (de 1.0 à 0.2) pour chaque objet
     private Dictionary<ItemData, float> marketDemand = new Dictionary<ItemData, float>();
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -114,13 +117,26 @@ public class ShopManager : MonoBehaviour
         bool hasSpace = InventoryManager.Instance.AddItem(item);
         if (hasSpace)
         {
-            if (useDirtyMoney) GameManager.Instance.dirtyMoney -= price;
-            else GameManager.Instance.cleanMoney -= price;
+            if (useDirtyMoney)
+            {
+                GameManager.Instance.dirtyMoney -= price;
+            }
+            else
+            {
+                GameManager.Instance.cleanMoney -= price;
+
+                // ---> INTÉGRATION BANCAIRE ICI <---
+                if (BankApp.Instance != null)
+                {
+                    BankApp.Instance.RecordTransaction(-price, $"Achat : {item.itemName}");
+                }
+            }
 
             UIManager.Instance.UpdateHUD();
             UIManager.Instance.ShowNotification($"Acheté : {item.itemName}");
         }
     }
+
     // --- NOUVEAU : SYSTÈME D'OFFRE ET DEMANDE ---
     public float GetItemDemand(ItemData item)
     {
@@ -137,6 +153,7 @@ public class ShopManager : MonoBehaviour
         // Calcule le prix final : Prix de base * Demande actuelle
         return Mathf.RoundToInt(item.valueInBlackMarket * GetItemDemand(item));
     }
+
     public void TrySellItem(ItemData item)
     {
         // 1. On récupère le prix avec la cote actuelle du marché

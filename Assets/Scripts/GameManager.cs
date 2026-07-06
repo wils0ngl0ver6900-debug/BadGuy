@@ -283,6 +283,8 @@ public class GameManager : MonoBehaviour
         else
         {
             cleanMoney -= 500;
+            if (BankApp.Instance != null)
+                BankApp.Instance.RecordTransaction(-500, "Frais Hospitaliers");
             if (cleanMoney < 0) cleanMoney = 0;
         }
 

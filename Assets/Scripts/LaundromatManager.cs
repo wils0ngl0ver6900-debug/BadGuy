@@ -57,6 +57,8 @@ public class LaundromatManager : MonoBehaviour
 
             GameManager.Instance.dirtyMoney -= amount;
             GameManager.Instance.cleanMoney += laundered;
+            if (BankApp.Instance != null)
+                BankApp.Instance.RecordTransaction(laundered, "Dépôt : Blanchisserie");
 
             UIManager.Instance.UpdateHUD();
             UIManager.Instance.ShowNotification($"{laundered}$ blanchis (Taxe : {tax}$)");

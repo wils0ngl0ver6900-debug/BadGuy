@@ -44,10 +44,10 @@ MonoBehaviour:
     m_OverrideState: 0
     m_Value: 0
   type:
-    m_OverrideState: 0
+    m_OverrideState: 1
     m_Value: 1
   atmosphericScattering:
-    m_OverrideState: 0
+    m_OverrideState: 1
     m_Value: 1
   renderingMode:
     m_OverrideState: 0
@@ -104,11 +104,11 @@ MonoBehaviour:
     m_OverrideState: 0
     m_Value: 1
   planetRotation:
-    m_OverrideState: 0
+    m_OverrideState: 1
     m_Value: {x: 0, y: 0, z: 0}
   spaceEmissionTexture:
     m_OverrideState: 0
-    m_Value: {fileID: 0}
+    m_Value: {fileID: 8900000, guid: 3caedec0392b117489c51d1eadc81384, type: 3}
   spaceEmissionMultiplier:
     m_OverrideState: 0
     m_Value: 1
@@ -169,8 +169,8 @@ MonoBehaviour:
     m_OverrideState: 0
     m_Value: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   tint:
-    m_OverrideState: 0
-    m_Value: {r: 1, g: 1, b: 1, a: 1}
+    m_OverrideState: 1
+    m_Value: {r: 0.0112139555, g: 0.013944001, b: 0.03773585, a: 1}
   maxFogDistance:
     m_OverrideState: 0
     m_Value: 5000
@@ -196,8 +196,8 @@ MonoBehaviour:
     m_OverrideState: 1
     m_Value: 1
   albedo:
-    m_OverrideState: 0
-    m_Value: {r: 1, g: 1, b: 1, a: 1}
+    m_OverrideState: 1
+    m_Value: {r: 0.089088656, g: 0.08975465, b: 0.20754719, a: 1}
   globalLightProbeDimmer:
     m_OverrideState: 0
     m_Value: 1
@@ -268,11 +268,11 @@ MonoBehaviour:
     m_OverrideState: 1
     m_Value: 4
   cloudType:
-    m_OverrideState: 0
-    m_Value: 0
+    m_OverrideState: 1
+    m_Value: 1
   skyAmbientMode:
     m_OverrideState: 1
-    m_Value: 0
+    m_Value: 1
   planetRadius:
     m_OverrideState: 0
     m_Value: 6378.1

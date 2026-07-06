@@ -27,6 +27,8 @@ public class PlayerAim : MonoBehaviour
         PlayerController pc = GetComponent<PlayerController>();
         if (pc != null && pc.inventoryPanel != null && pc.inventoryPanel.activeSelf) return;
 
+        if (PhoneManager.Instance != null && PhoneManager.Instance.isPhoneOpen) return;
+
         RotateTowardsMouse();
     }
 
