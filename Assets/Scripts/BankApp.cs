@@ -50,7 +50,10 @@ public class BankApp : MonoBehaviour
         {
             amount = amount,
             description = desc,
-            time = System.DateTime.Now.ToString("HH:mm")
+
+            // ---> LA CORRECTION EST ICI <---
+            // On demande l'heure fictive au TimeManager au lieu du PC
+            time = TimeManager.Instance != null ? TimeManager.Instance.GetFormattedTime() : "00:00"
         };
 
         // Ajoute la nouvelle transaction tout en haut de la liste
