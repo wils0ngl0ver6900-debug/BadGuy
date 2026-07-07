@@ -31,6 +31,14 @@ public class DropZone : MonoBehaviour, IDropHandler, IPointerEnterHandler, IPoin
                     draggedItem.originalHotbarSlot.itemInSlot = null;
                 }
 
+                // ---> SÉCURITÉ ARGENT SALE <---
+                // Si l'objet qu'on jette est notre liasse d'argent sale, on vide la valeur dans le GameManager
+                if (GameManager.Instance != null && draggedItem.itemReference == GameManager.Instance.dirtyMoneyItemDef)
+                {
+                    GameManager.Instance.dirtyMoney = 0;
+                    if (UIManager.Instance != null) UIManager.Instance.UpdateHUD(); // Met à jour l'affichage de l'écran principal
+                }
+
                 // On le retire du gestionnaire d'inventaire
                 if (InventoryManager.Instance != null)
                 {

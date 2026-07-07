@@ -55,24 +55,30 @@ public class SafehouseManager : MonoBehaviour
             storedDirtyMoney += amount;
             GameManager.Instance.dirtyMoney = 0;
 
-            GameManager.Instance.AddDirtyMoney(0); // Force l'update du HUD
+            // Fait disparaître l'objet du sac
+            GameManager.Instance.SyncDirtyMoneyItem();
             UpdateUI();
             UIManager.Instance.ShowNotification("Argent sale sécurisé dans le coffre !");
+            UIManager.Instance.UpdateHUD();
         }
         else
         {
             UIManager.Instance.ShowNotification("Pas d'argent sale sur vous.");
         }
     }
+
     public void WithdrawDirtyMoney()
     {
         if (storedDirtyMoney > 0)
         {
-            GameManager.Instance.AddDirtyMoney(storedDirtyMoney);
-            storedDirtyMoney = 0;
-
-            UpdateUI();
-            UIManager.Instance.ShowNotification("Argent sale récupéré !");
+            // On vérifie s'il y a de la place dans le sac à dos pour la liasse !
+            bool success = GameManager.Instance.AddDirtyMoney(storedDirtyMoney);
+            if (success)
+            {
+                storedDirtyMoney = 0;
+                UpdateUI();
+                UIManager.Instance.ShowNotification("Argent sale récupéré !");
+            }
         }
     }
 
@@ -82,17 +88,17 @@ public class SafehouseManager : MonoBehaviour
         int count = 0;
         List<ItemData> itemsToKeep = new List<ItemData>();
 
-        // On fouille le sac à dos du joueur
         foreach (var item in InventoryManager.Instance.items)
         {
-            if (item != null && item.isIllegal)
+            // On empêche le bouton de voler l'objet "Argent Sale", il ne prend que la drogue et les armes
+            if (item != null && item.isIllegal && item != GameManager.Instance.dirtyMoneyItemDef)
             {
                 storedIllegalItems.Add(item);
                 count++;
             }
             else
             {
-                itemsToKeep.Add(item); // On garde les objets légaux
+                itemsToKeep.Add(item);
             }
         }
 
@@ -102,7 +108,7 @@ public class SafehouseManager : MonoBehaviour
             UpdateUI();
 
             InventoryUI ui = FindObjectOfType<InventoryUI>();
-            if (ui != null) ui.RefreshUI(); // Rafraîchit l'inventaire
+            if (ui != null) ui.RefreshUI();
 
             UIManager.Instance.ShowNotification($"{count} objets illégaux sécurisés !");
         }

@@ -11,6 +11,8 @@ public class GameManager : MonoBehaviour
     [Header("Économie")]
     public int dirtyMoney = 100;
     public int cleanMoney = 0;
+    [Tooltip("Glisse ici le ScriptableObject 'Item_ArgentSale'")]
+    public ItemData dirtyMoneyItemDef; // <-- NOUVEAU : L'objet physique !
 
     [Header("Système de Recherche (GTA Style) 🚔")]
     [Range(0, 5)] public int wantedLevel = 0;
@@ -21,13 +23,7 @@ public class GameManager : MonoBehaviour
     public Transform hospitalSpawnPoint;
     public Transform policeStationSpawnPoint;
 
-    public bool isEvading
-    {
-        get
-        {
-            return wantedLevel > 0 && !isBeingSeen;
-        }
-    }
+    public bool isEvading { get { return wantedLevel > 0 && !isBeingSeen; } }
 
     private NPCBrain[] allNPCsInScene;
     private float scanTimer = 0f;
@@ -46,6 +42,7 @@ public class GameManager : MonoBehaviour
         wantedLevel = 0;
         crimePoints = 0;
         allNPCsInScene = FindObjectsOfType<NPCBrain>();
+        SyncDirtyMoneyItem(); // Synchronise au démarrage
     }
 
     private void Update()
@@ -66,30 +63,60 @@ public class GameManager : MonoBehaviour
                 if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
             }
         }
-        else
-        {
-            lastEvadingState = false;
-        }
+        else lastEvadingState = false;
     }
 
     private bool CheckIfAnyCopSeesPlayer()
     {
         allNPCsInScene = FindObjectsOfType<NPCBrain>();
         foreach (NPCBrain npc in allNPCsInScene)
-        {
             if (npc.role == NPCBrain.NPCRole.Policier && npc.isSeeingPlayer) return true;
-        }
         return false;
     }
 
-    public void AddDirtyMoney(int amount)
+    // --- LE NOUVEAU SYSTÈME DE SYNCHRONISATION ---
+    public void SyncDirtyMoneyItem()
     {
+        if (dirtyMoneyItemDef == null || InventoryManager.Instance == null) return;
+
+        bool hasItem = InventoryManager.Instance.items.Contains(dirtyMoneyItemDef);
+
+        // Si j'ai de l'argent mais pas l'objet dans le sac, on l'ajoute
+        if (dirtyMoney > 0 && !hasItem)
+        {
+            InventoryManager.Instance.items.Add(dirtyMoneyItemDef);
+        }
+        // Si je n'ai plus d'argent sale mais que j'ai l'objet, on le détruit
+        else if (dirtyMoney <= 0 && hasItem)
+        {
+            InventoryManager.Instance.items.RemoveAll(i => i == dirtyMoneyItemDef);
+        }
+    }
+
+    // On transforme ceci en booléen pour bloquer si l'inventaire est plein !
+    public bool AddDirtyMoney(int amount)
+    {
+        bool hasItem = dirtyMoneyItemDef != null && InventoryManager.Instance.items.Contains(dirtyMoneyItemDef);
+
+        // Si on gagne de l'argent et qu'on n'a pas encore l'objet, il faut une place libre !
+        if (amount > 0 && !hasItem)
+        {
+            if (InventoryManager.Instance.items.Count >= InventoryManager.Instance.maxSlots)
+            {
+                if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Inventaire plein ! Impossible de prendre l'argent.");
+                return false; // Échec
+            }
+        }
+
         dirtyMoney += amount;
+        SyncDirtyMoneyItem(); // Fait apparaître ou disparaître l'objet
+
         if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
 
-        // ---> CORRECTIF DE LA QUÊTE <---
-        if (QuestManager.Instance != null)
+        if (QuestManager.Instance != null && amount > 0)
             QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.ArgentSale, amount);
+
+        return true; // Succès
     }
 
     public void ReportCrime(int points)
@@ -113,7 +140,6 @@ public class GameManager : MonoBehaviour
     private void UpdateWantedLevel()
     {
         int oldLevel = wantedLevel;
-
         if (crimePoints >= 150) wantedLevel = 5;
         else if (crimePoints >= 100) wantedLevel = 4;
         else if (crimePoints >= 60) wantedLevel = 3;
@@ -123,14 +149,9 @@ public class GameManager : MonoBehaviour
 
         if (wantedLevel > oldLevel)
         {
-            if (UIManager.Instance != null)
-                UIManager.Instance.ShowNotification($"<color=red>RECHERCHÉ : {wantedLevel} ÉTOILE(S) !</color>");
-
-            // ---> AJOUT POUR LA QUÊTE <---
-            if (QuestManager.Instance != null)
-                QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.AttirerFlics, wantedLevel);
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=red>RECHERCHÉ : {wantedLevel} ÉTOILE(S) !</color>");
+            if (QuestManager.Instance != null) QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.AttirerFlics, wantedLevel);
         }
-
         if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
     }
 
@@ -138,16 +159,12 @@ public class GameManager : MonoBehaviour
     {
         wantedLevel = 0;
         crimePoints = 0;
-
         if (UIManager.Instance != null)
         {
             UIManager.Instance.ShowNotification("<color=yellow>Indice de recherche perdu.</color>");
             UIManager.Instance.UpdateHUD();
         }
-
-        // ---> AJOUT POUR LA QUÊTE <---
-        if (QuestManager.Instance != null)
-            QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.SemerFlics, 1);
+        if (QuestManager.Instance != null) QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.SemerFlics, 1);
     }
 
     public void DropOneStarFromDisguise()
@@ -169,7 +186,6 @@ public class GameManager : MonoBehaviour
         if (isDefeated) return;
         PlayerController pc = FindObjectOfType<PlayerController>();
         if (pc != null && pc.currentHealth <= 0) return;
-
         StartCoroutine(DefeatSequence(true));
     }
 
@@ -182,11 +198,7 @@ public class GameManager : MonoBehaviour
     private IEnumerator DefeatSequence(bool isBusted)
     {
         isDefeated = true;
-
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.ShowNotification(isBusted ? "<color=blue>ARRÊTÉ !</color>" : "<color=red>VOUS ÊTES MORT !</color>");
-        }
+        if (UIManager.Instance != null) UIManager.Instance.ShowNotification(isBusted ? "<color=blue>ARRÊTÉ !</color>" : "<color=red>VOUS ÊTES MORT !</color>");
 
         PlayerController pc = FindObjectOfType<PlayerController>();
         MonoBehaviour playerAim = null;
@@ -197,7 +209,6 @@ public class GameManager : MonoBehaviour
             pc.enabled = false;
             playerAim = pc.GetComponent("PlayerAim") as MonoBehaviour;
             playerCombat = pc.GetComponent("PlayerCombat") as MonoBehaviour;
-
             if (playerAim != null) playerAim.enabled = false;
             if (playerCombat != null) playerCombat.enabled = false;
         }
@@ -207,10 +218,7 @@ public class GameManager : MonoBehaviour
         if (volumeObj != null)
         {
             Volume globalVolume = volumeObj.GetComponent<Volume>();
-            if (globalVolume != null && globalVolume.profile != null)
-            {
-                globalVolume.profile.TryGet(out colorAdjustments);
-            }
+            if (globalVolume != null && globalVolume.profile != null) globalVolume.profile.TryGet(out colorAdjustments);
         }
 
         Time.timeScale = 0.25f;
@@ -222,11 +230,7 @@ public class GameManager : MonoBehaviour
             if (brain != null && brain.role == NPCBrain.NPCRole.Policier)
             {
                 UnityEngine.AI.NavMeshAgent agent = brain.GetComponent<UnityEngine.AI.NavMeshAgent>();
-                if (agent != null && agent.isOnNavMesh)
-                {
-                    agent.isStopped = true;
-                    agent.velocity = Vector3.zero;
-                }
+                if (agent != null && agent.isOnNavMesh) { agent.isStopped = true; agent.velocity = Vector3.zero; }
                 brain.enabled = false;
             }
         }
@@ -238,10 +242,7 @@ public class GameManager : MonoBehaviour
         while (elapsedColor < fadeColorDuration)
         {
             elapsedColor += Time.unscaledDeltaTime;
-            if (colorAdjustments != null)
-            {
-                colorAdjustments.saturation.value = Mathf.Lerp(initialSaturation, -100f, elapsedColor / fadeColorDuration);
-            }
+            if (colorAdjustments != null) colorAdjustments.saturation.value = Mathf.Lerp(initialSaturation, -100f, elapsedColor / fadeColorDuration);
             yield return null;
         }
 
@@ -254,10 +255,7 @@ public class GameManager : MonoBehaviour
             yield return StartCoroutine(UIManager.Instance.FadeToBlack(0.3f));
         }
 
-        if (colorAdjustments != null)
-        {
-            colorAdjustments.saturation.value = 0f;
-        }
+        if (colorAdjustments != null) colorAdjustments.saturation.value = 0f;
 
         CarInteraction[] allInteractions = FindObjectsOfType<CarInteraction>();
         foreach (CarInteraction interaction in allInteractions)
@@ -274,7 +272,10 @@ public class GameManager : MonoBehaviour
 
         if (isBusted)
         {
+            // ---> MODIFICATION ICI : On vide l'argent et on synchronise l'inventaire !
             dirtyMoney = 0;
+            SyncDirtyMoneyItem();
+
             if (HotbarManager.Instance != null) HotbarManager.Instance.RemoveIllegalItems();
             List<ItemData> itemsToConfiscate = new List<ItemData>();
             foreach (var item in InventoryManager.Instance.items) if (item != null && item.isIllegal) itemsToConfiscate.Add(item);
@@ -283,8 +284,7 @@ public class GameManager : MonoBehaviour
         else
         {
             cleanMoney -= 500;
-            if (BankApp.Instance != null)
-                BankApp.Instance.RecordTransaction(-500, "Frais Hospitaliers");
+            if (BankApp.Instance != null) BankApp.Instance.RecordTransaction(-500, "Frais Hospitaliers");
             if (cleanMoney < 0) cleanMoney = 0;
         }
 
@@ -297,10 +297,7 @@ public class GameManager : MonoBehaviour
             {
                 brain.enabled = true;
                 UnityEngine.AI.NavMeshAgent agent = brain.GetComponent<UnityEngine.AI.NavMeshAgent>();
-                if (agent != null && agent.isOnNavMesh)
-                {
-                    agent.isStopped = false;
-                }
+                if (agent != null && agent.isOnNavMesh) agent.isStopped = false;
             }
         }
 
@@ -311,10 +308,7 @@ public class GameManager : MonoBehaviour
             pc.transform.SetParent(null);
             pc.gameObject.SetActive(true);
 
-            if (MinimapFollow.Instance != null)
-            {
-                MinimapFollow.Instance.target = pc.transform;
-            }
+            if (MinimapFollow.Instance != null) MinimapFollow.Instance.target = pc.transform;
 
             Transform targetPoint = isBusted ? policeStationSpawnPoint : hospitalSpawnPoint;
 
@@ -325,20 +319,10 @@ public class GameManager : MonoBehaviour
             }
 
             Rigidbody playerRb = pc.GetComponent<Rigidbody>();
-            if (playerRb != null)
-            {
-                playerRb.linearVelocity = Vector3.zero;
-                playerRb.angularVelocity = Vector3.zero;
-            }
+            if (playerRb != null) { playerRb.linearVelocity = Vector3.zero; playerRb.angularVelocity = Vector3.zero; }
 
-            foreach (Transform child in pc.transform)
-            {
-                child.gameObject.SetActive(true);
-            }
-            foreach (Renderer r in pc.GetComponentsInChildren<Renderer>(true))
-            {
-                r.enabled = true;
-            }
+            foreach (Transform child in pc.transform) child.gameObject.SetActive(true);
+            foreach (Renderer r in pc.GetComponentsInChildren<Renderer>(true)) r.enabled = true;
 
             pc.Heal(pc.maxHealth);
             pc.enabled = true;

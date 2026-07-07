@@ -164,7 +164,22 @@ public class UIManager : MonoBehaviour
         {
             tooltipPanel.SetActive(true);
             if (tooltipName != null) tooltipName.text = item.itemName;
-            if (tooltipDescription != null) tooltipDescription.text = item.description;
+
+            // ---> MODIFICATION SÉCURITÉ ARGENT SALE ICI <---
+            string finalDescription = item.description;
+
+            // On vérifie si l'objet survolé est bien notre liasse d'argent sale
+            if (GameManager.Instance != null && GameManager.Instance.dirtyMoneyItemDef != null)
+            {
+                if (item == GameManager.Instance.dirtyMoneyItemDef)
+                {
+                    // On injecte le montant exact en gras et en rouge avant la description !
+                    finalDescription = $"<b>Montant possédé : <color=red>{GameManager.Instance.dirtyMoney} $</color></b>\n\n" + item.description;
+                }
+            }
+
+            if (tooltipDescription != null) tooltipDescription.text = finalDescription;
+            // -----------------------------------------------
 
             if (tooltipRarity != null)
             {

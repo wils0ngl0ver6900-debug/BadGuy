@@ -215,7 +215,12 @@ public class Interactable : MonoBehaviour
         }
         else
         {
-            if (GameManager.Instance != null) GameManager.Instance.AddDirtyMoney(cashReward);
+            if (GameManager.Instance != null)
+            {
+                // NOUVEAU : Si l'inventaire est plein, la fonction renvoie False et bloque le vol !
+                bool success = GameManager.Instance.AddDirtyMoney(cashReward);
+                if (!success) return;
+            }
         }
 
         if (UIManager.Instance != null)
@@ -225,7 +230,6 @@ public class Interactable : MonoBehaviour
             UIManager.Instance.UpdateHUD();
         }
 
-        // ---> AJOUT POUR LA QUÊTE <---
         if (QuestManager.Instance != null)
         {
             if (type == ActionType.HackATM)

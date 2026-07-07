@@ -13,11 +13,10 @@ public class CryptoLineUI : MonoBehaviour
     public Button sellButton;
 
     [Header("Graphique 📈")]
-    public RectTransform graphContainer; // La zone où on dessine
-    public Color graphColor = Color.green;
+    public RectTransform graphContainer;
 
     private string currentSymbol;
-    private List<GameObject> graphLines = new List<GameObject>(); // Mémoriser les lignes tracées
+    private List<GameObject> graphLines = new List<GameObject>();
 
     public void Setup(CryptoCoin crypto, PlayerCryptoItem walletItem)
     {
@@ -29,7 +28,6 @@ public class CryptoLineUI : MonoBehaviour
         string colorHex = changePercent >= 0 ? "#00FF00" : "#FF0000";
         string sign = changePercent >= 0 ? "+" : "";
 
-        // Textes
         nameText.text = $"<b>{crypto.name}</b> ({crypto.symbol})";
         priceText.text = $"{crypto.currentPrice} $  <size=80%><color={colorHex}>{sign}{changePercent:F2}%</color></size>";
 
@@ -47,55 +45,63 @@ public class CryptoLineUI : MonoBehaviour
             sellButton.interactable = false;
         }
 
-        // Actions boutons
         buyButton.onClick.RemoveAllListeners();
-        buyButton.onClick.AddListener(() => { CryptoMarketManager.Instance.BuyCrypto(currentSymbol, 1); });
-        sellButton.onClick.RemoveAllListeners();
-        sellButton.onClick.AddListener(() => { CryptoMarketManager.Instance.SellCrypto(currentSymbol, 1); });
+        buyButton.onClick.AddListener(() =>
+        {
+            if (CryptoMarketManager.Instance.BuyCrypto(currentSymbol, 1))
+                CryptoApp.Instance.RefreshUI();
+        });
 
-        // DESSINER LE GRAPHIQUE
+        sellButton.onClick.RemoveAllListeners();
+        sellButton.onClick.AddListener(() =>
+        {
+            if (CryptoMarketManager.Instance.SellCrypto(currentSymbol, 1))
+                CryptoApp.Instance.RefreshUI();
+        });
+
+        // Plus de Coroutine, on dessine en direct !
         DrawGraph(crypto.priceHistory, changePercent >= 0 ? Color.green : Color.red);
     }
 
     private void DrawGraph(List<float> history, Color color)
     {
-        // 1. Nettoyer l'ancien graphique
-        foreach (GameObject line in graphLines) Destroy(line);
+        if (graphContainer == null) return;
+
+        // 1. Nettoyage radical des anciennes lignes
+        foreach (Transform child in graphContainer) Destroy(child.gameObject);
         graphLines.Clear();
 
-        if (history.Count < 2) return; // Pas assez de données pour tracer une ligne
+        if (history.Count < 2) return;
 
-        // 2. Trouver les limites pour adapter l'échelle
-        float yMax = history[0];
-        float yMin = history[0];
-        foreach (float val in history)
-        {
-            if (val > yMax) yMax = val;
-            if (val < yMin) yMin = val;
-        }
+        // 2. LA MAGIE : On force Unity à calculer la taille exacte de ta boîte à cet instant précis
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(graphContainer);
 
-        // Marge pour que le graphique ne touche pas les bords extrêmes
+        float graphWidth = graphContainer.rect.width;
+        float graphHeight = graphContainer.rect.height;
+
+        // Sécurité ultime : Si Unity s'entête à dire que la boîte fait 0 pixel, on force une taille par défaut
+        if (graphWidth <= 0) graphWidth = 220f;
+        if (graphHeight <= 0) graphHeight = 80f;
+
+        // 3. Calcul des échelles
+        float yMax = Mathf.Max(history.ToArray());
+        float yMin = Mathf.Min(history.ToArray());
+
         float yDifference = yMax - yMin;
         if (yDifference <= 0) yDifference = 5f;
         yMax += yDifference * 0.2f;
         yMin -= yDifference * 0.2f;
 
-        float graphWidth = graphContainer.rect.width;
-        float graphHeight = graphContainer.rect.height;
-
         Vector2 lastPoint = Vector2.zero;
 
-        // 3. Placer les points
         for (int i = 0; i < history.Count; i++)
         {
             float xPosition = (i / (float)(history.Count - 1)) * graphWidth;
             float yPosition = ((history[i] - yMin) / (yMax - yMin)) * graphHeight;
             Vector2 currentPoint = new Vector2(xPosition, yPosition);
 
-            if (i > 0)
-            {
-                CreateLineConnection(lastPoint, currentPoint, color);
-            }
+            if (i > 0) CreateLineConnection(lastPoint, currentPoint, color);
             lastPoint = currentPoint;
         }
     }
@@ -104,19 +110,23 @@ public class CryptoLineUI : MonoBehaviour
     {
         GameObject line = new GameObject("GraphLine", typeof(Image));
         line.transform.SetParent(graphContainer, false);
-        line.GetComponent<Image>().color = color;
+
+        Image img = line.GetComponent<Image>();
+        img.color = color;
+        img.raycastTarget = false;
 
         RectTransform rect = line.GetComponent<RectTransform>();
+        rect.pivot = new Vector2(0, 0.5f);
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.zero;
+
         Vector2 dir = (point2 - point1).normalized;
         float distance = Vector2.Distance(point1, point2);
 
-        // Positionnement et étirement
-        rect.anchorMin = new Vector2(0, 0);
-        rect.anchorMax = new Vector2(0, 0);
-        rect.sizeDelta = new Vector2(distance, 3f); // Épaisseur de la ligne (3f)
-        rect.anchoredPosition = point1 + dir * distance * 0.5f;
+        // ---> CHANGEMENT ICI : Épaisseur passée de 4f à 2f pour un look "Sparkline" plus pro
+        rect.sizeDelta = new Vector2(distance, 2f);
+        rect.anchoredPosition = point1;
 
-        // Calcul de l'angle pour la rotation
         float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
         rect.localEulerAngles = new Vector3(0, 0, angle);
 

@@ -39,6 +39,9 @@ public class TimeManager : MonoBehaviour
             // ---> LA NOUVELLE LIGNE EST ICI <---
             // Met à jour la bourse tous les jours à minuit !
             if (StockMarketManager.Instance != null) StockMarketManager.Instance.UpdateMarketDaily();
+            // ---> AJOUTE CETTE LIGNE POUR LA CRYPTO <---
+            if (CryptoMarketManager.Instance != null)
+                CryptoMarketManager.Instance.UpdateMarketDaily();
         }
 
         UpdateSunAndMoon();

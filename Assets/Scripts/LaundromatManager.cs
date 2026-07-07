@@ -55,7 +55,10 @@ public class LaundromatManager : MonoBehaviour
             int tax = Mathf.RoundToInt(amount * 0.30f);
             int laundered = amount - tax;
 
+            // On retire l'argent sale et on synchronise l'objet dans l'inventaire
             GameManager.Instance.dirtyMoney -= amount;
+            GameManager.Instance.SyncDirtyMoneyItem();
+
             GameManager.Instance.cleanMoney += laundered;
             if (BankApp.Instance != null)
                 BankApp.Instance.RecordTransaction(laundered, "Dépôt : Blanchisserie");
@@ -63,7 +66,6 @@ public class LaundromatManager : MonoBehaviour
             UIManager.Instance.UpdateHUD();
             UIManager.Instance.ShowNotification($"{laundered}$ blanchis (Taxe : {tax}$)");
 
-            // ---> AJOUT POUR LA QUÊTE <---
             if (QuestManager.Instance != null)
                 QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.BlanchirArgent, amount);
 
