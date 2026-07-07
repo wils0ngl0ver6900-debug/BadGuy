@@ -54,6 +54,10 @@ public class CarInteraction : MonoBehaviour
         carController.isDrivenByPlayer = true;
         carCamera.SetActive(true);
 
+        // ---> LA NOUVELLE LIGNE MAGIQUE <---
+        // On demande au carController (la racine de la voiture) de chercher le script !
+        carController.GetComponent<MessageTrigger>()?.SendTheMessage();
+
         // Si c'est une voiture IA, on fait sortir le conducteur
         if (carController.isDrivenByAI)
         {
