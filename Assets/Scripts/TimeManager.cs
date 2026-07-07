@@ -33,7 +33,12 @@ public class TimeManager : MonoBehaviour
         {
             currentTimeOfDay -= 1440f;
             currentDay++;
+
             if (ShopManager.Instance != null) ShopManager.Instance.RecoverMarket();
+
+            // ---> LA NOUVELLE LIGNE EST ICI <---
+            // Met à jour la bourse tous les jours à minuit !
+            if (StockMarketManager.Instance != null) StockMarketManager.Instance.UpdateMarketDaily();
         }
 
         UpdateSunAndMoon();
