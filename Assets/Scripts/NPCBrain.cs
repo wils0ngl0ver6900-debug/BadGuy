@@ -43,6 +43,7 @@ public class NPCBrain : MonoBehaviour
     private NavMeshAgent agent;
     private CarController car;
     private Transform player;
+    private Animator animator;
     private bool hasSpawnedCops = false;
     private float callPoliceTimer = 0f;
     private float bustTimer = 0f;
@@ -55,7 +56,27 @@ public class NPCBrain : MonoBehaviour
         if (locomotion == Locomotion.Pieton)
         {
             agent = GetComponent<NavMeshAgent>();
-            if (agent != null) agent.speed = walkSpeed;
+            if (agent != null)
+            {
+                agent.speed = walkSpeed;
+                // 🚀 FORÇAGE : On écrase l'accélération molle d'Unity
+                agent.acceleration = 60f;
+                agent.angularSpeed = 500f;
+            }
+
+            animator = GetComponentInChildren<Animator>();
+            if (animator != null)
+            {
+                // 🚀 FORÇAGE : On coupe le bridage de vitesse de l'animation
+                animator.applyRootMotion = false;
+            }
+
+            Rigidbody rb = GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                // 🚀 FORÇAGE : On coupe la friction avec le sol ! Le NavMesh gère tout.
+                rb.isKinematic = true;
+            }
         }
         else if (locomotion == Locomotion.Vehicule)
         {
@@ -71,10 +92,18 @@ public class NPCBrain : MonoBehaviour
         StartCoroutine(BrainTick());
     }
 
-    // Les jambes sont mises à jour à chaque frame pour la fluidité
     void Update()
     {
         ExecuteStateAction();
+
+        // [Optionnel] Si tes PNJ glissent au lieu de faire l'animation de course, décommente la ligne ci-dessous 
+        // à condition que ton paramètre d'animation s'appelle bien "Speed" ou change le nom.
+        /*
+        if (animator != null && agent != null && locomotion == Locomotion.Pieton)
+        {
+            animator.SetFloat("Speed", agent.velocity.magnitude);
+        }
+        */
     }
 
     private CarController GetPlayerCar()
@@ -87,7 +116,6 @@ public class NPCBrain : MonoBehaviour
         return null;
     }
 
-    // L'analyse de l'environnement se fait toutes les 0.2 secondes
     private IEnumerator BrainTick()
     {
         while (true)
@@ -223,31 +251,27 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
-    // --- LE CORRECTIF DU GEL : DÉBLOCAGE DES JAMBES ---
-    // --- LE CORRECTIF DE VITESSE ET DE FREINAGE ---
+    // --- LE SUIVI ULTIME ---
     private void FollowLeader()
     {
         if (leader == null || agent == null || !agent.isOnNavMesh) return;
 
         float distToLeader = Vector3.Distance(transform.position, leader.position);
 
-        // On BOOST sa vitesse de course pour qu'il soit capable de te rattraper !
-        agent.speed = runSpeed * 1.5f;
+        // On booste la vitesse de poursuite
+        agent.speed = runSpeed * 1.3f;
         agent.stoppingDistance = 2.5f;
-
-        // Le secret anti-mollesse : on coupe le frein automatique d'Unity tant qu'il est à plus de 4 mètres.
-        // Ça l'oblige à sprinter à pleine vitesse vers toi sans ralentir en chemin.
-        agent.autoBraking = distToLeader <= 4.0f;
 
         if (agent.isStopped) agent.isStopped = false;
 
-        // Mise à jour de la destination (le GPS)
-        if (!agent.pathPending && Vector3.Distance(agent.destination, leader.position) > 0.5f)
+        // Mise à jour de la destination optimisée (ne recalcule que si tu as avancé de 50cm)
+        // Évite le bug où l'agent stagne pour calculer en boucle
+        if (Vector3.Distance(agent.destination, leader.position) > 0.5f)
         {
             agent.SetDestination(leader.position);
         }
 
-        // Pivot fluide vers toi à l'arrêt
+        // Pivot propre vers toi quand il est arrivé et stabilisé
         if (distToLeader <= agent.stoppingDistance + 0.2f && agent.velocity.sqrMagnitude < 0.1f)
         {
             Vector3 lookDir = leader.position - transform.position;
