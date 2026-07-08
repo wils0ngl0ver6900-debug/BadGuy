@@ -18,7 +18,7 @@ public class NPCBrain : MonoBehaviour
 
     [Header("Paramètres de Déplacement ⚙️")]
     public float walkSpeed = 1.5f;
-    public float runSpeed = 4.5f;
+    public float runSpeed = 5.0f;
     public float visionRange = 25f;
     public TrafficNode currentTrafficNode;
 
@@ -45,7 +45,6 @@ public class NPCBrain : MonoBehaviour
     private Transform player;
     private bool hasSpawnedCops = false;
     private float callPoliceTimer = 0f;
-
     private float bustTimer = 0f;
 
     void Awake()
@@ -72,6 +71,12 @@ public class NPCBrain : MonoBehaviour
         StartCoroutine(BrainTick());
     }
 
+    // Les jambes sont mises à jour à chaque frame pour la fluidité
+    void Update()
+    {
+        ExecuteStateAction();
+    }
+
     private CarController GetPlayerCar()
     {
         CarController[] allCars = FindObjectsOfType<CarController>();
@@ -82,12 +87,12 @@ public class NPCBrain : MonoBehaviour
         return null;
     }
 
+    // L'analyse de l'environnement se fait toutes les 0.2 secondes
     private IEnumerator BrainTick()
     {
         while (true)
         {
             AnalyzeEnvironment();
-            ExecuteStateAction();
             yield return new WaitForSeconds(0.2f);
         }
     }
@@ -116,8 +121,6 @@ public class NPCBrain : MonoBehaviour
                 if (PoliceManager.Instance != null) PoliceManager.Instance.ReportPlayerSight(actualPlayerPos);
             }
 
-            // --- NOUVEAU : LES GANGS RIVAUX CIBLENT LE JOUEUR ---
-            // Si c'est un gang ennemi et qu'il te voit, il te prend comme cible potentielle
             if (role == NPCRole.Gang && faction != TerritoryManager.Faction.Mafia && faction != TerritoryManager.Faction.None && isSeeingPlayer)
             {
                 Transform potentialPlayerTarget = isPlayerInCar ? playerCar.transform : player;
@@ -127,7 +130,6 @@ public class NPCBrain : MonoBehaviour
                     minDistance = distToPlayer;
                 }
             }
-            // -----------------------------------------------------
 
             Collider[] hitColliders = Physics.OverlapSphere(transform.position, visionRange);
             foreach (Collider hit in hitColliders)
@@ -146,8 +148,6 @@ public class NPCBrain : MonoBehaviour
                     if (isEnemy)
                     {
                         float dist = Vector3.Distance(transform.position, hit.transform.position);
-
-                        // Si le garde du corps (ou un flic) est PLUS PROCHE que le joueur, il tirera dessus en priorité !
                         if (dist < minDistance)
                         {
                             minDistance = dist;
@@ -223,29 +223,39 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
+    // --- LE CORRECTIF DU GEL : DÉBLOCAGE DES JAMBES ---
+    // --- LE CORRECTIF DE VITESSE ET DE FREINAGE ---
     private void FollowLeader()
     {
         if (leader == null || agent == null || !agent.isOnNavMesh) return;
 
-        float dist = Vector3.Distance(transform.position, leader.position);
+        float distToLeader = Vector3.Distance(transform.position, leader.position);
 
-        agent.speed = dist > 6f ? runSpeed : walkSpeed;
+        // On BOOST sa vitesse de course pour qu'il soit capable de te rattraper !
+        agent.speed = runSpeed * 1.5f;
         agent.stoppingDistance = 2.5f;
 
-        if (dist > agent.stoppingDistance)
+        // Le secret anti-mollesse : on coupe le frein automatique d'Unity tant qu'il est à plus de 4 mètres.
+        // Ça l'oblige à sprinter à pleine vitesse vers toi sans ralentir en chemin.
+        agent.autoBraking = distToLeader <= 4.0f;
+
+        if (agent.isStopped) agent.isStopped = false;
+
+        // Mise à jour de la destination (le GPS)
+        if (!agent.pathPending && Vector3.Distance(agent.destination, leader.position) > 0.5f)
         {
-            agent.isStopped = false;
             agent.SetDestination(leader.position);
         }
-        else
-        {
-            agent.isStopped = true;
-            agent.velocity = Vector3.zero;
 
-            Vector3 lookDir = leader.forward;
+        // Pivot fluide vers toi à l'arrêt
+        if (distToLeader <= agent.stoppingDistance + 0.2f && agent.velocity.sqrMagnitude < 0.1f)
+        {
+            Vector3 lookDir = leader.position - transform.position;
             lookDir.y = 0;
             if (lookDir != Vector3.zero)
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5f);
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 10f);
+            }
         }
     }
 

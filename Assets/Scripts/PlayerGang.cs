@@ -1,32 +1,39 @@
 ﻿using UnityEngine;
 using UnityEngine.AI;
 using System.Collections.Generic;
-using TMPro;
 
 public class PlayerGang : MonoBehaviour
 {
+    public static PlayerGang Instance;
+
     [Header("Système de Gang")]
     public TerritoryManager.Faction playerFaction = TerritoryManager.Faction.Mafia;
     public float recruitRange = 25f;
     public int maxRecruits = 3;
 
-    [Header("Interface de Gestion (Menu)")]
-    public GameObject gangMenuPanel;
-    public TextMeshProUGUI recruitListText;
-
     [HideInInspector]
     public List<NPCBrain> currentRecruits = new List<NPCBrain>();
 
-    private bool isMenuOpen = false;
     private NPCBrain currentTarget = null;
     private NPCBrain previousTarget = null;
-
-    // --- VISUEL PRO ---
     private GameObject selectionMarker;
+
+    private void Awake()
+    {
+        // 💉 LE VACCIN ANTI-FANTÔMES : 
+        // Si ce script se trouve n'importe où ailleurs que sur le Joueur, il s'autodétruit immédiatement !
+        if (!gameObject.CompareTag("Player"))
+        {
+            Debug.LogWarning("⚠️ Un PlayerGang en double a été détecté et éliminé sur : " + gameObject.name);
+            Destroy(this);
+            return;
+        }
+
+        Instance = this;
+    }
 
     void Start()
     {
-        if (gangMenuPanel != null) gangMenuPanel.SetActive(false);
         CreateSelectionMarker();
     }
 
@@ -37,11 +44,11 @@ public class PlayerGang : MonoBehaviour
 
         lr.startWidth = 0.15f;
         lr.endWidth = 0.15f;
-        lr.positionCount = 37; // 37 points pour boucler parfaitement le cercle
+        lr.positionCount = 37;
         lr.useWorldSpace = false;
 
         lr.material = new Material(Shader.Find("Sprites/Default"));
-        lr.startColor = new Color(0f, 1f, 0.2f, 0.8f); // Vert fluo stylé
+        lr.startColor = new Color(0f, 1f, 0.2f, 0.8f);
         lr.endColor = new Color(0f, 1f, 0.2f, 0.8f);
 
         float radius = 1.2f;
@@ -55,7 +62,7 @@ public class PlayerGang : MonoBehaviour
 
     void Update()
     {
-        currentRecruits.RemoveAll(npc =>
+        int removedCount = currentRecruits.RemoveAll(npc =>
         {
             if (npc == null) return true;
             TargetHealth th = npc.GetComponent<TargetHealth>();
@@ -63,22 +70,15 @@ public class PlayerGang : MonoBehaviour
             return false;
         });
 
-        if (isMenuOpen) UpdateMenuText();
-        if (Input.GetKeyDown(KeyCode.G)) ToggleMenu();
-
-        if (isMenuOpen)
+        if (removedCount > 0 && GangApp.Instance != null && GangApp.Instance.appPanel.activeInHierarchy)
         {
-            if (selectionMarker != null) selectionMarker.SetActive(false);
-            return;
+            GangApp.Instance.RefreshUI();
         }
 
-        // 1. RECHERCHE DE LA CIBLE (LASER VOLUMÉTRIQUE + MAGNÉTISME)
-        FindTargetWithVolumetricLaser();
+        FindTargetEasy(); // Le système de visée facile !
 
-        // 2. GESTION DU VISUEL ET RECRUTEMENT
         if (currentTarget != null)
         {
-            // Glissement fluide de l'anneau de sélection
             if (!selectionMarker.activeSelf)
             {
                 selectionMarker.transform.position = currentTarget.transform.position;
@@ -98,6 +98,7 @@ public class PlayerGang : MonoBehaviour
             {
                 TryRecruit(currentTarget);
                 currentTarget = null;
+                selectionMarker.SetActive(false);
             }
         }
         else
@@ -116,88 +117,48 @@ public class PlayerGang : MonoBehaviour
         previousTarget = currentTarget;
     }
 
-    // --- LA VISÉE INFAILLIBLE DES JEUX AAA ---
-    private void FindTargetWithVolumetricLaser()
+    // --- VISÉE OPTIMISÉE POUR CAMÉRA DE HAUT ---
+    private void FindTargetEasy()
     {
         NPCBrain bestNPC = null;
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-
-        float searchRadius = 3.0f; // Épaisseur du "cylindre" laser
         float minDistance = Mathf.Infinity;
 
-        NPCBrain[] allNPCs = FindObjectsOfType<NPCBrain>();
+        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+        Plane groundPlane = new Plane(Vector3.up, Vector3.zero);
 
-        foreach (NPCBrain npc in allNPCs)
+        if (groundPlane.Raycast(ray, out float enter))
         {
-            if (npc.role == NPCBrain.NPCRole.Gang && npc.faction == playerFaction && npc.leader == null)
+            Vector3 mouseWorldPos = ray.GetPoint(enter);
+
+            NPCBrain[] allNPCs = FindObjectsOfType<NPCBrain>();
+
+            foreach (NPCBrain npc in allNPCs)
             {
-                float distToPlayer = Vector3.Distance(transform.position, npc.transform.position);
-
-                if (distToPlayer <= recruitRange)
+                if (npc.role == NPCBrain.NPCRole.Gang && npc.faction == playerFaction && npc.leader == null)
                 {
-                    // On vise le torse (à 1 mètre du sol), pas les pieds !
-                    Vector3 npcCenter = npc.transform.position + Vector3.up * 1.0f;
-
-                    // Calcul mathématique de la distance entre le rayon de la caméra et le torse du PNJ
-                    float distToLaser = Vector3.Cross(ray.direction, npcCenter - ray.origin).magnitude;
-
-                    // LE MAGNÉTISME : Si c'est notre cible actuelle, on la considère artificiellement plus proche pour qu'elle "colle" !
-                    if (currentTarget == npc)
+                    if (Vector3.Distance(transform.position, npc.transform.position) <= recruitRange)
                     {
-                        distToLaser -= 1.5f; // Impossible de décrocher sans le faire exprès
-                    }
+                        float distToMouse = Vector3.Distance(mouseWorldPos, npc.transform.position);
 
-                    if (distToLaser <= searchRadius && distToLaser < minDistance)
-                    {
-                        minDistance = distToLaser;
-                        bestNPC = npc;
+                        if (currentTarget == npc) distToMouse -= 2.0f; // Aimant magnétique
+
+                        // Rayon généreux de 6 mètres pour ne pas rater la cible
+                        if (distToMouse <= 6.0f && distToMouse < minDistance)
+                        {
+                            minDistance = distToMouse;
+                            bestNPC = npc;
+                        }
                     }
                 }
             }
         }
-
         currentTarget = bestNPC;
-    }
-
-    private void ToggleMenu()
-    {
-        if (gangMenuPanel == null) return;
-
-        isMenuOpen = !isMenuOpen;
-        gangMenuPanel.SetActive(isMenuOpen);
-        Cursor.visible = isMenuOpen;
-        if (isMenuOpen) UpdateMenuText();
-    }
-
-    public void UpdateMenuText()
-    {
-        if (recruitListText == null) return;
-
-        if (currentRecruits.Count == 0)
-        {
-            recruitListText.text = "Aucune recrue dans l'équipe.\nAllez dans un quartier contrôlé pour recruter.";
-            return;
-        }
-
-        string list = $"ÉQUIPE ACTUELLE ({currentRecruits.Count}/{maxRecruits}) :\n\n";
-
-        for (int i = 0; i < currentRecruits.Count; i++)
-        {
-            TargetHealth health = currentRecruits[i].GetComponent<TargetHealth>();
-            string hp = health != null ? health.currentHealth.ToString() : "?";
-
-            string colorTag = "<color=green>";
-            if (health != null && health.currentHealth < 50) colorTag = "<color=orange>";
-            if (health != null && health.currentHealth < 20) colorTag = "<color=red>";
-
-            list += $"■ Garde du corps {i + 1} | PV : {colorTag}{hp}</color>\n";
-        }
-
-        recruitListText.text = list;
     }
 
     private void TryRecruit(NPCBrain npc)
     {
+        if (currentRecruits.Contains(npc)) return;
+
         if (currentRecruits.Count >= maxRecruits)
         {
             if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=red>Groupe plein ! (Max {maxRecruits})</color>");
@@ -210,31 +171,65 @@ public class PlayerGang : MonoBehaviour
             return;
         }
 
+        // On est 100% sûr que c'est TON joueur le boss !
         npc.leader = this.transform;
         npc.ChangeState(NPCBrain.AIState.GardeDuCorps);
+
+        if (npc.TryGetComponent<NavMeshAgent>(out NavMeshAgent agent))
+        {
+            agent.velocity = Vector3.zero;
+            if (agent.isOnNavMesh) agent.ResetPath();
+            agent.isStopped = false;
+        }
+
         currentRecruits.Add(npc);
 
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=#00FF00>Nouveau membre recruté !</color>");
+
+        if (GangApp.Instance != null && GangApp.Instance.appPanel.activeInHierarchy)
+            GangApp.Instance.RefreshUI();
     }
 
     public void DisbandGang()
     {
         foreach (NPCBrain npc in currentRecruits)
         {
-            if (npc != null)
-            {
-                npc.leader = null;
-                npc.ChangeState(NPCBrain.AIState.Patrouille);
-
-                if (npc.TryGetComponent<NavMeshAgent>(out NavMeshAgent agent))
-                {
-                    agent.isStopped = false;
-                    if (agent.isOnNavMesh) agent.ResetPath();
-                }
-            }
+            ResetNPC(npc);
         }
         currentRecruits.Clear();
-        UpdateMenuText();
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Groupe dispersé.");
+        if (GangApp.Instance != null && GangApp.Instance.appPanel.activeInHierarchy) GangApp.Instance.RefreshUI();
+    }
+
+    public void DismissMember(NPCBrain npc)
+    {
+        if (currentRecruits.Contains(npc))
+        {
+            ResetNPC(npc);
+            currentRecruits.Remove(npc);
+
+            if (GangApp.Instance != null && GangApp.Instance.appPanel.activeInHierarchy)
+            {
+                GangApp.Instance.RefreshUI();
+            }
+        }
+    }
+
+    private void ResetNPC(NPCBrain npc)
+    {
+        if (npc == null) return;
+
+        npc.leader = null;
+        npc.ChangeState(NPCBrain.AIState.Patrouille);
+
+        if (npc.TryGetComponent<NavMeshAgent>(out NavMeshAgent agent))
+        {
+            if (agent.isOnNavMesh)
+            {
+                agent.ResetPath();
+                agent.isStopped = false;
+                agent.velocity = Vector3.zero;
+            }
+        }
     }
 }
