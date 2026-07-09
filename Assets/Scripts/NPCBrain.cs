@@ -48,6 +48,12 @@ public class NPCBrain : MonoBehaviour
     private float callPoliceTimer = 0f;
     private float bustTimer = 0f;
 
+    private float followTimer = 0f;
+    private Vector3 formationOffset;
+
+    // --- L'AMORTISSEUR (Le secret anti-vibration) ---
+    private Quaternion smoothLeaderRot;
+
     void Awake()
     {
         GameObject p = GameObject.FindGameObjectWithTag("Player");
@@ -59,24 +65,25 @@ public class NPCBrain : MonoBehaviour
             if (agent != null)
             {
                 agent.speed = walkSpeed;
-                // 🚀 FORÇAGE : On écrase l'accélération molle d'Unity
-                agent.acceleration = 60f;
-                agent.angularSpeed = 500f;
+                agent.acceleration = 40f;
+                agent.angularSpeed = 400f;
             }
 
             animator = GetComponentInChildren<Animator>();
             if (animator != null)
             {
-                // 🚀 FORÇAGE : On coupe le bridage de vitesse de l'animation
                 animator.applyRootMotion = false;
             }
 
             Rigidbody rb = GetComponent<Rigidbody>();
             if (rb != null)
             {
-                // 🚀 FORÇAGE : On coupe la friction avec le sol ! Le NavMesh gère tout.
                 rb.isKinematic = true;
             }
+
+            formationOffset = new Vector3(Random.Range(-2.5f, 2.5f), 0f, Random.Range(-3.5f, -1.5f));
+            followTimer = Random.Range(0f, 0.2f);
+            smoothLeaderRot = transform.rotation;
         }
         else if (locomotion == Locomotion.Vehicule)
         {
@@ -90,20 +97,34 @@ public class NPCBrain : MonoBehaviour
     void Start()
     {
         StartCoroutine(BrainTick());
+
+        // Anti-collision physique avec le joueur maintenu !
+        if (role == NPCRole.Gang && player != null)
+        {
+            Collider[] myColliders = GetComponentsInChildren<Collider>();
+            Collider[] playerColliders = player.GetComponentsInChildren<Collider>();
+
+            foreach (Collider myCol in myColliders)
+            {
+                foreach (Collider pCol in playerColliders)
+                {
+                    Physics.IgnoreCollision(myCol, pCol, true);
+                }
+            }
+        }
     }
 
     void Update()
     {
         ExecuteStateAction();
 
-        // [Optionnel] Si tes PNJ glissent au lieu de faire l'animation de course, décommente la ligne ci-dessous 
-        // à condition que ton paramètre d'animation s'appelle bien "Speed" ou change le nom.
-        /*
+        // Lissage visuel de l'animation pour les jambes
         if (animator != null && agent != null && locomotion == Locomotion.Pieton)
         {
-            animator.SetFloat("Speed", agent.velocity.magnitude);
+            float targetSpeed = agent.velocity.magnitude;
+            float currentSpeed = animator.GetFloat("Speed");
+            animator.SetFloat("Speed", Mathf.Lerp(currentSpeed, targetSpeed, Time.deltaTime * 10f));
         }
-        */
     }
 
     private CarController GetPlayerCar()
@@ -251,34 +272,61 @@ public class NPCBrain : MonoBehaviour
         }
     }
 
-    // --- LE SUIVI ULTIME ---
+    // --- LE SUIVI ORGANIQUE SANS VIBRATION ---
     private void FollowLeader()
     {
         if (leader == null || agent == null || !agent.isOnNavMesh) return;
 
-        float distToLeader = Vector3.Distance(transform.position, leader.position);
+        // 1. L'AMORTISSEUR DE ROTATION
+        // Filtre les micro-mouvements de ton personnage pour offrir une cible stable aux PNJ
+        smoothLeaderRot = Quaternion.Slerp(smoothLeaderRot, leader.rotation, Time.deltaTime * 2f);
+        Vector3 idealPosition = leader.position + (smoothLeaderRot * formationOffset);
 
-        // On booste la vitesse de poursuite
-        agent.speed = runSpeed * 1.3f;
-        agent.stoppingDistance = 2.5f;
+        Vector3 finalDestination = leader.position;
+        if (NavMesh.SamplePosition(idealPosition, out NavMeshHit hit, 3f, NavMesh.AllAreas))
+        {
+            finalDestination = hit.position;
+        }
+
+        float distToLeader = Vector3.Distance(transform.position, leader.position);
+        float distToFormationPos = Vector3.Distance(transform.position, finalDestination);
+
+        // 2. LA VITESSE PURE (Fini les bridages et les lissages qui faisaient ramper le PNJ)
+        agent.speed = runSpeed;
+        agent.stoppingDistance = 0.5f;
+
+        // Le freinage d'urgence logiciel (L'anti-poussette en douceur)
+        if (distToLeader < 1.5f)
+        {
+            agent.speed = walkSpeed * 0.5f; // Il ralentit fortement s'il est presque sur toi
+        }
+        else if (distToLeader > 8.0f)
+        {
+            agent.speed = runSpeed * 1.2f; // Petit boost s'il est très loin
+        }
 
         if (agent.isStopped) agent.isStopped = false;
 
-        // Mise à jour de la destination optimisée (ne recalcule que si tu as avancé de 50cm)
-        // Évite le bug où l'agent stagne pour calculer en boucle
-        if (Vector3.Distance(agent.destination, leader.position) > 0.5f)
+        // 3. LA MISE À JOUR DU GPS
+        followTimer += Time.deltaTime;
+        if (followTimer >= 0.2f)
         {
-            agent.SetDestination(leader.position);
+            followTimer = 0f;
+            // On recalcule le chemin que si la cible amortie a vraiment bougé
+            if (Vector3.Distance(agent.destination, finalDestination) > 0.5f)
+            {
+                agent.SetDestination(finalDestination);
+            }
         }
 
-        // Pivot propre vers toi quand il est arrivé et stabilisé
-        if (distToLeader <= agent.stoppingDistance + 0.2f && agent.velocity.sqrMagnitude < 0.1f)
+        // 4. LE PIVOT DE GARDE DU CORPS (À L'ARRÊT)
+        if (distToFormationPos <= agent.stoppingDistance + 0.5f && agent.velocity.sqrMagnitude < 0.2f)
         {
-            Vector3 lookDir = leader.position - transform.position;
+            Vector3 lookDir = leader.forward;
             lookDir.y = 0;
             if (lookDir != Vector3.zero)
             {
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 10f);
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(lookDir), Time.deltaTime * 5f);
             }
         }
     }

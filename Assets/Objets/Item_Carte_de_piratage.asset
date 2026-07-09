@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Carte de Piratage
   description: "Carte de piratage qui sert \xE0 craquer un ATM"
   icon: {fileID: 21300000, guid: 0ee87f2f11a754b42ba1148e5d1c6db6, type: 3}
-  buyPrice: 500
+  buyPrice: 10000
   valueInBlackMarket: 350
   isIllegal: 1
   isEquippable: 1

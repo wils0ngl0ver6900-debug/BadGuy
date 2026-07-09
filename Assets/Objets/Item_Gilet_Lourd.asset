@@ -10,13 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bb379c7bb8a2fad47ad8fca751c90424, type: 3}
-  m_Name: Item_Pistolet
+  m_Name: Item_Gilet_Lourd
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
-  itemName: Pistolet
-  description: "Pistolet d'une c\xE9l\xE8bre marque italienne"
-  icon: {fileID: 21300000, guid: 42ff27aa0942abb4095ec6822aa84986, type: 3}
-  buyPrice: 15000
-  valueInBlackMarket: 200
+  itemName: Gilet Lourd
+  description: Un gilet pare-balle lourd assurant une protection optimale contre
+    tout type de ccalibre
+  icon: {fileID: 21300000, guid: 6282e4ad442118347924cc2b39c26ef9, type: 3}
+  buyPrice: 8000
+  valueInBlackMarket: 8000
   isIllegal: 1
   isEquippable: 1
   isConsumable: 0
@@ -27,15 +28,15 @@ MonoBehaviour:
   comedownDuration: 0
   comedownSpeedMultiplier: 0.5
   invertControlsDuringComedown: 1
-  rarity: 1
-  isClothing: 0
-  clothingSlot: 0
-  armorBonus: 0
+  rarity: 0
+  isClothing: 1
+  clothingSlot: 1
+  armorBonus: 100
   speedBonus: 0
   isMask: 0
-  isWeapon: 1
-  damage: 40
-  maxAmmo: 15
+  isWeapon: 0
+  damage: 0
+  maxAmmo: 12
   fireRate: 0.5
-  weaponPrefab: {fileID: 919132149155446097, guid: 45018c3cf72de1344adc1cc880aeb68d, type: 3}
-  bulletPrefab: {fileID: 391651947737662775, guid: f9d1872e85697a44e97ba3e4503c04a2, type: 3}
+  weaponPrefab: {fileID: 0}
+  bulletPrefab: {fileID: 0}
