@@ -38,6 +38,7 @@ public class DialogueManager : MonoBehaviour
     private string fullSentence = "";
 
     private PlayerController playerController;
+    private bool isCurrentDialogueAPhoneCall = false; // <-- NOUVEAU
 
     private void Awake()
     {
@@ -55,7 +56,7 @@ public class DialogueManager : MonoBehaviour
     {
         if (dialoguePanel != null && dialoguePanel.activeSelf)
         {
-            if (Input.GetKeyDown(KeyCode.E))
+            if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetMouseButtonDown(0))
             {
                 if (isTyping)
                 {
@@ -66,24 +67,29 @@ public class DialogueManager : MonoBehaviour
                 }
                 else
                 {
-                    DisplayNextLine();
+                    DisplayNextSentence();
                 }
             }
         }
     }
 
-    public void StartDialogue(Dialogue dialogue)
+    // --- MODIFICATION ICI : On ajoute le paramètre "isPhoneCall" (Faux par défaut) ---
+    public void StartDialogue(Dialogue dialogue, bool isPhoneCall = false)
     {
-        if (playerController != null)
+        isCurrentDialogueAPhoneCall = isPhoneCall;
+
+        if (UIManager.Instance != null && !isPhoneCall)
+            UIManager.Instance.ToggleHUD(false); // On cache le HUD seulement si ce n'est PAS un appel
+
+        if (playerController != null && !isPhoneCall)
         {
+            // On fige le joueur seulement si ce n'est PAS un appel
             playerController.isDoingQTE = true;
+            playerController.enabled = false;
         }
 
-        // --- MASQUER LE HUD POUR L'IMMERSION ---
-        if (UIManager.Instance != null) UIManager.Instance.ToggleHUD(false);
-
-        currentDialogue = dialogue;
         dialoguePanel.SetActive(true);
+        currentDialogue = dialogue;
         linesQueue.Clear();
 
         foreach (DialogueLine line in dialogue.lines)
@@ -91,10 +97,10 @@ public class DialogueManager : MonoBehaviour
             linesQueue.Enqueue(line);
         }
 
-        DisplayNextLine();
+        DisplayNextSentence();
     }
 
-    public void DisplayNextLine()
+    public void DisplayNextSentence()
     {
         if (linesQueue.Count == 0)
         {
@@ -145,21 +151,27 @@ public class DialogueManager : MonoBehaviour
     {
         dialoguePanel.SetActive(false);
 
-        // --- RÉAFFICHER LE HUD ---
-        // Très important de le faire AVANT d'invoquer les événements, 
-        // comme ça si ta quête envoie une Notification ("Nouvelle Quête !"), l'écran sera prêt !
-        if (UIManager.Instance != null) UIManager.Instance.ToggleHUD(true);
+        if (UIManager.Instance != null && !isCurrentDialogueAPhoneCall)
+            UIManager.Instance.ToggleHUD(true);
+
+        if (playerController != null && !isCurrentDialogueAPhoneCall)
+        {
+            // On libère le joueur
+            playerController.isDoingQTE = false;
+            playerController.enabled = true;
+        }
+
+        // Si c'était un appel, on dit à l'application téléphone de raccrocher
+        if (isCurrentDialogueAPhoneCall && CallApp.Instance != null)
+        {
+            CallApp.Instance.EndCall();
+        }
 
         if (currentDialogue.onDialogueEnd != null)
         {
             currentDialogue.onDialogueEnd.Invoke();
         }
 
-        yield return new WaitForEndOfFrame();
-
-        if (playerController != null)
-        {
-            playerController.isDoingQTE = false;
-        }
+        yield return null;
     }
 }

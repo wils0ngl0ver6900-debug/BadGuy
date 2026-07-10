@@ -11,7 +11,7 @@ public class MainMenuManager : MonoBehaviour
     public GameObject loadingPanel;
 
     [Header("Optimisation (À désactiver)")]
-    public GameObject environnement3D; // <-- NOUVEAU : Glisse ton objet Environnement_3D ici
+    public GameObject environnement3D;
 
     [Header("Configuration")]
     public string gameSceneName = "OutdoorsScene";
@@ -38,14 +38,48 @@ public class MainMenuManager : MonoBehaviour
         Time.timeScale = 1f;
         if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
         if (loadingPanel != null) loadingPanel.SetActive(false);
-        if (environnement3D != null) environnement3D.SetActive(true); // On s'assure qu'il est allumé au lancement
+        if (environnement3D != null) environnement3D.SetActive(true);
     }
 
-    public void PlayGame()
+    // ==========================================
+    // --- NOUVEAU : GESTION DES SAUVEGARDES ---
+    // ==========================================
+
+    public void StartNewGame()
+    {
+        // 1. On efface toutes les anciennes données de sauvegarde
+        PlayerPrefs.DeleteAll();
+
+        // 2. On lance ta séquence de chargement
+        StartLoadingSequence();
+    }
+
+    public void LoadSavedGame()
+    {
+        // 1. On vérifie s'il y a bien une sauvegarde
+        if (PlayerPrefs.GetInt("HasSavedGame", 0) == 1)
+        {
+            // 2. On prévient le jeu qu'on veut charger les données
+            PlayerPrefs.SetInt("LoadRequestFromMenu", 1);
+
+            // 3. On lance ta séquence de chargement
+            StartLoadingSequence();
+        }
+        else
+        {
+            Debug.LogWarning("Aucune sauvegarde trouvée !");
+            // Optionnel : Tu pourrais afficher un texte rouge sur ton menu pour dire "Aucune sauvegarde"
+        }
+    }
+
+    // Fonction interne qui regroupe le lancement de tes coroutines
+    private void StartLoadingSequence()
     {
         StartCoroutine(LoadGameSceneAsynchronously());
         StartCoroutine(AnimateHints());
     }
+
+    // ==========================================
 
     public void QuitGame()
     {
@@ -55,13 +89,8 @@ public class MainMenuManager : MonoBehaviour
 
     private IEnumerator LoadGameSceneAsynchronously()
     {
-        // 1. On cache le menu
         if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
-
-        // 2. On éteint toute la 3D pour libérer la carte graphique et le processeur !
         if (environnement3D != null) environnement3D.SetActive(false);
-
-        // 3. On affiche l'écran noir de chargement
         if (loadingPanel != null) loadingPanel.SetActive(true);
 
         AsyncOperation operation = SceneManager.LoadSceneAsync(gameSceneName);

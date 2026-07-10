@@ -59,18 +59,20 @@ public class SafehouseBed : Interactable
         if (ShopManager.Instance != null) ShopManager.Instance.RecoverMarket();
         if (ChopShop.Instance != null) ChopShop.Instance.ResetDailyLimits();
 
-        // ---> LES NOUVEAUTÉS SONT ICI <---
-
-        // 1. On avance réellement l'horloge du jeu de 24 Heures (1440 minutes) !
         if (TimeManager.Instance != null)
         {
             TimeManager.Instance.currentTimeOfDay += 1440f;
         }
 
-        // 2. On fait fluctuer les marchés financiers pendant qu'on dort !
         if (StockMarketManager.Instance != null) StockMarketManager.Instance.UpdateMarketDaily();
         if (CryptoMarketManager.Instance != null) CryptoMarketManager.Instance.UpdateMarketDaily();
 
+        // --- MODIFICATION ICI : Déclenchement de la sauvegarde automatique ---
+        if (SaveManager.Instance != null)
+        {
+            SaveManager.Instance.AutoSave("Nuit passée à la planque");
+        }
+        // ---------------------------------------------------------------------
 
         if (UIManager.Instance != null)
         {

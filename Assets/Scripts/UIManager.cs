@@ -165,21 +165,17 @@ public class UIManager : MonoBehaviour
             tooltipPanel.SetActive(true);
             if (tooltipName != null) tooltipName.text = item.itemName;
 
-            // ---> MODIFICATION SÉCURITÉ ARGENT SALE ICI <---
             string finalDescription = item.description;
 
-            // On vérifie si l'objet survolé est bien notre liasse d'argent sale
             if (GameManager.Instance != null && GameManager.Instance.dirtyMoneyItemDef != null)
             {
                 if (item == GameManager.Instance.dirtyMoneyItemDef)
                 {
-                    // On injecte le montant exact en gras et en rouge avant la description !
                     finalDescription = $"<b>Montant possédé : <color=red>{GameManager.Instance.dirtyMoney} $</color></b>\n\n" + item.description;
                 }
             }
 
             if (tooltipDescription != null) tooltipDescription.text = finalDescription;
-            // -----------------------------------------------
 
             if (tooltipRarity != null)
             {
@@ -200,8 +196,15 @@ public class UIManager : MonoBehaviour
         if (tooltipPanel != null) tooltipPanel.SetActive(false);
     }
 
-    public void ShowNotification(string message)
+    // --- MISE À JOUR DE LA FONCTION DES NOTIFICATIONS ---
+    public void ShowNotification(string message, bool forceDisplay = false)
     {
+        // Si on ne force pas l'affichage ET que le joueur a coupé les notifications, on annule.
+        if (!forceDisplay && SettingsApp.Instance != null && !SettingsApp.Instance.showNotifications)
+        {
+            return;
+        }
+
         if (textNotification != null)
         {
             textNotification.text = message;
