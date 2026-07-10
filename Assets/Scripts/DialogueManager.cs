@@ -38,7 +38,7 @@ public class DialogueManager : MonoBehaviour
     private string fullSentence = "";
 
     private PlayerController playerController;
-    private bool isCurrentDialogueAPhoneCall = false; // <-- NOUVEAU
+    private bool isCurrentDialogueAPhoneCall = false;
 
     private void Awake()
     {
@@ -73,13 +73,14 @@ public class DialogueManager : MonoBehaviour
         }
     }
 
-    // --- MODIFICATION ICI : On ajoute le paramètre "isPhoneCall" (Faux par défaut) ---
     public void StartDialogue(Dialogue dialogue, bool isPhoneCall = false)
     {
         isCurrentDialogueAPhoneCall = isPhoneCall;
 
-        if (UIManager.Instance != null && !isPhoneCall)
-            UIManager.Instance.ToggleHUD(false); // On cache le HUD seulement si ce n'est PAS un appel
+        // --- C'EST ICI LA MAGIE ---
+        // Le UIManager s'occupe de faire le tri dynamiquement !
+        if (UIManager.Instance != null)
+            UIManager.Instance.ToggleHUD(false, isPhoneCall);
 
         if (playerController != null && !isPhoneCall)
         {
@@ -151,12 +152,13 @@ public class DialogueManager : MonoBehaviour
     {
         dialoguePanel.SetActive(false);
 
-        if (UIManager.Instance != null && !isCurrentDialogueAPhoneCall)
+        // On réaffiche le HUD (et on range le téléphone si besoin)
+        if (UIManager.Instance != null)
             UIManager.Instance.ToggleHUD(true);
 
         if (playerController != null && !isCurrentDialogueAPhoneCall)
         {
-            // On libère le joueur
+            // On libère le joueur (si ce n'était pas un appel)
             playerController.isDoingQTE = false;
             playerController.enabled = true;
         }

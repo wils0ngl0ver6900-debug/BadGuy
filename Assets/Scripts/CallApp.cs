@@ -4,7 +4,6 @@ using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 
-// NOUVEAU : La structure qui permet de lier un nom à une photo
 [System.Serializable]
 public class ContactInfo
 {
@@ -27,15 +26,14 @@ public class CallApp : MonoBehaviour
     public TextMeshProUGUI activeCallerNameText;
     public TextMeshProUGUI callTimerText;
 
-    [Header("Photos UI (NOUVEAU) 🖼️")]
-    public Image incomingCallerPhoto; // L'image sur le pop-up d'appel
-    public Image activeCallerPhoto;   // L'image sur l'écran d'appel en cours
+    [Header("Photos UI 🖼️")]
+    public Image incomingCallerPhoto;
+    public Image activeCallerPhoto;
 
     [Header("Génération des Contacts")]
     public Transform contactsContentParent;
     public GameObject contactButtonPrefab;
 
-    // NOUVEAU : Ta nouvelle liste de contacts enrichie
     public List<ContactInfo> contactList = new List<ContactInfo>();
 
     // --- VARIABLES INTERNES ---
@@ -58,32 +56,32 @@ public class CallApp : MonoBehaviour
         if (activeCallPanel != null) activeCallPanel.SetActive(false);
 
         GenerateContacts();
+
+        // On lance le compte à rebours de 30 secondes au démarrage
+        StartCoroutine(TriggerTutorialCallAfterDelay(30f));
     }
 
     // ==========================================
-    // --- FONCTION DE TEST TEMPORAIRE 🛠️ ---
+    // --- APPEL AUTOMATIQUE (TUTORIEL) ⏱️ ---
     // ==========================================
-    private void Update()
+    private IEnumerator TriggerTutorialCallAfterDelay(float delay)
     {
-        // Appuie sur la touche 'T' en jeu pour simuler un appel de Tommy
-        if (Input.GetKeyDown(KeyCode.T))
-        {
-            // 1. On crée un faux dialogue de toutes pièces pour le test
-            Dialogue testDialogue = new Dialogue();
-            testDialogue.lines = new DialogueLine[2];
+        yield return new WaitForSeconds(delay);
 
-            testDialogue.lines[0] = new DialogueLine();
-            testDialogue.lines[0].speakerName = "Tommy";
-            testDialogue.lines[0].sentence = "Hey boss, c'est Tommy. Faut qu'on parle affaire.";
+        Dialogue testDialogue = new Dialogue();
+        testDialogue.lines = new DialogueLine[2];
 
-            testDialogue.lines[1] = new DialogueLine();
-            testDialogue.lines[1].speakerName = "Tommy";
-            testDialogue.lines[1].sentence = "Passe me voir au garage quand tu as cinq minutes. Raccroche pas au nez !";
+        testDialogue.lines[0] = new DialogueLine();
+        testDialogue.lines[0].speakerName = "Tommy";
+        testDialogue.lines[0].sentence = "Hey boss, c'est Tommy. Faut qu'on parle affaire.";
 
-            // 2. On déclenche l'appel !
-            ReceiveCall("Tommy", testDialogue);
-        }
+        testDialogue.lines[1] = new DialogueLine();
+        testDialogue.lines[1].speakerName = "Tommy";
+        testDialogue.lines[1].sentence = "Passe me voir au garage quand tu as cinq minutes. Raccroche pas au nez !";
+
+        ReceiveCall("Tommy", testDialogue);
     }
+    // ==========================================
 
     public void OpenApp()
     {
@@ -100,7 +98,6 @@ public class CallApp : MonoBehaviour
         if (appPanel != null) appPanel.SetActive(false);
     }
 
-    // Outil interne pour retrouver la photo d'un contact via son nom
     private Sprite GetPhotoForContact(string name)
     {
         foreach (ContactInfo info in contactList)
@@ -120,9 +117,20 @@ public class CallApp : MonoBehaviour
 
         currentCaller = callerName;
         currentCallDialogue = dialogueSequence;
-        currentCallerPhoto = GetPhotoForContact(callerName); // On cherche sa photo dans le répertoire
+        currentCallerPhoto = GetPhotoForContact(callerName);
 
-        // 1. Textes et Image
+        // --- NOUVEAUTÉ : On force le téléphone à monter de la poche ! ---
+        if (PhoneManager.Instance != null && !PhoneManager.Instance.isPhoneOpen)
+        {
+            PhoneManager.Instance.TogglePhone();
+        }
+
+        // --- NOUVEAUTÉ : On cache le HUD immédiatement ---
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ToggleHUD(false, true);
+        }
+
         if (incomingCallerNameText != null) incomingCallerNameText.text = callerName;
 
         if (incomingCallerPhoto != null)
@@ -134,13 +142,12 @@ public class CallApp : MonoBehaviour
             }
             else
             {
-                incomingCallerPhoto.gameObject.SetActive(false); // Cache l'encart si pas de photo
+                incomingCallerPhoto.gameObject.SetActive(false);
             }
         }
 
         if (incomingCallPanel != null) incomingCallPanel.SetActive(true);
 
-        // 2. Sonnerie
         if (SettingsApp.Instance != null && !SettingsApp.Instance.isSilentMode)
         {
             ringCoroutine = StartCoroutine(RingRoutine());
@@ -170,12 +177,10 @@ public class CallApp : MonoBehaviour
     {
         if (ringCoroutine != null) StopCoroutine(ringCoroutine);
 
-        // --- MODIFICATION ICI : On coupe le son brutalement ---
         if (SettingsApp.Instance != null && SettingsApp.Instance.phoneAudioSource != null)
         {
             SettingsApp.Instance.phoneAudioSource.Stop();
         }
-        // ------------------------------------------------------
 
         if (incomingCallPanel != null) incomingCallPanel.SetActive(false);
 
@@ -186,7 +191,6 @@ public class CallApp : MonoBehaviour
         activeCallPanel.SetActive(true);
         if (activeCallerNameText != null) activeCallerNameText.text = currentCaller;
 
-        // Affiche la photo sur l'écran actif
         if (activeCallerPhoto != null)
         {
             if (currentCallerPhoto != null)
@@ -209,12 +213,10 @@ public class CallApp : MonoBehaviour
     {
         if (ringCoroutine != null) StopCoroutine(ringCoroutine);
 
-        // --- MODIFICATION ICI : On coupe le son brutalement ---
         if (SettingsApp.Instance != null && SettingsApp.Instance.phoneAudioSource != null)
         {
             SettingsApp.Instance.phoneAudioSource.Stop();
         }
-        // ------------------------------------------------------
 
         if (incomingCallPanel != null) incomingCallPanel.SetActive(false);
 
@@ -222,6 +224,18 @@ public class CallApp : MonoBehaviour
         currentCallerPhoto = null;
         currentCallDialogue = null;
         isInCall = false;
+
+        // --- NOUVEAUTÉ : On restaure le HUD car on a refusé l'appel ---
+        if (UIManager.Instance != null)
+        {
+            UIManager.Instance.ToggleHUD(true);
+        }
+
+        // --- NOUVEAUTÉ : On range le téléphone ! ---
+        if (PhoneManager.Instance != null && PhoneManager.Instance.isPhoneOpen)
+        {
+            PhoneManager.Instance.TogglePhone();
+        }
     }
 
     // ==========================================
@@ -236,11 +250,9 @@ public class CallApp : MonoBehaviour
         {
             GameObject newBtn = Instantiate(contactButtonPrefab, contactsContentParent);
 
-            // Le texte du bouton
             TextMeshProUGUI btnText = newBtn.GetComponentInChildren<TextMeshProUGUI>();
             if (btnText != null) btnText.text = contact.contactName;
 
-            // La photo sur le bouton du répertoire (doit s'appeler "Photo" dans ton Prefab)
             Transform photoTransform = newBtn.transform.Find("Photo");
             if (photoTransform != null)
             {
@@ -304,6 +316,15 @@ public class CallApp : MonoBehaviour
         currentCaller = "";
         currentCallerPhoto = null;
         currentCallDialogue = null;
+
+        // --- NOUVEAUTÉ : On ferme l'application Appels ---
+        CloseApp();
+
+        // --- NOUVEAUTÉ : On range le téléphone ! ---
+        if (PhoneManager.Instance != null && PhoneManager.Instance.isPhoneOpen)
+        {
+            PhoneManager.Instance.TogglePhone();
+        }
     }
 
     private IEnumerator CallTimerRoutine()

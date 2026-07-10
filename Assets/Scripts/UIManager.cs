@@ -8,7 +8,7 @@ public class UIManager : MonoBehaviour
     public static UIManager Instance;
 
     [Header("HUD Principal (À masquer en cinématique) 🎬")]
-    public GameObject mainHUDGroup; // L'interrupteur global de ton HUD !
+    public GameObject mainHUDGroup;
 
     [Header("HUD Quartiers / Zones 🏙️")]
     public TextMeshProUGUI textDistrictName;
@@ -64,12 +64,65 @@ public class UIManager : MonoBehaviour
         if (textDistrictControl != null) textDistrictControl.gameObject.SetActive(false);
     }
 
-    // --- LA NOUVELLE FONCTION POUR LE DIALOGUE ---
-    public void ToggleHUD(bool isVisible)
+    // ========================================================
+    // --- LA FONCTION TOGGLE HUD INTELLIGENTE ---
+    // ========================================================
+    public void ToggleHUD(bool isVisible, bool isPhoneCall = false)
     {
-        if (mainHUDGroup != null) mainHUDGroup.SetActive(isVisible);
+        if (mainHUDGroup != null)
+        {
+            // Au lieu d'utiliser SetActive(false) qui tue les scripts d'animation,
+            // on utilise un CanvasGroup qui rend l'écran transparent mais laisse le code tourner !
+            CanvasGroup hudCG = mainHUDGroup.GetComponent<CanvasGroup>();
+            if (hudCG == null) hudCG = mainHUDGroup.AddComponent<CanvasGroup>();
+
+            if (!isVisible)
+            {
+                // Si on cache le HUD pour un APPEL TÉLÉPHONIQUE
+                if (isPhoneCall && PhoneManager.Instance != null && PhoneManager.Instance.phonePanel != null)
+                {
+                    GameObject phoneObj = PhoneManager.Instance.phonePanel.gameObject;
+
+                    // 1. On immunise le téléphone contre la transparence du HUD
+                    CanvasGroup phoneCG = phoneObj.GetComponent<CanvasGroup>();
+                    if (phoneCG == null) phoneCG = phoneObj.AddComponent<CanvasGroup>();
+                    phoneCG.ignoreParentGroups = true;
+                    phoneCG.alpha = 1f;
+
+                    // 2. On le force à s'afficher par-dessus TOUT (même les textes de dialogues)
+                    Canvas phoneCanvas = phoneObj.GetComponent<Canvas>();
+                    if (phoneCanvas == null)
+                    {
+                        phoneCanvas = phoneObj.AddComponent<Canvas>();
+                        phoneObj.AddComponent<GraphicRaycaster>();
+                    }
+                    phoneCanvas.overrideSorting = true;
+                    phoneCanvas.sortingOrder = 999;
+                }
+
+                // On rend le HUD transparent et impossible à cliquer
+                hudCG.alpha = 0f;
+                hudCG.interactable = false;
+                hudCG.blocksRaycasts = false;
+            }
+            else
+            {
+                // On rallume tout
+                hudCG.alpha = 1f;
+                hudCG.interactable = true;
+                hudCG.blocksRaycasts = true;
+
+                // On retire l'immunité du téléphone pour qu'il puisse à nouveau
+                // être masqué lors de futures cinématiques (en face à face)
+                if (PhoneManager.Instance != null && PhoneManager.Instance.phonePanel != null)
+                {
+                    CanvasGroup phoneCG = PhoneManager.Instance.phonePanel.GetComponent<CanvasGroup>();
+                    if (phoneCG != null) phoneCG.ignoreParentGroups = false;
+                }
+            }
+        }
     }
-    // ---------------------------------------------
+    // ========================================================
 
     private void SetupTransitionPanel()
     {
@@ -196,10 +249,8 @@ public class UIManager : MonoBehaviour
         if (tooltipPanel != null) tooltipPanel.SetActive(false);
     }
 
-    // --- MISE À JOUR DE LA FONCTION DES NOTIFICATIONS ---
     public void ShowNotification(string message, bool forceDisplay = false)
     {
-        // Si on ne force pas l'affichage ET que le joueur a coupé les notifications, on annule.
         if (!forceDisplay && SettingsApp.Instance != null && !SettingsApp.Instance.showNotifications)
         {
             return;
