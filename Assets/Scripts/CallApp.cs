@@ -37,6 +37,8 @@ public class CallApp : MonoBehaviour
     public List<ContactInfo> contactList = new List<ContactInfo>();
 
     // --- VARIABLES INTERNES ---
+    [HideInInspector] public bool callsBlocked = false; // <-- La variable de blocage est ici !
+
     private string currentCaller = "";
     private Sprite currentCallerPhoto = null;
     private Dialogue currentCallDialogue;
@@ -113,7 +115,8 @@ public class CallApp : MonoBehaviour
 
     public void ReceiveCall(string callerName, Dialogue dialogueSequence)
     {
-        if (isInCall) return;
+        // --- NOUVEAUTÉ : On bloque l'appel si le joueur est occupé (ex: Job Videur) ---
+        if (isInCall || callsBlocked) return;
 
         currentCaller = callerName;
         currentCallDialogue = dialogueSequence;
@@ -272,7 +275,8 @@ public class CallApp : MonoBehaviour
 
     public void MakeCall(string contactName)
     {
-        if (isInCall) return;
+        // --- Sécurité : bloque aussi l'émission d'appels pendant le job ---
+        if (isInCall || callsBlocked) return;
 
         currentCaller = contactName;
         currentCallerPhoto = GetPhotoForContact(contactName);
