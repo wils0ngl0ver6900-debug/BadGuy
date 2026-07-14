@@ -10,24 +10,24 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: bb379c7bb8a2fad47ad8fca751c90424, type: 3}
-  m_Name: "Item_Coca\xEFne"
+  m_Name: Item_Weed
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
-  itemName: "Coca\xEFne"
-  description: "1 gramme de Coca\xEFne, \xE0 consommer avec mod\xE9ration !"
+  itemName: Weed
+  description: "1 t\xEAte de weed, \xE0 consommer avec mod\xE9ration !"
   icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
   buyPrice: 0
-  valueInBlackMarket: 80
+  valueInBlackMarket: 20
   isIllegal: 1
   isEquippable: 1
   isConsumable: 1
   healAmount: 0
-  speedBoostMultiplier: 2
-  buffDuration: 5
+  speedBoostMultiplier: 0
+  buffDuration: 0
   isDrugWithComedown: 1
-  comedownDuration: 30
-  comedownSpeedMultiplier: 0.5
-  invertControlsDuringComedown: 1
-  rarity: 1
+  comedownDuration: 15
+  comedownSpeedMultiplier: -0.5
+  invertControlsDuringComedown: 0
+  rarity: 0
   isClothing: 0
   clothingSlot: 0
   armorBonus: 0

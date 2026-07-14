@@ -1,6 +1,8 @@
 ﻿using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using System.Collections;
+using System.Collections.Generic;
 
 public class DockerJobManager : MonoBehaviour
 {
@@ -9,32 +11,60 @@ public class DockerJobManager : MonoBehaviour
     [Header("État du Job")]
     public bool isJobActive = false;
     public int totalCratesToDeliver = 5;
-    private int cratesDelivered = 0;
+    private int cratesProcessed = 0;
     private int cashEarned = 0;
 
-    [Header("Économie")]
+    [Header("Économie (Légal)")]
     public int cleanReward = 30;
-    public int dirtyReward = 150;
+
+    [Header("Récompenses Illégales (Drogue) 💊")]
+    [Tooltip("Glisse ici tes objets : Cocaïne, Weed, Héroïne...")]
+    public ItemData[] possibleDrugRewards;
+    public int minDrugAmount = 5;
+    public int maxDrugAmount = 20;
+    public int dirtyReward = 150; // Fallback au cas où l'inventaire est plein ou vide
 
     [Header("Physique")]
     public float carrySpeed = 2f;
     private float savedPlayerSpeed;
 
-    [Header("Références Visuelles")]
-    [Tooltip("Glisse ici la caisse qui est enfant du bras de ton joueur")]
-    public GameObject carriedCrateModel;
+    [Header("Tutoriel & Fin de Job 🎓🏁")]
+    public GameObject tutorialPanel;
+    public Button closeTutorialBtn;
+    public Transform endJobPosition;
 
-    [Header("Mini-Jeu Équilibre ⚖️")]
-    public GameObject balanceUIPanel; // Le Panel qui contient la jauge
-    public Slider balanceSlider; // Le Slider Unity
-    public float balanceDifficulty = 0.3f; // Force avec laquelle la caisse penche
-    public float playerCorrectionSpeed = 0.8f; // Vitesse de redressement (Q/D)
+    [Header("UI du Mini-Jeu & HUD 📦")]
+    public GameObject carriedCrateModel;
+    public GameObject balanceUIPanel;
+    public Slider balanceSlider;
+    public float balanceDifficulty = 0.15f;
+    public float mouseCorrectionSensitivity = 0.05f;
+
+    [Tooltip("Le texte UI pour prévenir que la caisse est illégale")]
+    public TextMeshProUGUI illegalCrateWarningText;
+
+    [Tooltip("Glisse ici UNIQUEMENT ce que tu veux cacher (Minimap, Hotbar, Argent...). Ne mets pas le conteneur global !")]
+    public GameObject[] extraHUDElementsToHide;
+
+    [Header("Juice & UI Enhancements 🧃")]
+    [Tooltip("Le texte UI sur le presse-papier")]
+    public TextMeshProUGUI clipboardProgressText;
+    [Tooltip("LAISSE VIDE : Le script trouvera la fumée tout seul !")]
+    public ParticleSystem illegalLeakParticles;
+    [Tooltip("Le RectTransform du balanceUIPanel pour le faire trembler")]
+    public RectTransform balancePanelRect;
+    public float maxShakeIntensity = 10f;
+    private Vector2 balancePanelOriginalPos;
+
+    [Header("GPS & Cibles de Livraison 🗺️")]
+    public Transform legalDropZone;
+    public Transform illegalDropZone;
 
     [HideInInspector] public bool isCarryingCrate = false;
-    private bool isCurrentCrateIllegal = false;
+    [HideInInspector] public bool isCurrentCrateIllegal = false;
     private PlayerController playerController;
 
-    private float currentBalance = 0.5f; // 0.5 = Centre parfait
+    private float currentBalance = 0.5f;
     private float currentDrift = 0f;
     private float driftChangeTimer = 0f;
 
@@ -43,16 +73,83 @@ public class DockerJobManager : MonoBehaviour
     private void Start()
     {
         playerController = FindObjectOfType<PlayerController>();
-        if (carriedCrateModel != null) carriedCrateModel.SetActive(false);
+
+        if (carriedCrateModel != null)
+        {
+            carriedCrateModel.SetActive(false);
+
+            // --- AUTO-DÉTECTION MAGIQUE DE LA FUMÉE ---
+            if (illegalLeakParticles == null)
+            {
+                // Cherche le ParticleSystem même si la caisse est désactivée
+                illegalLeakParticles = carriedCrateModel.GetComponentInChildren<ParticleSystem>(true);
+            }
+        }
+
         if (balanceUIPanel != null) balanceUIPanel.SetActive(false);
+        if (tutorialPanel != null) tutorialPanel.SetActive(false);
+        if (illegalCrateWarningText != null) illegalCrateWarningText.gameObject.SetActive(false);
+        if (illegalLeakParticles != null) illegalLeakParticles.Stop();
+
+        if (balancePanelRect != null) balancePanelOriginalPos = balancePanelRect.anchoredPosition;
+
+        if (closeTutorialBtn != null) closeTutorialBtn.onClick.AddListener(CloseTutorial);
+
+        UpdateClipboardUI();
+    }
+
+    private void SafeToggleHUD(bool showHUD)
+    {
+        if (extraHUDElementsToHide != null)
+        {
+            foreach (GameObject hudElement in extraHUDElementsToHide)
+            {
+                if (hudElement != null) hudElement.SetActive(showHUD);
+            }
+        }
     }
 
     public void StartJob()
     {
-        isJobActive = true;
-        cratesDelivered = 0;
-        cashEarned = 0;
+        if (isJobActive) return;
 
+        isJobActive = true;
+        cratesProcessed = 0;
+        cashEarned = 0;
+        UpdateClipboardUI();
+
+        if (InventoryManager.Instance != null) InventoryManager.Instance.enabled = false;
+        if (CallApp.Instance != null) CallApp.Instance.callsBlocked = true;
+
+        SafeToggleHUD(false);
+
+        if (PlayerPrefs.GetInt("DockerTutorialDone", 0) == 0 && tutorialPanel != null)
+        {
+            tutorialPanel.SetActive(true);
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+            if (playerController != null) playerController.enabled = false;
+        }
+        else
+        {
+            BeginGameplay();
+        }
+    }
+
+    public void CloseTutorial()
+    {
+        if (tutorialPanel != null) tutorialPanel.SetActive(false);
+        PlayerPrefs.SetInt("DockerTutorialDone", 1);
+
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Confined;
+        if (playerController != null) playerController.enabled = true;
+
+        BeginGameplay();
+    }
+
+    private void BeginGameplay()
+    {
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification("Service commencé ! Prenez une caisse et chargez le camion.");
     }
@@ -60,17 +157,44 @@ public class DockerJobManager : MonoBehaviour
     public void EndJob()
     {
         isJobActive = false;
+        StartCoroutine(EndJobRoutine());
+    }
 
-        // Virement du salaire total
+    private IEnumerator EndJobRoutine()
+    {
+        if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
+        {
+            UIManager.Instance.transitionPanel.SetActive(true);
+            yield return StartCoroutine(UIManager.Instance.FadeToBlack(1f));
+        }
+
+        if (endJobPosition != null && playerController != null)
+        {
+            playerController.transform.position = endJobPosition.position;
+            playerController.transform.rotation = endJobPosition.rotation;
+        }
+
+        SafeToggleHUD(true);
+
+        if (PhoneManager.Instance != null) PhoneManager.Instance.enabled = true;
+        if (InventoryManager.Instance != null) InventoryManager.Instance.enabled = true;
+        if (CallApp.Instance != null) CallApp.Instance.callsBlocked = false;
+
         if (cashEarned > 0)
         {
             if (GameManager.Instance != null) GameManager.Instance.cleanMoney += cashEarned;
             if (BankApp.Instance != null) BankApp.Instance.RecordTransaction(cashEarned, "Salaire : Manutention Portuaire");
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=#00FF41>Service terminé ! Salaire total : {cashEarned}$</color>");
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=#00FF41>Service terminé ! Salaire : {cashEarned}$</color>");
         }
         else
         {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Service terminé. Tu n'as rien gagné aujourd'hui.");
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Service terminé. Vous n'avez rien gagné.");
+        }
+
+        if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
+        {
+            yield return StartCoroutine(UIManager.Instance.FadeToClear(1f));
+            UIManager.Instance.transitionPanel.SetActive(false);
         }
     }
 
@@ -81,21 +205,38 @@ public class DockerJobManager : MonoBehaviour
         isCarryingCrate = true;
         isCurrentCrateIllegal = illegalCrate;
 
-        // Ralentissement
         if (playerController != null)
         {
             savedPlayerSpeed = playerController.moveSpeed;
             playerController.moveSpeed = carrySpeed;
         }
 
-        // On affiche la caisse dans les mains
         if (carriedCrateModel != null) carriedCrateModel.SetActive(true);
 
-        // On lance le mini-jeu d'équilibre
+        if (illegalLeakParticles != null)
+        {
+            if (isCurrentCrateIllegal) illegalLeakParticles.Play();
+            else illegalLeakParticles.Stop();
+        }
+
         currentBalance = 0.5f;
         currentDrift = 0f;
         if (balanceUIPanel != null) balanceUIPanel.SetActive(true);
         if (balanceSlider != null) balanceSlider.value = currentBalance;
+
+        if (isCurrentCrateIllegal)
+        {
+            if (illegalCrateWarningText != null)
+            {
+                illegalCrateWarningText.text = "<color=#B026FF>Cette caisse a une odeur particulière...\nLivrez la normalement, ou détournez la pour en garder le contenu.</color>";
+                illegalCrateWarningText.gameObject.SetActive(true);
+            }
+            if (JobPathfinder.Instance != null) JobPathfinder.Instance.SetTargets(illegalDropZone, legalDropZone);
+        }
+        else
+        {
+            if (JobPathfinder.Instance != null) JobPathfinder.Instance.SetTargets(legalDropZone);
+        }
     }
 
     private void Update()
@@ -108,31 +249,35 @@ public class DockerJobManager : MonoBehaviour
 
     private void ManageBalanceMiniGame()
     {
-        // 1. La caisse penche aléatoirement d'un côté
         driftChangeTimer -= Time.deltaTime;
         if (driftChangeTimer <= 0f)
         {
-            // Choisit une direction aléatoire (négatif = gauche, positif = droite)
             currentDrift = Random.Range(-balanceDifficulty, balanceDifficulty);
-            driftChangeTimer = Random.Range(0.5f, 2.0f); // Change de sens toutes les 0.5 à 2 secondes
+            driftChangeTimer = Random.Range(1.0f, 2.5f);
         }
 
         currentBalance += currentDrift * Time.deltaTime;
 
-        // 2. Le joueur corrige avec Q et D (ou les flèches)
-        if (Input.GetKey(KeyCode.Q) || Input.GetKey(KeyCode.LeftArrow))
-        {
-            currentBalance -= playerCorrectionSpeed * Time.deltaTime;
-        }
-        if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow))
-        {
-            currentBalance += playerCorrectionSpeed * Time.deltaTime;
-        }
+        float mouseMovement = Input.GetAxis("Mouse X");
+        currentBalance += mouseMovement * mouseCorrectionSensitivity;
 
-        // 3. Mise à jour de la jauge UI
         if (balanceSlider != null) balanceSlider.value = currentBalance;
 
-        // 4. Échec si la caisse penche trop
+        if (balancePanelRect != null)
+        {
+            float dangerLevel = Mathf.Abs(currentBalance - 0.5f) * 2f;
+
+            if (dangerLevel > 0.6f)
+            {
+                float currentShake = maxShakeIntensity * ((dangerLevel - 0.6f) / 0.4f);
+                balancePanelRect.anchoredPosition = balancePanelOriginalPos + new Vector2(Random.Range(-currentShake, currentShake), Random.Range(-currentShake, currentShake));
+            }
+            else
+            {
+                balancePanelRect.anchoredPosition = balancePanelOriginalPos;
+            }
+        }
+
         if (currentBalance <= 0f || currentBalance >= 1f)
         {
             FailCrate();
@@ -142,33 +287,91 @@ public class DockerJobManager : MonoBehaviour
     private void FailCrate()
     {
         ResetCarryState();
-        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Vous avez fait tomber la caisse ! Le contremaître n'est pas content.</color>");
+        cratesProcessed++;
+        UpdateClipboardUI();
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.ShowNotification($"<color=red>Vous avez fait tomber la caisse ! ({cratesProcessed}/{totalCratesToDeliver})</color>");
+
+        if (cratesProcessed >= totalCratesToDeliver) EndJob();
     }
 
     public void DeliverCrate(bool deliveredToIllegalZone)
     {
         ResetCarryState();
+        cratesProcessed++;
+        UpdateClipboardUI();
 
         if (deliveredToIllegalZone)
         {
             if (isCurrentCrateIllegal)
             {
-                if (GameManager.Instance != null) GameManager.Instance.AddDirtyMoney(dirtyReward);
-                if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=red>Caisse rivale détournée ! +{dirtyReward}$ (Sale)</color>");
+                if (possibleDrugRewards != null && possibleDrugRewards.Length > 0 && InventoryManager.Instance != null)
+                {
+                    ItemData drugToGive = possibleDrugRewards[Random.Range(0, possibleDrugRewards.Length)];
+                    int amountToGive = Random.Range(minDrugAmount, maxDrugAmount + 1);
+
+                    int spaceLeft = InventoryManager.Instance.maxSlots - InventoryManager.Instance.items.Count;
+                    int amountGiven = Mathf.Min(amountToGive, spaceLeft);
+
+                    for (int i = 0; i < amountGiven; i++) InventoryManager.Instance.items.Add(drugToGive);
+
+                    if (amountGiven > 0)
+                    {
+                        if (UIManager.Instance != null)
+                            UIManager.Instance.ShowNotification($"<color=red>Caisse détournée ! +{amountGiven} {drugToGive.itemName} ({cratesProcessed}/{totalCratesToDeliver})</color>");
+                    }
+                    else
+                    {
+                        if (UIManager.Instance != null)
+                            UIManager.Instance.ShowNotification($"<color=orange>Caisse détournée, mais sac plein ! L'acheteur a tout pris sans payer. ({cratesProcessed}/{totalCratesToDeliver})</color>");
+                    }
+                }
+                else
+                {
+                    if (GameManager.Instance != null) GameManager.Instance.AddDirtyMoney(dirtyReward);
+                    if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=red>Caisse détournée ! +{dirtyReward}$ (Sale) ({cratesProcessed}/{totalCratesToDeliver})</color>");
+                }
             }
             else
             {
                 if (GameManager.Instance != null) GameManager.Instance.AddDirtyMoney(10);
-                if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=orange>Caisse standard volée... Ça ne vaut pas grand chose.</color>");
+                if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=orange>Caisse standard volée... ({cratesProcessed}/{totalCratesToDeliver})</color>");
             }
         }
         else
         {
             cashEarned += cleanReward;
-            cratesDelivered++;
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=green>Caisse {cratesDelivered}/{totalCratesToDeliver} livrée !</color>");
 
-            if (cratesDelivered >= totalCratesToDeliver) EndJob();
+            if (isCurrentCrateIllegal)
+            {
+                if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=green>Caisse suspecte signalée au patron ! +{cleanReward}$ ({cratesProcessed}/{totalCratesToDeliver})</color>");
+            }
+            else
+            {
+                if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=green>Caisse livrée ! +{cleanReward}$ ({cratesProcessed}/{totalCratesToDeliver})</color>");
+            }
+        }
+
+        if (cratesProcessed >= totalCratesToDeliver)
+        {
+            EndJob();
+        }
+    }
+
+    private void UpdateClipboardUI()
+    {
+        if (clipboardProgressText != null)
+        {
+            if (isJobActive)
+            {
+                clipboardProgressText.text = $"Manifeste\n{cratesProcessed} / {totalCratesToDeliver} caisses";
+                clipboardProgressText.transform.parent.gameObject.SetActive(true);
+            }
+            else
+            {
+                clipboardProgressText.transform.parent.gameObject.SetActive(false);
+            }
         }
     }
 
@@ -176,12 +379,15 @@ public class DockerJobManager : MonoBehaviour
     {
         isCarryingCrate = false;
 
-        if (playerController != null)
-        {
-            playerController.moveSpeed = savedPlayerSpeed;
-        }
-
+        if (playerController != null) playerController.moveSpeed = savedPlayerSpeed;
         if (carriedCrateModel != null) carriedCrateModel.SetActive(false);
-        if (balanceUIPanel != null) balanceUIPanel.SetActive(false);
+        if (balanceUIPanel != null)
+        {
+            balanceUIPanel.SetActive(false);
+            if (balancePanelRect != null) balancePanelRect.anchoredPosition = balancePanelOriginalPos;
+        }
+        if (illegalCrateWarningText != null) illegalCrateWarningText.gameObject.SetActive(false);
+        if (illegalLeakParticles != null) illegalLeakParticles.Stop();
+        if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
     }
 }

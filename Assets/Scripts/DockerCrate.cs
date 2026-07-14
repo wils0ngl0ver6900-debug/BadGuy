@@ -7,7 +7,6 @@ public class DockerCrate : Interactable
 
     public override void Interact()
     {
-        // On empêche de ramasser si le job n'a pas commencé !
         if (DockerJobManager.Instance != null && !DockerJobManager.Instance.isJobActive)
         {
             if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Parlez au contremaître pour commencer à travailler.");
@@ -17,7 +16,7 @@ public class DockerCrate : Interactable
         if (DockerJobManager.Instance != null && !DockerJobManager.Instance.isCarryingCrate)
         {
             DockerJobManager.Instance.PickupCrate(isGangCrate);
-            Destroy(gameObject);
+            Destroy(gameObject); // On détruit la caisse au sol car on la porte
         }
         else
         {

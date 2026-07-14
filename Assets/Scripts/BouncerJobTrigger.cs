@@ -77,8 +77,9 @@ public class BouncerJobTrigger : Interactable
     {
         if (jobOfferPanel != null) jobOfferPanel.SetActive(false);
 
+        // LE CORRECTIF EST ICI : Confined au lieu de Locked
         Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.lockState = CursorLockMode.Confined;
 
         if (playerController != null) playerController.enabled = true;
         if (PhoneManager.Instance != null) PhoneManager.Instance.enabled = true;

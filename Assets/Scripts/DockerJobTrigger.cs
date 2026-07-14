@@ -14,7 +14,6 @@ public class DockerJobTrigger : Interactable
 
     [Header("Mise en place & Cooldown ⏳")]
     public Transform dockerStartPosition;
-    [Tooltip("Bloque le job jusqu'au lendemain en jeu")]
     public bool requireNextDay = true;
     private float lastTimeWorked = -9999f;
 
@@ -23,9 +22,6 @@ public class DockerJobTrigger : Interactable
 
     private void Start()
     {
-        // LIGNE TEMPORAIRE POUR TES TESTS (Supprime la protection des 24h)
-        lastTimeWorked = -9999f;
-
         if (jobOfferPanel != null) jobOfferPanel.SetActive(false);
         if (acceptButton != null) acceptButton.onClick.AddListener(AcceptJob);
         if (declineButton != null) declineButton.onClick.AddListener(DeclineJob);
@@ -37,7 +33,6 @@ public class DockerJobTrigger : Interactable
     {
         if (isTransitioning) return;
 
-        // --- GESTION DU COOLDOWN (24 Heures In-Game) ---
         if (requireNextDay && TimeManager.Instance != null)
         {
             float secondsForFullDay = 1440f / TimeManager.Instance.timeScale;
@@ -64,6 +59,8 @@ public class DockerJobTrigger : Interactable
             Cursor.lockState = CursorLockMode.None;
 
             if (playerController != null) playerController.enabled = false;
+
+            // Coupure du téléphone propre
             if (PhoneManager.Instance != null) PhoneManager.Instance.enabled = false;
         }
     }
@@ -78,8 +75,9 @@ public class DockerJobTrigger : Interactable
     {
         if (jobOfferPanel != null) jobOfferPanel.SetActive(false);
 
+        // Retour à la normale
         Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.lockState = CursorLockMode.Confined;
 
         if (playerController != null) playerController.enabled = true;
         if (PhoneManager.Instance != null) PhoneManager.Instance.enabled = true;
@@ -91,15 +89,16 @@ public class DockerJobTrigger : Interactable
     {
         isTransitioning = true;
 
+        // 1. Écran Noir
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
             UIManager.Instance.transitionPanel.SetActive(true);
             yield return StartCoroutine(UIManager.Instance.FadeToBlack(1f));
         }
 
-        yield return new WaitForSeconds(1.5f);
+        yield return new WaitForSeconds(0.5f);
 
-        // FORCER L'HEURE À 08H00 DU MATIN POUR LE PORT (8h * 60 = 480 minutes)
+        // 2. TP et Changement d'heure (Ex: 08h00 du matin)
         if (TimeManager.Instance != null) TimeManager.Instance.currentTimeOfDay = 480f;
 
         if (dockerStartPosition != null && playerController != null)
@@ -108,14 +107,20 @@ public class DockerJobTrigger : Interactable
             playerController.transform.rotation = dockerStartPosition.rotation;
         }
 
-        // On lance le job dans le manager !
-        if (DockerJobManager.Instance != null) DockerJobManager.Instance.StartJob();
-
+        // 3. Rallumer la lumière
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
             yield return StartCoroutine(UIManager.Instance.FadeToClear(1f));
             UIManager.Instance.transitionPanel.SetActive(false);
         }
+
+        // 4. Libérer le joueur
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Confined;
+        if (playerController != null) playerController.enabled = true;
+
+        // 5. Lancer le Job
+        if (DockerJobManager.Instance != null) DockerJobManager.Instance.StartJob();
 
         lastTimeWorked = Time.time;
         isTransitioning = false;

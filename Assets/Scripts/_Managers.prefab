@@ -1,0 +1,757 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &8724709938763618991
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3337655067093217726}
+  - component: {fileID: 5384696598554670300}
+  - component: {fileID: 5707212694512930220}
+  - component: {fileID: 4242815887560027398}
+  - component: {fileID: 7926365170909842721}
+  - component: {fileID: 2512999944472887138}
+  - component: {fileID: 8995429004388815035}
+  - component: {fileID: 6166737871137101908}
+  - component: {fileID: 392068618135810761}
+  - component: {fileID: 5174482792197412346}
+  - component: {fileID: 1728306177043612419}
+  - component: {fileID: 2133071910639912021}
+  - component: {fileID: 2084773064049493707}
+  - component: {fileID: 1415223560663146649}
+  - component: {fileID: 7188278405670467826}
+  - component: {fileID: 8657208725435937026}
+  - component: {fileID: 2774389171733741194}
+  - component: {fileID: 5022234781012618041}
+  - component: {fileID: 440932194221554265}
+  - component: {fileID: 5154310988582348515}
+  - component: {fileID: 7111325539829344219}
+  - component: {fileID: 5916220995975587832}
+  - component: {fileID: 1946732702810414480}
+  - component: {fileID: 3505506204356445274}
+  - component: {fileID: 6836160025532540676}
+  - component: {fileID: 6722721272474997319}
+  - component: {fileID: 5798510228307132632}
+  - component: {fileID: 3622513996299971308}
+  - component: {fileID: 8407691091567255885}
+  - component: {fileID: 7081602893250866849}
+  m_Layer: 0
+  m_Name: _Managers
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3337655067093217726
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 7.08432, y: 4.256, z: -15.51531}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5384696598554670300
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a61b1c3a6295b6f409490d843b802c40, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GameManager
+  dirtyMoney: 1000
+  cleanMoney: 200
+  dirtyMoneyItemDef: {fileID: 11400000, guid: e532503402a095845989ce23b2fce619, type: 2}
+  wantedLevel: 0
+  crimePoints: 0
+  hospitalSpawnPoint: {fileID: 0}
+  policeStationSpawnPoint: {fileID: 0}
+--- !u!114 &5707212694512930220
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70bcfce230df23448b4a27f037a7b1d0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UIManager
+  mainHUDGroup: {fileID: 0}
+  textDistrictName: {fileID: 0}
+  textDistrictControl: {fileID: 0}
+  healthBar: {fileID: 0}
+  textDirtyMoney: {fileID: 0}
+  textCleanMoney: {fileID: 0}
+  textNotoriety: {fileID: 0}
+  textNotification: {fileID: 0}
+  textAmmo: {fileID: 0}
+  textVehicleName: {fileID: 0}
+  tooltipPanel: {fileID: 0}
+  tooltipName: {fileID: 0}
+  tooltipDescription: {fileID: 0}
+  tooltipRarity: {fileID: 0}
+  tooltipValue: {fileID: 0}
+  qtePanel: {fileID: 0}
+  qteActionNameText: {fileID: 0}
+  qteKeyText: {fileID: 0}
+  qteSlider: {fileID: 0}
+  transitionPanel: {fileID: 0}
+--- !u!114 &4242815887560027398
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1054fadf19d25e74cb4a2f495da392a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GangApp
+  appPanel: {fileID: 0}
+  contentParent: {fileID: 0}
+  memberLinePrefab: {fileID: 2006402463977954431, guid: f8cfd2d0cf2dae44589564bbbfde19e1, type: 3}
+  statusText: {fileID: 0}
+--- !u!114 &7926365170909842721
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d335f9888f2fb5d418dcd86cce9ecbb7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CryptoMarketManager
+  marketCryptos: []
+  playerCryptoWallet: []
+--- !u!114 &2512999944472887138
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ed3700924e3a054b8850b5b34ee6154, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::JobPathfinder
+  playerTransform: {fileID: 0}
+  pathHeightOffset: 0.3
+  arrowPrefab: {fileID: 6355265317111560539, guid: 3bddae28890bd0747b502c0b7f6e0a2a, type: 3}
+  arrowSpacing: 2
+  scrollSpeed: 3
+  arrowScale: 1.5
+--- !u!114 &8995429004388815035
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 918cd8419213cdf4b85d1b631c1858de, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DockerJobManager
+  isJobActive: 0
+  totalCratesToDeliver: 5
+  cleanReward: 30
+  dirtyReward: 150
+  carrySpeed: 2
+  tutorialPanel: {fileID: 0}
+  closeTutorialBtn: {fileID: 0}
+  endJobPosition: {fileID: 0}
+  carriedCrateModel: {fileID: 0}
+  balanceUIPanel: {fileID: 0}
+  balanceSlider: {fileID: 0}
+  balanceDifficulty: 0.3
+  playerCorrectionSpeed: 0.8
+  legalDropZone: {fileID: 0}
+  illegalDropZone: {fileID: 0}
+  isCarryingCrate: 0
+  isCurrentCrateIllegal: 0
+--- !u!114 &6166737871137101908
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3535c2f589a087a438fd5125644e4456, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BouncerJobManager
+  rewardPerValidClient: 100
+  penaltyPerError: 25
+  bouncerUIPanel: {fileID: 0}
+  tutorialPanel: {fileID: 0}
+  closeTutorialBtn: {fileID: 0}
+  gameplayContainer: {fileID: 0}
+  idCardTransform: {fileID: 0}
+  nameText: {fileID: 0}
+  dobText: {fileID: 0}
+  expDateText: {fileID: 0}
+  issueDateText: {fileID: 0}
+  pobText: {fileID: 0}
+  photoImage: {fileID: 0}
+  bribeText: {fileID: 0}
+  malePhotos:
+  - {fileID: 21300000, guid: b3b479869d10a3e4bb67b23c69add1cb, type: 3}
+  - {fileID: 21300000, guid: 578d4b60182100c4caabe3540a7970e1, type: 3}
+  - {fileID: 21300000, guid: ec9d76c5be4d5174ca7d1c6c226c58bd, type: 3}
+  - {fileID: 21300000, guid: a251edf8916aef34f9c4540c64b6ed86, type: 3}
+  - {fileID: 21300000, guid: cf5d950b7834add4d86a289f6db9c7df, type: 3}
+  - {fileID: 21300000, guid: 0c31c2d3222c8f841a239df6ec7e28a2, type: 3}
+  - {fileID: 21300000, guid: 8d477007a2cdb544687bed4ef9b0e9cf, type: 3}
+  - {fileID: 21300000, guid: afcf574f8cbf2b64c8fba43a6a93b664, type: 3}
+  - {fileID: 21300000, guid: b1ac0a7e62362c84888f041638314389, type: 3}
+  - {fileID: 21300000, guid: 03447dc21dd22544f87bb29409487896, type: 3}
+  maleFirstNames:
+  - John
+  - Mike
+  - David
+  - Tommy
+  - Carl
+  - Claude
+  - Niko
+  - Franklin
+  - Trevor
+  - Vito
+  femalePhotos:
+  - {fileID: 21300000, guid: bb1c02dc8f623b147b25c18237879a7f, type: 3}
+  - {fileID: 21300000, guid: 428445de78769e5418d0c56b78548e9e, type: 3}
+  - {fileID: 21300000, guid: 5fbfc6e2e611b3945ac089154f4e37a3, type: 3}
+  - {fileID: 21300000, guid: 14202dc966e01d548be81ba1436fd23e, type: 3}
+  - {fileID: 21300000, guid: 9d7f1d4a12167dc4c855ab32ca952b35, type: 3}
+  - {fileID: 21300000, guid: 599fcedaecfc8ad45848e70d87347028, type: 3}
+  - {fileID: 21300000, guid: dfd4e96fc68579d4eae5bf78796f0d95, type: 3}
+  - {fileID: 21300000, guid: 65ae573b5fcf86340966518c7914fbef, type: 3}
+  - {fileID: 21300000, guid: d05f5432ae2fc764e86b8f90684ff279, type: 3}
+  - {fileID: 21300000, guid: 74f2be536708b9f4ea4f6d00a7789fb1, type: 3}
+  femaleFirstNames:
+  - Sarah
+  - Emma
+  - Chloe
+  - Lucia
+  - Catalina
+  - Maria
+  - Mercedes
+  - Amanda
+  - Tracey
+  lastNames:
+  - Smith
+  - Doe
+  - Brown
+  - Wilson
+  - Miller
+  - Vercetti
+  - Bellic
+  - Vance
+  - Clinton
+  - Scaletta
+  backgroundMusic: {fileID: 0}
+  scannerCursor: {fileID: 0}
+  clientSilhouette: {fileID: 0}
+  scannerLight: {fileID: 0}
+  beepAudio: {fileID: 0}
+  weaponZone: {fileID: 0}
+  acceptBtn: {fileID: 0}
+  denyBtn: {fileID: 0}
+  feedbackText: {fileID: 0}
+  maxClientsPerShift: 10
+--- !u!114 &392068618135810761
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b08304a74b74ddf438503a83dc8d8138, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CallApp
+  appPanel: {fileID: 0}
+  contactsView: {fileID: 0}
+  incomingCallPanel: {fileID: 0}
+  activeCallPanel: {fileID: 0}
+  incomingCallerNameText: {fileID: 0}
+  activeCallerNameText: {fileID: 0}
+  callTimerText: {fileID: 0}
+  incomingCallerPhoto: {fileID: 0}
+  activeCallerPhoto: {fileID: 0}
+  contactsContentParent: {fileID: 0}
+  contactButtonPrefab: {fileID: 6351809780320566304, guid: 69ef8d3b0afa98441b6d15cc1418b63d, type: 3}
+  contactList:
+  - contactName: ???
+    contactPhoto: {fileID: 21300000, guid: 6282e4ad442118347924cc2b39c26ef9, type: 3}
+  - contactName: Tommy
+    contactPhoto: {fileID: 2138184454, guid: 92bc31a8dd0244b4299775e23f3b7b0d, type: 3}
+  - contactName: Maman
+    contactPhoto: {fileID: 21300000, guid: 12465d544462d86429204d3851125c88, type: 3}
+  - contactName: Lewis
+    contactPhoto: {fileID: 21300000, guid: 42ff27aa0942abb4095ec6822aa84986, type: 3}
+  callsBlocked: 0
+--- !u!114 &5174482792197412346
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c6d76f0234df88843a300c157fffce97, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DarkNetApp
+  appPanel: {fileID: 0}
+  catalog:
+  - articleName: Pistolet
+    price: 15000
+    itemData: {fileID: 11400000, guid: 800133942d9836847ab6c260528ecc4a, type: 2}
+  - articleName: Gilet Lourd
+    price: 8000
+    itemData: {fileID: 11400000, guid: 6f4aec60485ce70488ee90111c9df259, type: 2}
+  - articleName: Carte de Piratage
+    price: 10000
+    itemData: {fileID: 11400000, guid: cc2d3013cd3710446a057b7f3b69fd9e, type: 2}
+  - articleName: Cagoule
+    price: 100
+    itemData: {fileID: 11400000, guid: 4a94ec5d1a335314dba9abeb53ac18e2, type: 2}
+  - articleName: Lingot d'Or
+    price: 25000
+    itemData: {fileID: 11400000, guid: b029e28e90d7a004e8722516810783e3, type: 2}
+--- !u!114 &1728306177043612419
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 49405259625e94a448d9424a67be194e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SettingsApp
+  appPanel: {fileID: 0}
+  phoneMainWallpaper: {fileID: 0}
+  availableWallpapers:
+  - {fileID: 21300000, guid: ca1450c5806a8824e8b6b25d7c3a27fa, type: 3}
+  - {fileID: 21300000, guid: e427cacd568597947ad2be89f584acac, type: 3}
+  - {fileID: 21300000, guid: 62df87349f8173c4bb664afbe2b19a74, type: 3}
+  - {fileID: 21300000, guid: d7b118f784ae15a4babdb9a0b0b954e5, type: 3}
+  - {fileID: 21300000, guid: b2e60f47b607d614e8be9042b5686f83, type: 3}
+  availableRingtones:
+  - {fileID: 8300000, guid: 277f8dcfac78eec4da0f0eaacfc35c22, type: 3}
+  - {fileID: 8300000, guid: a92641ee007d87949a79e38f9438c53f, type: 3}
+  - {fileID: 8300000, guid: 2fe445fcae2a91a47a9419299071a28f, type: 3}
+  - {fileID: 8300000, guid: 986358b061e7fb143be00a48bc3da5f2, type: 3}
+  - {fileID: 8300000, guid: 2435c6f010ac6ed4095d638e2b09cef8, type: 3}
+  availableSMSTones:
+  - {fileID: 8300000, guid: 9f2765b5cc26efa41b0059f379e0ef3a, type: 3}
+  - {fileID: 8300000, guid: 542f59afc5743ab4f87a9bf279bd009d, type: 3}
+  - {fileID: 8300000, guid: 61a8190bb6b165041ba5881c070cc5aa, type: 3}
+  - {fileID: 8300000, guid: e2880e18aa0d78641a41193ed4ad9990, type: 3}
+  - {fileID: 8300000, guid: 1accb8ff519e1ba469aa0438475996d5, type: 3}
+  wallpaperDropdown: {fileID: 0}
+  ringtoneDropdown: {fileID: 0}
+  smsDropdown: {fileID: 0}
+  notificationsToggle: {fileID: 0}
+  silentModeToggle: {fileID: 0}
+  cheatCodeInput: {fileID: 0}
+  phoneAudioSource: {fileID: 0}
+  showNotifications: 1
+  isSilentMode: 0
+--- !u!114 &2133071910639912021
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5288c091037799428c364b405c063c1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CryptoApp
+  cryptoAppPanel: {fileID: 0}
+  contentParent: {fileID: 0}
+  cryptoLinePrefab: {fileID: 2006402463977954431, guid: 74e5809cdaec58546b4d4124adfeb48b, type: 3}
+--- !u!114 &2084773064049493707
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f684b26847929014cb5f557a18356815, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MessageApp
+  messageAppPanel: {fileID: 0}
+  contactsView: {fileID: 0}
+  chatView: {fileID: 0}
+  chatContentParent: {fileID: 0}
+  bubblePrefab: {fileID: 3923079355406209920, guid: e1607f8bd6f498c4395f39c8a41994cf, type: 3}
+  contactNameText: {fileID: 0}
+  contactsContentParent: {fileID: 0}
+  contactButtonPrefab: {fileID: 3626148347124515773, guid: db64f064d8a6a2b448a8c08a661aced3, type: 3}
+--- !u!114 &1415223560663146649
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26e2af4a5fdb25948bd5c410caff8045, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StockApp
+  stockAppPanel: {fileID: 0}
+  contentParent: {fileID: 0}
+  stockLinePrefab: {fileID: 2006402463977954431, guid: 64b2d13b543b0ac4e94ae71ad20b7d9c, type: 3}
+--- !u!114 &7188278405670467826
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 98a35261515e42d459dbcbed49257a02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StockMarketManager
+  marketStocks: []
+  playerPortfolio: []
+--- !u!114 &8657208725435937026
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73e530283a63a5843befd6d54ddc43e2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PhoneManager
+  requiresItemToUse: 1
+  requiredPhoneItemName: Smartphone
+  phonePanel: {fileID: 0}
+  slideSpeed: 12
+  hiddenPosY: -1280
+  visiblePosY: -670
+  isPhoneOpen: 0
+--- !u!114 &2774389171733741194
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d459d77ae45562419deb406bce6ef26, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::BankApp
+  bankAppPanel: {fileID: 0}
+  balanceText: {fileID: 0}
+  historyContent: {fileID: 0}
+  transactionPrefab: {fileID: 3347829506421248718, guid: 7a72bf9ffa88c634a98d089127df5e40, type: 3}
+--- !u!114 &5022234781012618041
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 333543c3421cd69429c9cf8f4ef80114, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InventoryManager
+  maxSlots: 20
+  items:
+  - {fileID: 11400000, guid: 66152f32f738ea44bb1e1744161ec16d, type: 2}
+  - {fileID: 11400000, guid: 800133942d9836847ab6c260528ecc4a, type: 2}
+  - {fileID: 11400000, guid: cc2d3013cd3710446a057b7f3b69fd9e, type: 2}
+  - {fileID: 11400000, guid: 55087c454b72ca34daa487778722053c, type: 2}
+  - {fileID: 11400000, guid: 97193d4588cc6864d9739e69079beec3, type: 2}
+  - {fileID: 11400000, guid: f721a1e3c9196f646bd916c37f1aebc7, type: 2}
+  - {fileID: 11400000, guid: 242bd79e301dd864d8d008b4ec48f0fa, type: 2}
+  - {fileID: 11400000, guid: 70264dfebe4e3a5408fac8c022c1dd08, type: 2}
+  - {fileID: 11400000, guid: 4a94ec5d1a335314dba9abeb53ac18e2, type: 2}
+  - {fileID: 11400000, guid: 4e7c3319ab8d2084c9a7267c10f45937, type: 2}
+--- !u!114 &440932194221554265
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 84bedba1850044a448d3845a4f0875a0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TimeManager
+  timeScale: 5
+  startHour: 16
+  sunLight: {fileID: 0}
+  dayIntensity: 130000
+  moonLight: {fileID: 0}
+  moonMaxIntensity: 2000
+  currentTimeOfDay: 0
+--- !u!114 &5154310988582348515
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10927e2c16c030c4eac0383f149c5c5a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::HotbarManager
+  hotbarSlots:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  cadreSelection: {fileID: 0}
+  currentSelectedIndex: -1
+  playerHand: {fileID: 0}
+--- !u!114 &7111325539829344219
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f21fc7466c3ed164696c46dabd860643, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ShopManager
+  shopPanel: {fileID: 0}
+  shopTitleText: {fileID: 0}
+  shopSlots:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  demandDropPerSale: 0.15
+  minDemand: 0.2
+--- !u!114 &5916220995975587832
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1536c31fe9e5cda4ebf29250f4e86bfa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LaundromatManager
+  laundromatPanel: {fileID: 0}
+  amountSlider: {fileID: 0}
+  amountText: {fileID: 0}
+--- !u!114 &1946732702810414480
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 43e7c29f14fc2aa49bef5d2b62f8d796, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentManager
+  currentEquipment:
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+--- !u!114 &3505506204356445274
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cb24ca0ef090f340902ba51382d040b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QuestManager
+  questPanel: {fileID: 0}
+  questObjectiveText: {fileID: 0}
+  hasActiveQuest: 0
+  currentQuestType: 0
+  targetObjectName: 
+  currentProgress: 0
+--- !u!114 &6836160025532540676
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2c275a05775c094f8b0843e77cc9cc6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ContractManager
+  hasActiveContract: 0
+  currentContract: 0
+  hitmanReward: 500
+  muleReward: 800
+  goFastReward: 1200
+  availableCarModels:
+  - Berlinair
+  - Pick-it
+  - Compactico
+  - Fusillante
+  muleBagItem: {fileID: 11400000, guid: 4e7c3319ab8d2084c9a7267c10f45937, type: 2}
+  targetVehicleModel: 
+--- !u!114 &6722721272474997319
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8688a502bb6b2b4ba3f60bb6ed96f72, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerritoryManager
+  cityDistricts:
+  - districtName: Bottlewood
+    rivalGang: 1
+    rivalGangDefeated: 0
+    sabotagesDone: 0
+    lieutenantsKilled: 0
+    playerControlPercentage: 0
+    thievesUnlocked: 0
+    dealersUnlocked: 0
+    robbersUnlocked: 0
+  - districtName: Vinetown
+    rivalGang: 2
+    rivalGangDefeated: 0
+    sabotagesDone: 0
+    lieutenantsKilled: 0
+    playerControlPercentage: 0
+    thievesUnlocked: 0
+    dealersUnlocked: 0
+    robbersUnlocked: 0
+  - districtName: Playertown
+    rivalGang: 3
+    rivalGangDefeated: 0
+    sabotagesDone: 10
+    lieutenantsKilled: 10
+    playerControlPercentage: 100
+    thievesUnlocked: 1
+    dealersUnlocked: 1
+    robbersUnlocked: 1
+  currentDistrictName: Inconnu
+  thiefIncome: 30
+  dealerIncome: 75
+  robberIncome: 150
+  isUnderAttack: 0
+  attackedDistrictName: 
+  defenseTimer: 0
+--- !u!114 &5798510228307132632
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: deaf367d309a61a4bbaefd84b157aa44, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PoliceManager
+  copCarPrefab: {fileID: 6452960307185440482, guid: 4e02fecc53d13e94b9f5a05a847ee4d2, type: 3}
+  escapeTimer: 15
+  baseTimeToEscape: 15
+  isPlayerSpotted: 0
+  lastKnownPosition: {x: 0, y: 0, z: 0}
+  maxCopsAllowed: 0
+  activeCops: []
+  spawnCooldown: 5
+  minSpawnDist: 60
+  maxSpawnDist: 150
+--- !u!114 &3622513996299971308
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5dcf4fbd9092ca4dab1e579f5fd17da, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MapManager
+  mapPanel: {fileID: 0}
+--- !u!114 &8407691091567255885
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ceaa862e7d19a8f4d9421effdd622dda, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DialogueManager
+  dialoguePanel: {fileID: 0}
+  nameText: {fileID: 0}
+  dialogueText: {fileID: 0}
+  portraitImage: {fileID: 0}
+  continuePrompt: {fileID: 0}
+--- !u!114 &7081602893250866849
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8724709938763618991}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 81bbd383748277a41a902dd9a4a18d43, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LawyerApp
+  appPanel: {fileID: 0}
+  cleanPrices: 00000000dc050000b80b0000401f0000983a000030750000
+  dirtyPrices: 00000000b80b000070170000803e00003075000060ea0000
