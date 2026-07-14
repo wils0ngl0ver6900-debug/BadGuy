@@ -17,15 +17,15 @@ public class PlayerController : MonoBehaviour
     public float moveSpeed = 5f;
     private float originalMoveSpeed;
     private bool isSpeedBoosted = false;
-
     private bool isInComedown = false;
     private bool currentInvertControls = false;
+    private bool isTimeSlowed = false;
 
     [Header("Inventaire UI")]
     public GameObject inventoryPanel;
 
     [HideInInspector] public bool isDoingQTE = false;
-    [HideInInspector] public bool isKnockedDown = false; // NOUVEAU
+    [HideInInspector] public bool isKnockedDown = false;
 
     private Rigidbody rb;
     private Vector3 moveInput;
@@ -35,6 +35,7 @@ public class PlayerController : MonoBehaviour
     private ChromaticAberration chromaticAberration;
     private LensDistortion lensDistortion;
     private Vignette vignette;
+    private ColorAdjustments colorAdjustments;
 
     void Start()
     {
@@ -60,6 +61,7 @@ public class PlayerController : MonoBehaviour
                 drogueVolume.profile.TryGet(out chromaticAberration);
                 drogueVolume.profile.TryGet(out lensDistortion);
                 drogueVolume.profile.TryGet(out vignette);
+                drogueVolume.profile.TryGet(out colorAdjustments);
             }
         }
     }
@@ -125,14 +127,28 @@ public class PlayerController : MonoBehaviour
 
                 if (equippedItem.isDrugWithComedown)
                 {
-                    if (!isSpeedBoosted && !isInComedown)
+                    if (!isSpeedBoosted && !isInComedown && !isTimeSlowed)
                     {
-                        StartCoroutine(DrugDoubleEffectRoutine(equippedItem));
+                        string itemNameLower = equippedItem.itemName.ToLower();
+
+                        if (itemNameLower.Contains("weed"))
+                        {
+                            StartCoroutine(WeedEffectRoutine());
+                        }
+                        else if (itemNameLower.Contains("héro") || itemNameLower.Contains("hero"))
+                        {
+                            StartCoroutine(HeroinEffectRoutine(equippedItem));
+                        }
+                        else
+                        {
+                            StartCoroutine(DrugDoubleEffectRoutine(equippedItem));
+                        }
+
                         itemHasBeenUsed = true;
                     }
                     else
                     {
-                        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Votre corps ne supporterait pas une autre dose !");
+                        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Votre corps ne supporterait pas une dose supplémentaire !");
                     }
                 }
                 else
@@ -181,7 +197,7 @@ public class PlayerController : MonoBehaviour
 
         if (isUIOpen || isDoingQTE || isKnockedDown)
         {
-            if (!isKnockedDown) rb.linearVelocity = Vector3.zero; // Ne pas forcer la vélocité à zéro si on vole dans les airs !
+            if (!isKnockedDown) rb.linearVelocity = Vector3.zero;
             return;
         }
 
@@ -268,6 +284,136 @@ public class PlayerController : MonoBehaviour
         isSpeedBoosted = false;
     }
 
+    // ========================================================
+    // --- LES 3 TYPES DE DROGUES ---
+    // ========================================================
+
+    // 1. LA WEED (Bullet Time centré sur le monde + Filtre Vert Léger)
+    private IEnumerator WeedEffectRoutine()
+    {
+        isTimeSlowed = true;
+        isSpeedBoosted = true;
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.ShowNotification("Le monde ralentit... (30s)");
+
+        Animator anim = GetComponentInChildren<Animator>();
+        if (anim != null) anim.updateMode = AnimatorUpdateMode.UnscaledTime;
+
+        Time.timeScale = 0.4f;
+        Time.fixedDeltaTime = 0.02f * Time.timeScale;
+        moveSpeed = originalMoveSpeed * 2.5f;
+
+        // --- FADE IN VERT LÉGER ---
+        float elapsed = 0f;
+        Color normalColor = Color.white;
+        Color weedColor = new Color(0.8f, 1f, 0.8f); // Vert très doux
+
+        // On utilise unscaledDeltaTime car le jeu est ralenti ! 
+        // Ça permet au fondu de se faire en 1 seconde "réelle".
+        while (elapsed < 1f)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            if (colorAdjustments != null) colorAdjustments.colorFilter.value = Color.Lerp(normalColor, weedColor, elapsed);
+            yield return null;
+        }
+
+        // On attend 29 secondes IRL (30 - la seconde du fondu)
+        yield return new WaitForSecondsRealtime(29f);
+
+        // --- FADE OUT (Retour à la normale) ---
+        elapsed = 0f;
+        while (elapsed < 1f)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            if (colorAdjustments != null) colorAdjustments.colorFilter.value = Color.Lerp(weedColor, normalColor, elapsed);
+            yield return null;
+        }
+
+        // Restauration de la physique et vitesse
+        Time.timeScale = 1f;
+        Time.fixedDeltaTime = 0.02f;
+
+        moveSpeed = originalMoveSpeed;
+        if (anim != null) anim.updateMode = AnimatorUpdateMode.Normal;
+        if (colorAdjustments != null) colorAdjustments.colorFilter.value = normalColor; // Sécurité
+
+        isTimeSlowed = false;
+        isSpeedBoosted = false;
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.ShowNotification("Le temps reprend son cours normal.");
+    }
+
+    // 2. L'HÉROÏNE (Buff 15s + Écran Rouge)
+    private IEnumerator HeroinEffectRoutine(ItemData drug)
+    {
+        isSpeedBoosted = true;
+
+        float buffMult = drug.speedBoostMultiplier > 0 ? drug.speedBoostMultiplier : 1.2f;
+        moveSpeed = originalMoveSpeed * buffMult;
+
+        if (drug.healAmount > 0) Heal(drug.healAmount);
+
+        float buffTime = 15f;
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.ShowNotification($"Flash d'euphorie ! ({buffTime}s)");
+
+        yield return new WaitForSeconds(buffTime);
+
+        // --- LA DESCENTE ---
+        isSpeedBoosted = false;
+        isInComedown = true;
+        currentInvertControls = drug.invertControlsDuringComedown;
+
+        float comedownMult = Mathf.Abs(drug.comedownSpeedMultiplier);
+        moveSpeed = originalMoveSpeed * (comedownMult > 0 ? comedownMult : 0.5f);
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.ShowNotification("⚠️ BAD TRIP À L'HÉROÏNE ⚠️");
+
+        float elapsed = 0f;
+        Color normalColor = Color.white;
+        Color tripColor = new Color(1f, 0.2f, 0.2f); // Écran teinté en rouge sang
+
+        while (elapsed < 2f)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / 2f;
+            if (chromaticAberration != null) chromaticAberration.intensity.value = Mathf.Lerp(0f, 1f, t);
+            if (lensDistortion != null) lensDistortion.intensity.value = Mathf.Lerp(0f, -0.6f, t);
+            if (vignette != null) vignette.intensity.value = Mathf.Lerp(0f, 0.5f, t);
+
+            if (colorAdjustments != null) colorAdjustments.colorFilter.value = Color.Lerp(normalColor, tripColor, t);
+
+            yield return null;
+        }
+
+        yield return new WaitForSeconds(drug.comedownDuration > 2f ? drug.comedownDuration - 2f : 15f);
+
+        elapsed = 0f;
+        while (elapsed < 3f)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / 3f;
+            if (chromaticAberration != null) chromaticAberration.intensity.value = Mathf.Lerp(1f, 0f, t);
+            if (lensDistortion != null) lensDistortion.intensity.value = Mathf.Lerp(-0.6f, 0f, t);
+            if (vignette != null) vignette.intensity.value = Mathf.Lerp(0.5f, 0f, t);
+            if (colorAdjustments != null) colorAdjustments.colorFilter.value = Color.Lerp(tripColor, normalColor, t);
+            yield return null;
+        }
+
+        moveSpeed = originalMoveSpeed;
+        isInComedown = false;
+        currentInvertControls = false;
+        if (colorAdjustments != null) colorAdjustments.colorFilter.value = normalColor;
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.ShowNotification("Les effets de l'héroïne se sont dissipés.");
+    }
+
+    // 3. LA COCAÏNE (Déformation classique)
     private IEnumerator DrugDoubleEffectRoutine(ItemData drug)
     {
         isSpeedBoosted = true;
@@ -318,7 +464,8 @@ public class PlayerController : MonoBehaviour
             UIManager.Instance.ShowNotification("L'effet de la substance s'est totalement dissipé.");
     }
 
-    // --- LA CULBUTE DU JOUEUR SUITE À UN CHOC ---
+    // ========================================================
+
     public void Knockdown(Vector3 pushForce)
     {
         if (currentHealth <= 0 || isKnockedDown) return;
@@ -328,11 +475,10 @@ public class PlayerController : MonoBehaviour
     private IEnumerator PlayerKnockdownRoutine(Vector3 pushForce)
     {
         isKnockedDown = true;
-        this.enabled = false; // Bloque les commandes
+        this.enabled = false;
 
         if (rb != null)
         {
-            // Libère la rotation pour rouler par terre !
             rb.constraints = RigidbodyConstraints.None;
             rb.AddForce(pushForce, ForceMode.Impulse);
             rb.AddTorque(Random.insideUnitSphere * pushForce.magnitude, ForceMode.Impulse);
@@ -344,11 +490,10 @@ public class PlayerController : MonoBehaviour
         {
             if (rb != null)
             {
-                // Remet le joueur sur ses pieds
                 transform.rotation = Quaternion.Euler(0, transform.eulerAngles.y, 0);
                 rb.constraints = RigidbodyConstraints.FreezeRotation;
             }
-            this.enabled = true; // Rend les commandes
+            this.enabled = true;
         }
 
         isKnockedDown = false;

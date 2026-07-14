@@ -24,7 +24,7 @@ MonoBehaviour:
   speedBoostMultiplier: 2
   buffDuration: 5
   isDrugWithComedown: 1
-  comedownDuration: 30
+  comedownDuration: 60
   comedownSpeedMultiplier: 0.5
   invertControlsDuringComedown: 1
   rarity: 1
