@@ -89,7 +89,7 @@ public class DockerJobTrigger : Interactable
     {
         isTransitioning = true;
 
-        // 1. Écran Noir
+        // 1. Écran Noir complet
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
             UIManager.Instance.transitionPanel.SetActive(true);
@@ -107,20 +107,15 @@ public class DockerJobTrigger : Interactable
             playerController.transform.rotation = dockerStartPosition.rotation;
         }
 
-        // 3. Rallumer la lumière
+        // 3. LANCER LE JOB ICI (Fait "popper" les caisses pendant qu'il fait tout noir !)
+        if (DockerJobManager.Instance != null) DockerJobManager.Instance.StartJob();
+
+        // 4. Rallumer la lumière doucement (Les caisses sont déjà en place)
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
             yield return StartCoroutine(UIManager.Instance.FadeToClear(1f));
             UIManager.Instance.transitionPanel.SetActive(false);
         }
-
-        // 4. Libérer le joueur
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Confined;
-        if (playerController != null) playerController.enabled = true;
-
-        // 5. Lancer le Job
-        if (DockerJobManager.Instance != null) DockerJobManager.Instance.StartJob();
 
         lastTimeWorked = Time.time;
         isTransitioning = false;

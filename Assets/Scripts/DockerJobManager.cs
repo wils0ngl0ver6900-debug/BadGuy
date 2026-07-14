@@ -10,19 +10,24 @@ public class DockerJobManager : MonoBehaviour
 
     [Header("État du Job")]
     public bool isJobActive = false;
-    public int totalCratesToDeliver = 5;
+    [HideInInspector] public int totalCratesToDeliver = 5;
     private int cratesProcessed = 0;
     private int cashEarned = 0;
+
+    [Header("Génération des Caisses 📦")]
+    public GameObject cratePrefab;
+    public Transform[] crateSpawnPoints;
+    [Range(0, 100)] public int illegalCrateChance = 10;
+    private List<GameObject> spawnedCrates = new List<GameObject>();
 
     [Header("Économie (Légal)")]
     public int cleanReward = 30;
 
     [Header("Récompenses Illégales (Drogue) 💊")]
-    [Tooltip("Glisse ici tes objets : Cocaïne, Weed, Héroïne...")]
     public ItemData[] possibleDrugRewards;
     public int minDrugAmount = 5;
     public int maxDrugAmount = 20;
-    public int dirtyReward = 150; // Fallback au cas où l'inventaire est plein ou vide
+    public int dirtyReward = 150;
 
     [Header("Physique")]
     public float carrySpeed = 2f;
@@ -40,18 +45,14 @@ public class DockerJobManager : MonoBehaviour
     public float balanceDifficulty = 0.15f;
     public float mouseCorrectionSensitivity = 0.05f;
 
-    [Tooltip("Le texte UI pour prévenir que la caisse est illégale")]
     public TextMeshProUGUI illegalCrateWarningText;
-
-    [Tooltip("Glisse ici UNIQUEMENT ce que tu veux cacher (Minimap, Hotbar, Argent...). Ne mets pas le conteneur global !")]
     public GameObject[] extraHUDElementsToHide;
 
+    private List<GameObject> hudMemory = new List<GameObject>();
+
     [Header("Juice & UI Enhancements 🧃")]
-    [Tooltip("Le texte UI sur le presse-papier")]
     public TextMeshProUGUI clipboardProgressText;
-    [Tooltip("LAISSE VIDE : Le script trouvera la fumée tout seul !")]
     public ParticleSystem illegalLeakParticles;
-    [Tooltip("Le RectTransform du balanceUIPanel pour le faire trembler")]
     public RectTransform balancePanelRect;
     public float maxShakeIntensity = 10f;
     private Vector2 balancePanelOriginalPos;
@@ -77,13 +78,7 @@ public class DockerJobManager : MonoBehaviour
         if (carriedCrateModel != null)
         {
             carriedCrateModel.SetActive(false);
-
-            // --- AUTO-DÉTECTION MAGIQUE DE LA FUMÉE ---
-            if (illegalLeakParticles == null)
-            {
-                // Cherche le ParticleSystem même si la caisse est désactivée
-                illegalLeakParticles = carriedCrateModel.GetComponentInChildren<ParticleSystem>(true);
-            }
+            if (illegalLeakParticles == null) illegalLeakParticles = carriedCrateModel.GetComponentInChildren<ParticleSystem>(true);
         }
 
         if (balanceUIPanel != null) balanceUIPanel.SetActive(false);
@@ -100,13 +95,61 @@ public class DockerJobManager : MonoBehaviour
 
     private void SafeToggleHUD(bool showHUD)
     {
-        if (extraHUDElementsToHide != null)
+        if (extraHUDElementsToHide == null) return;
+
+        if (!showHUD)
         {
+            hudMemory.Clear();
             foreach (GameObject hudElement in extraHUDElementsToHide)
             {
-                if (hudElement != null) hudElement.SetActive(showHUD);
+                if (hudElement != null && hudElement.activeSelf)
+                {
+                    hudMemory.Add(hudElement);
+                    hudElement.SetActive(false);
+                }
             }
         }
+        else
+        {
+            foreach (GameObject hudElement in hudMemory)
+            {
+                if (hudElement != null) hudElement.SetActive(true);
+            }
+            hudMemory.Clear();
+        }
+    }
+
+    private void SpawnCrates()
+    {
+        ClearCrates();
+
+        if (cratePrefab == null || crateSpawnPoints == null || crateSpawnPoints.Length == 0) return;
+
+        totalCratesToDeliver = crateSpawnPoints.Length;
+
+        foreach (Transform spawnPoint in crateSpawnPoints)
+        {
+            if (spawnPoint == null) continue;
+
+            GameObject newCrate = Instantiate(cratePrefab, spawnPoint.position, spawnPoint.rotation);
+
+            DockerCrate crateScript = newCrate.GetComponent<DockerCrate>();
+            if (crateScript != null)
+            {
+                crateScript.isGangCrate = (Random.Range(0, 100) < illegalCrateChance);
+            }
+
+            spawnedCrates.Add(newCrate);
+        }
+    }
+
+    private void ClearCrates()
+    {
+        foreach (GameObject crate in spawnedCrates)
+        {
+            if (crate != null) Destroy(crate);
+        }
+        spawnedCrates.Clear();
     }
 
     public void StartJob()
@@ -116,6 +159,9 @@ public class DockerJobManager : MonoBehaviour
         isJobActive = true;
         cratesProcessed = 0;
         cashEarned = 0;
+
+        // --- C'EST ICI QUE LA MAGIE OPÈRE : On spawn les caisses pendant l'écran noir ! ---
+        SpawnCrates();
         UpdateClipboardUI();
 
         if (InventoryManager.Instance != null) InventoryManager.Instance.enabled = false;
@@ -141,15 +187,15 @@ public class DockerJobManager : MonoBehaviour
         if (tutorialPanel != null) tutorialPanel.SetActive(false);
         PlayerPrefs.SetInt("DockerTutorialDone", 1);
 
-        Cursor.visible = false;
-        Cursor.lockState = CursorLockMode.Confined;
-        if (playerController != null) playerController.enabled = true;
-
         BeginGameplay();
     }
 
     private void BeginGameplay()
     {
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Confined;
+        if (playerController != null) playerController.enabled = true;
+
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification("Service commencé ! Prenez une caisse et chargez le camion.");
     }
@@ -157,6 +203,7 @@ public class DockerJobManager : MonoBehaviour
     public void EndJob()
     {
         isJobActive = false;
+        ClearCrates();
         StartCoroutine(EndJobRoutine());
     }
 
