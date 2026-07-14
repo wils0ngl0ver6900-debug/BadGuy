@@ -5,8 +5,8 @@ public class PhoneManager : MonoBehaviour
     public static PhoneManager Instance;
 
     [Header("Configuration Objet 📱")]
-    public bool requiresItemToUse = true; // Coche/décoche pour activer la vérification
-    public string requiredPhoneItemName = "Smartphone"; // Le nom EXACT de ton ItemData
+    public bool requiresItemToUse = true;
+    public string requiredPhoneItemName = "Smartphone";
 
     [Header("UI Téléphone 📱")]
     public RectTransform phonePanel;
@@ -32,7 +32,6 @@ public class PhoneManager : MonoBehaviour
 
         if (phonePanel != null)
         {
-            // Au démarrage, le téléphone est rangé
             targetPosition = new Vector2(phonePanel.anchoredPosition.x, hiddenPosY);
             phonePanel.anchoredPosition = targetPosition;
         }
@@ -48,33 +47,29 @@ public class PhoneManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.T) || Input.GetKeyDown(KeyCode.P))
         {
-            // Si le téléphone est fermé, on vérifie si le joueur possède l'objet avant de l'ouvrir
             if (!isPhoneOpen && requiresItemToUse)
             {
                 if (!CheckPlayerHasPhone())
                 {
                     if (UIManager.Instance != null)
                         UIManager.Instance.ShowNotification("Vous n'avez pas de téléphone sur vous !");
-                    return; // On bloque l'ouverture
+                    return;
                 }
             }
 
             TogglePhone();
         }
 
-        // L'animation
         if (phonePanel != null)
         {
             phonePanel.anchoredPosition = Vector2.Lerp(phonePanel.anchoredPosition, targetPosition, Time.deltaTime * slideSpeed);
         }
     }
 
-    // --- LA FONCTION DE FOUILLE ---
     private bool CheckPlayerHasPhone()
     {
         string targetName = requiredPhoneItemName.Trim().ToLower();
 
-        // 1. Vérification dans la Hotbar
         if (HotbarManager.Instance != null)
         {
             foreach (HotbarSlot slot in HotbarManager.Instance.hotbarSlots)
@@ -84,17 +79,16 @@ public class PhoneManager : MonoBehaviour
             }
         }
 
-        // 2. Vérification dans l'inventaire principal
         if (InventoryManager.Instance != null)
         {
-            foreach (ItemData item in InventoryManager.Instance.items)
+            foreach (InventorySlot slot in InventoryManager.Instance.slots)
             {
-                if (item != null && item.itemName.Trim().ToLower() == targetName)
+                if (slot.item != null && slot.item.itemName.Trim().ToLower() == targetName)
                     return true;
             }
         }
 
-        return false; // L'objet n'a pas été trouvé
+        return false;
     }
 
     public void TogglePhone()

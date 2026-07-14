@@ -5,19 +5,19 @@ using TMPro;
 
 public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IDropHandler, IPointerEnterHandler, IPointerExitHandler
 {
-    [Header("Référence de l'objet")]
-    public ItemData itemReference;
+    [Header("Référence de la Case (Stack)")]
+    public InventorySlot slotReference;
+
+    public ItemData itemReference => slotReference?.item;
 
     [HideInInspector] public HotbarSlot originalHotbarSlot;
     [HideInInspector] public bool isSwapped = false;
-
     [HideInInspector] public Transform originalParent;
     [HideInInspector] public int originalSiblingIndex;
 
     private CanvasGroup canvasGroup;
     private RectTransform rectTransform;
     private bool isDragging = false;
-
     private Color originalBgColor;
     private bool hasBgColor = false;
 
@@ -28,11 +28,7 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
         if (canvasGroup == null) canvasGroup = gameObject.AddComponent<CanvasGroup>();
 
         Image bgImage = GetComponent<Image>();
-        if (bgImage != null)
-        {
-            originalBgColor = bgImage.color;
-            hasBgColor = true;
-        }
+        if (bgImage != null) { originalBgColor = bgImage.color; hasBgColor = true; }
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -51,27 +47,20 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
     {
         if (itemReference == null) return;
         isDragging = true;
-
         originalParent = transform.parent;
         originalSiblingIndex = transform.GetSiblingIndex();
         originalHotbarSlot = GetComponentInParent<HotbarSlot>();
 
-        // --- CORRECTIF 1 : ON SÉCURISE LE PARENT (On force le maintien dans le Canvas) ---
         Canvas mainCanvas = GetComponentInParent<Canvas>();
         if (mainCanvas != null) transform.SetParent(mainCanvas.transform);
         else transform.SetParent(transform.root);
 
         transform.SetAsLastSibling();
         canvasGroup.blocksRaycasts = false;
-
         if (UIManager.Instance != null) UIManager.Instance.HideTooltip();
     }
 
-    public void OnDrag(PointerEventData eventData)
-    {
-        if (itemReference == null) return;
-        rectTransform.position = Input.mousePosition;
-    }
+    public void OnDrag(PointerEventData eventData) { if (itemReference != null) rectTransform.position = Input.mousePosition; }
 
     public void OnEndDrag(PointerEventData eventData)
     {
@@ -79,16 +68,12 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
         isDragging = false;
         canvasGroup.blocksRaycasts = true;
 
-        // --- CORRECTIF 2 : ON SÉCURISE LA VÉRIFICATION DU RETOUR ---
         Canvas mainCanvas = originalParent != null ? originalParent.GetComponentInParent<Canvas>() : null;
         bool isDirectChildOfCanvas = mainCanvas != null && transform.parent == mainCanvas.transform;
 
         if (isDirectChildOfCanvas || transform.parent == transform.root)
         {
-            if (originalHotbarSlot != null)
-            {
-                ReturnToInventoryFromHotbar(originalHotbarSlot);
-            }
+            if (originalHotbarSlot != null) ReturnToInventoryFromHotbar(originalHotbarSlot);
             else
             {
                 transform.SetParent(originalParent);
@@ -97,7 +82,6 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
                 SetVisualMode(false);
             }
         }
-
         isSwapped = false;
     }
 
@@ -106,24 +90,22 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
         InventoryDragDrop droppedItem = eventData.pointerDrag?.GetComponent<InventoryDragDrop>();
         if (droppedItem != null && droppedItem != this)
         {
-            if (this.GetComponentInParent<HotbarSlot>() != null || droppedItem.GetComponentInParent<HotbarSlot>() != null)
-                return;
+            if (this.GetComponentInParent<HotbarSlot>() != null || droppedItem.GetComponentInParent<HotbarSlot>() != null) return;
 
             if (InventoryManager.Instance != null)
             {
-                int targetListIndex = InventoryManager.Instance.items.IndexOf(this.itemReference);
-                int droppedListIndex = InventoryManager.Instance.items.IndexOf(droppedItem.itemReference);
+                int targetListIndex = InventoryManager.Instance.slots.IndexOf(this.slotReference);
+                int droppedListIndex = InventoryManager.Instance.slots.IndexOf(droppedItem.slotReference);
 
                 if (targetListIndex >= 0 && droppedListIndex >= 0)
                 {
-                    InventoryManager.Instance.items[targetListIndex] = droppedItem.itemReference;
-                    InventoryManager.Instance.items[droppedListIndex] = this.itemReference;
+                    InventoryManager.Instance.slots[targetListIndex] = droppedItem.slotReference;
+                    InventoryManager.Instance.slots[droppedListIndex] = this.slotReference;
                 }
             }
 
             int myIndex = transform.GetSiblingIndex();
             transform.SetSiblingIndex(droppedItem.originalSiblingIndex);
-
             droppedItem.originalSiblingIndex = myIndex;
             droppedItem.originalParent = transform.parent;
 
@@ -137,20 +119,17 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
         if (eventData.button == PointerEventData.InputButton.Right)
         {
             HotbarSlot currentHotbarSlot = GetComponentInParent<HotbarSlot>();
-            if (currentHotbarSlot != null)
-            {
-                ReturnToInventoryFromHotbar(currentHotbarSlot);
-                return;
-            }
+            if (currentHotbarSlot != null) { ReturnToInventoryFromHotbar(currentHotbarSlot); return; }
 
             if (itemReference != null && itemReference.isClothing)
             {
                 if (EquipmentManager.Instance != null)
                 {
                     EquipmentManager.Instance.Equip(itemReference);
-
                     if (UIManager.Instance != null) UIManager.Instance.HideTooltip();
-                    Destroy(gameObject);
+
+                    InventoryManager.Instance.RemoveItem(itemReference, 1);
+                    FindObjectOfType<InventoryUI>().RefreshUI();
                 }
             }
         }
@@ -159,7 +138,12 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
     public void SetVisualMode(bool inHotbar)
     {
         TextMeshProUGUI textMesh = GetComponentInChildren<TextMeshProUGUI>();
-        if (textMesh != null) textMesh.enabled = !inHotbar;
+        if (textMesh != null)
+        {
+            textMesh.enabled = !inHotbar;
+            if (!inHotbar && slotReference != null && slotReference.amount > 1)
+                textMesh.text = $"{itemReference.itemName} (x{slotReference.amount})";
+        }
 
         Transform rarityBorder = transform.Find("Bordure_Rarete");
         if (rarityBorder != null) rarityBorder.gameObject.SetActive(!inHotbar);
@@ -168,39 +152,23 @@ public class InventoryDragDrop : MonoBehaviour, IBeginDragHandler, IDragHandler,
         if (iconTransform != null)
         {
             Image iconImage = iconTransform.GetComponent<Image>();
-            if (iconImage != null)
-            {
-                iconImage.enabled = true;
-                iconImage.color = Color.white;
-            }
+            if (iconImage != null) { iconImage.enabled = true; iconImage.color = Color.white; }
         }
 
         Image bgImage = GetComponent<Image>();
         if (bgImage != null)
         {
             bgImage.enabled = true;
-
-            if (inHotbar)
-            {
-                bgImage.color = new Color(originalBgColor.r, originalBgColor.g, originalBgColor.b, 0f);
-            }
-            else
-            {
-                bgImage.color = hasBgColor ? originalBgColor : new Color(1f, 1f, 1f, 0.1f);
-            }
+            bgImage.color = inHotbar ? new Color(originalBgColor.r, originalBgColor.g, originalBgColor.b, 0f) : (hasBgColor ? originalBgColor : new Color(1f, 1f, 1f, 0.1f));
         }
     }
 
     private void ReturnToInventoryFromHotbar(HotbarSlot hotbarSlot)
     {
         if (hotbarSlot != null) hotbarSlot.itemInSlot = null;
-
-        if (InventoryManager.Instance != null && !InventoryManager.Instance.items.Contains(itemReference))
-            InventoryManager.Instance.items.Add(itemReference);
-
+        if (InventoryManager.Instance != null) InventoryManager.Instance.AddItem(itemReference, slotReference.amount, true);
         InventoryUI inventoryUI = FindObjectOfType<InventoryUI>();
         if (inventoryUI != null) inventoryUI.RefreshUI();
-
         Destroy(gameObject);
     }
 }

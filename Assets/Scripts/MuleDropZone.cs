@@ -3,14 +3,13 @@ using UnityEngine;
 public class MuleDropZone : MonoBehaviour
 {
     [Header("Configuration")]
-    public float detectionRadius = 3f; // Plus petit que les voitures, il faut s'approcher
-    public string bagItemName = "Sac de Contrebande"; // Doit correspondre EXACTEMENT au nom de ton ItemData
+    public float detectionRadius = 3f;
+    public string bagItemName = "Sac de Contrebande";
 
     private bool isPlayerInZone = false;
 
     void Update()
     {
-        // On s'éteint si le joueur n'a pas la mission Mule
         if (ContractManager.Instance == null || !ContractManager.Instance.hasActiveContract ||
             ContractManager.Instance.currentContract != ContractManager.ContractType.Mule)
         {
@@ -23,7 +22,6 @@ public class MuleDropZone : MonoBehaviour
 
         foreach (var hit in hitColliders)
         {
-            // On cherche le joueur à pied
             if (hit.CompareTag("Player"))
             {
                 foundPlayer = true;
@@ -53,26 +51,21 @@ public class MuleDropZone : MonoBehaviour
 
     private void DeliverBag()
     {
-        // 1. Le client fouille ton sac à dos pour trouver la marchandise
-        ItemData bag = InventoryManager.Instance.items.Find(x => x.itemName.ToLower() == bagItemName.ToLower());
+        InventorySlot bagSlot = InventoryManager.Instance.slots.Find(x => x.item.itemName.ToLower() == bagItemName.ToLower());
 
-        if (bag != null)
+        if (bagSlot != null)
         {
-            // Succès : On te prend le sac
-            InventoryManager.Instance.RemoveItem(bag);
+            InventoryManager.Instance.RemoveItem(bagSlot.item, 1);
             InventoryUI ui = FindObjectOfType<InventoryUI>();
             if (ui != null) ui.RefreshUI();
 
-            // On te paie !
             ContractManager.Instance.CompleteContract(ContractManager.ContractType.Mule);
         }
         else
         {
-            // Échec : Tu n'as plus le sac !
             if (UIManager.Instance != null)
                 UIManager.Instance.ShowNotification("<color=red>T'as perdu la came ?! La mission est annulée !</color>");
 
-            // On reset le contrat sans te payer
             ContractManager.Instance.hasActiveContract = false;
             ContractManager.Instance.currentContract = ContractManager.ContractType.None;
         }

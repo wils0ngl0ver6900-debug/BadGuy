@@ -12,7 +12,7 @@ public class GameManager : MonoBehaviour
     public int dirtyMoney = 100;
     public int cleanMoney = 0;
     [Tooltip("Glisse ici le ScriptableObject 'Item_ArgentSale'")]
-    public ItemData dirtyMoneyItemDef; // <-- NOUVEAU : L'objet physique !
+    public ItemData dirtyMoneyItemDef;
 
     [Header("Système de Recherche (GTA Style) 🚔")]
     [Range(0, 5)] public int wantedLevel = 0;
@@ -42,7 +42,7 @@ public class GameManager : MonoBehaviour
         wantedLevel = 0;
         crimePoints = 0;
         allNPCsInScene = FindObjectsOfType<NPCBrain>();
-        SyncDirtyMoneyItem(); // Synchronise au démarrage
+        SyncDirtyMoneyItem();
     }
 
     private void Update()
@@ -74,49 +74,47 @@ public class GameManager : MonoBehaviour
         return false;
     }
 
-    // --- LE NOUVEAU SYSTÈME DE SYNCHRONISATION ---
     public void SyncDirtyMoneyItem()
     {
         if (dirtyMoneyItemDef == null || InventoryManager.Instance == null) return;
 
-        bool hasItem = InventoryManager.Instance.items.Contains(dirtyMoneyItemDef);
+        // On regarde combien d'argent on a DANS LE SAC physiquement
+        int countInBag = InventoryManager.Instance.GetTotalItemAmount(dirtyMoneyItemDef);
 
-        // Si j'ai de l'argent mais pas l'objet dans le sac, on l'ajoute
-        if (dirtyMoney > 0 && !hasItem)
+        // Si le sac a moins que notre compteur global, on ajoute la différence
+        if (countInBag < dirtyMoney)
         {
-            InventoryManager.Instance.items.Add(dirtyMoneyItemDef);
+            InventoryManager.Instance.AddItem(dirtyMoneyItemDef, dirtyMoney - countInBag, true);
         }
-        // Si je n'ai plus d'argent sale mais que j'ai l'objet, on le détruit
-        else if (dirtyMoney <= 0 && hasItem)
+        // S'il a plus (par exemple si on jette des billets), on détruit la différence
+        else if (countInBag > dirtyMoney)
         {
-            InventoryManager.Instance.items.RemoveAll(i => i == dirtyMoneyItemDef);
+            InventoryManager.Instance.RemoveItem(dirtyMoneyItemDef, countInBag - dirtyMoney);
         }
     }
 
-    // On transforme ceci en booléen pour bloquer si l'inventaire est plein !
     public bool AddDirtyMoney(int amount)
     {
-        bool hasItem = dirtyMoneyItemDef != null && InventoryManager.Instance.items.Contains(dirtyMoneyItemDef);
+        int countInBag = InventoryManager.Instance.GetTotalItemAmount(dirtyMoneyItemDef);
 
-        // Si on gagne de l'argent et qu'on n'a pas encore l'objet, il faut une place libre !
-        if (amount > 0 && !hasItem)
+        if (amount > 0 && countInBag == 0)
         {
-            if (InventoryManager.Instance.items.Count >= InventoryManager.Instance.maxSlots)
+            if (InventoryManager.Instance.slots.Count >= InventoryManager.Instance.maxSlots)
             {
                 if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Inventaire plein ! Impossible de prendre l'argent.");
-                return false; // Échec
+                return false;
             }
         }
 
         dirtyMoney += amount;
-        SyncDirtyMoneyItem(); // Fait apparaître ou disparaître l'objet
+        SyncDirtyMoneyItem();
 
         if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
 
         if (QuestManager.Instance != null && amount > 0)
             QuestManager.Instance.RegisterAction(QuestManager.QuestObjectiveType.ArgentSale, amount);
 
-        return true; // Succès
+        return true;
     }
 
     public void ReportCrime(int points)
@@ -272,14 +270,12 @@ public class GameManager : MonoBehaviour
 
         if (isBusted)
         {
-            // ---> MODIFICATION ICI : On vide l'argent et on synchronise l'inventaire !
             dirtyMoney = 0;
             SyncDirtyMoneyItem();
 
             if (HotbarManager.Instance != null) HotbarManager.Instance.RemoveIllegalItems();
-            List<ItemData> itemsToConfiscate = new List<ItemData>();
-            foreach (var item in InventoryManager.Instance.items) if (item != null && item.isIllegal) itemsToConfiscate.Add(item);
-            foreach (var item in itemsToConfiscate) InventoryManager.Instance.RemoveItem(item);
+
+            InventoryManager.Instance.slots.RemoveAll(s => s.item != null && s.item.isIllegal);
         }
         else
         {

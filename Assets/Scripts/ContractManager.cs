@@ -15,20 +15,16 @@ public class ContractManager : MonoBehaviour
     public int muleReward = 800;
     public int goFastReward = 1200;
 
-    [Header("Configuration Go Fast 🚗")]
+    [Header("Configuration Go Fast")]
     public string[] availableCarModels = { "Berline" };
 
-    [Header("Configuration Mule 🎒")]
-    [Tooltip("Glisse ici l'objet 'Sac de Drogue' créé dans Unity")]
+    [Header("Configuration Mule")]
     public ItemData muleBagItem;
 
     [Header("Détails Générés (Ne pas toucher)")]
     public string targetVehicleModel = "";
 
-    private void Awake()
-    {
-        if (Instance == null) Instance = this;
-    }
+    private void Awake() { if (Instance == null) Instance = this; }
 
     public void AssignContract()
     {
@@ -36,7 +32,6 @@ public class ContractManager : MonoBehaviour
 
         int rand = Random.Range(1, 4);
         currentContract = (ContractType)rand;
-
         string message = "";
 
         switch (currentContract)
@@ -47,19 +42,18 @@ public class ContractManager : MonoBehaviour
                 break;
 
             case ContractType.Mule:
-                // 1. On essaie de forcer le sac dans l'inventaire du joueur
                 if (muleBagItem != null && InventoryManager.Instance != null)
                 {
-                    bool isAdded = InventoryManager.Instance.AddItem(muleBagItem);
-                    if (!isAdded)
+                    // CORRECTION ICI : On vérifie si la quantité ajoutée est de 1
+                    int added = InventoryManager.Instance.AddItem(muleBagItem, 1, false);
+
+                    if (added <= 0)
                     {
-                        // Si l'inventaire est plein, la mission est annulée direct
                         if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Inventaire plein ! Fais de la place avant de prendre un contrat Mule.</color>");
                         currentContract = ContractType.None;
                         return;
                     }
 
-                    // On met à jour l'affichage de l'inventaire
                     InventoryUI ui = FindObjectOfType<InventoryUI>();
                     if (ui != null) ui.RefreshUI();
 
@@ -76,10 +70,7 @@ public class ContractManager : MonoBehaviour
 
             case ContractType.GoFast:
                 hasActiveContract = true;
-                if (availableCarModels.Length > 0)
-                {
-                    targetVehicleModel = availableCarModels[Random.Range(0, availableCarModels.Length)];
-                }
+                if (availableCarModels.Length > 0) targetVehicleModel = availableCarModels[Random.Range(0, availableCarModels.Length)];
                 message = $"<color=cyan>CONTRAT GO FAST :</color> Trouvez et livrez une <b>{targetVehicleModel.ToUpper()}</b>.";
                 break;
         }

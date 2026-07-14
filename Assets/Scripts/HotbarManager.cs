@@ -20,8 +20,6 @@ public class HotbarManager : MonoBehaviour
     {
         if (Instance == null) Instance = this;
 
-        // --- CORRECTION DU BOUCLIER INVISIBLE ---
-        // On force le cadre à ignorer la souris pour qu'on puisse déposer des objets au travers !
         if (cadreSelection != null)
         {
             Image cadreImg = cadreSelection.GetComponent<Image>();
@@ -31,7 +29,6 @@ public class HotbarManager : MonoBehaviour
 
     void Update()
     {
-        // Détection des touches pour sélectionner une case (de 1 à 6)
         if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1)) SelectSlot(0);
         if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2)) SelectSlot(1);
         if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3)) SelectSlot(2);
@@ -44,24 +41,16 @@ public class HotbarManager : MonoBehaviour
     {
         if (index < 0 || index >= hotbarSlots.Length) return;
 
-        // Désélection si on clique sur la même case
         if (currentSelectedIndex == index)
         {
             currentSelectedIndex = -1;
             if (cadreSelection != null) cadreSelection.gameObject.SetActive(false);
 
-            if (currentWeaponModel != null)
-            {
-                Destroy(currentWeaponModel);
-            }
-            if (UIManager.Instance != null)
-            {
-                UIManager.Instance.UpdateAmmoDisplay(0, 0, false);
-            }
+            if (currentWeaponModel != null) Destroy(currentWeaponModel);
+            if (UIManager.Instance != null) UIManager.Instance.UpdateAmmoDisplay(0, 0, false);
             return;
         }
 
-        // Nouvelle sélection
         currentSelectedIndex = index;
         if (cadreSelection != null)
         {
@@ -69,15 +58,10 @@ public class HotbarManager : MonoBehaviour
             cadreSelection.position = hotbarSlots[index].transform.position;
         }
 
-        // Nettoyage de l'ancienne arme
-        if (currentWeaponModel != null)
-        {
-            Destroy(currentWeaponModel);
-        }
+        if (currentWeaponModel != null) Destroy(currentWeaponModel);
 
         ItemData item = hotbarSlots[index].itemInSlot;
 
-        // Si on a équipé une arme
         if (item != null && item.isWeapon && item.weaponPrefab != null && playerHand != null)
         {
             currentWeaponModel = Instantiate(item.weaponPrefab, playerHand);
@@ -91,10 +75,7 @@ public class HotbarManager : MonoBehaviour
         }
         else
         {
-            if (UIManager.Instance != null)
-            {
-                UIManager.Instance.UpdateAmmoDisplay(0, 0, false);
-            }
+            if (UIManager.Instance != null) UIManager.Instance.UpdateAmmoDisplay(0, 0, false);
         }
     }
 
@@ -119,21 +100,12 @@ public class HotbarManager : MonoBehaviour
                     if (cadreSelection != null) cadreSelection.gameObject.SetActive(false);
                 }
 
-                if (InventoryManager.Instance != null)
-                {
-                    InventoryManager.Instance.RemoveItem(itemDansSlot.itemReference);
-                }
-
                 Destroy(itemDansSlot.gameObject);
                 hotbarSlots[i].itemInSlot = null;
             }
         }
-
-        InventoryUI inventoryUI = FindObjectOfType<InventoryUI>();
-        if (inventoryUI != null) inventoryUI.RefreshUI();
     }
 
-    // --- NOUVEAU : DÉTRUIT L'OBJET CONSOMMÉ ---
     public void ConsumeEquippedItem()
     {
         if (currentSelectedIndex < 0 || currentSelectedIndex >= hotbarSlots.Length) return;
@@ -141,34 +113,20 @@ public class HotbarManager : MonoBehaviour
         InventoryDragDrop itemDansSlot = hotbarSlots[currentSelectedIndex].GetComponentInChildren<InventoryDragDrop>();
         if (itemDansSlot != null)
         {
-            // 1. Retire de l'inventaire logique
-            if (InventoryManager.Instance != null)
+            itemDansSlot.slotReference.amount--;
+
+            if (itemDansSlot.slotReference.amount <= 0)
             {
-                InventoryManager.Instance.RemoveItem(itemDansSlot.itemReference);
+                Destroy(itemDansSlot.gameObject);
+                hotbarSlots[currentSelectedIndex].itemInSlot = null;
+                if (currentWeaponModel != null) Destroy(currentWeaponModel);
+                currentSelectedIndex = -1;
+                if (cadreSelection != null) cadreSelection.gameObject.SetActive(false);
+                if (UIManager.Instance != null) UIManager.Instance.UpdateAmmoDisplay(0, 0, false);
             }
-
-            // 2. Détruit l'icône dans la Hotbar
-            Destroy(itemDansSlot.gameObject);
-            hotbarSlots[currentSelectedIndex].itemInSlot = null;
-
-            // 3. Rafraîchit l'UI de l'inventaire
-            InventoryUI inventoryUI = FindObjectOfType<InventoryUI>();
-            if (inventoryUI != null) inventoryUI.RefreshUI();
-
-            // 4. Si l'objet avait un modèle 3D dans la main, on l'efface
-            if (currentWeaponModel != null)
+            else
             {
-                Destroy(currentWeaponModel);
-            }
-
-            // On désélectionne la case vide
-            currentSelectedIndex = -1;
-            if (cadreSelection != null) cadreSelection.gameObject.SetActive(false);
-
-            // On force la mise à jour des munitions (au cas où on vient de jeter un objet)
-            if (UIManager.Instance != null)
-            {
-                UIManager.Instance.UpdateAmmoDisplay(0, 0, false);
+                itemDansSlot.SetVisualMode(true);
             }
         }
     }

@@ -18,6 +18,8 @@ MonoBehaviour:
   buyPrice: 0
   valueInBlackMarket: 50
   isIllegal: 1
+  isStackable: 1
+  maxStackSize: 200
   isEquippable: 1
   isConsumable: 1
   healAmount: 0

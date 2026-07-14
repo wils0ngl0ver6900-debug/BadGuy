@@ -73,6 +73,9 @@ public class DockerJobManager : MonoBehaviour
 
     private void Start()
     {
+        // --- LIGNE TEMPORAIRE POUR FORCER L'AFFICHAGE DU TUTORIEL À CHAQUE FOIS ---
+        PlayerPrefs.DeleteKey("DockerTutorialDone");
+
         playerController = FindObjectOfType<PlayerController>();
 
         if (carriedCrateModel != null)
@@ -160,7 +163,6 @@ public class DockerJobManager : MonoBehaviour
         cratesProcessed = 0;
         cashEarned = 0;
 
-        // --- C'EST ICI QUE LA MAGIE OPÈRE : On spawn les caisses pendant l'écran noir ! ---
         SpawnCrates();
         UpdateClipboardUI();
 
@@ -358,10 +360,7 @@ public class DockerJobManager : MonoBehaviour
                     ItemData drugToGive = possibleDrugRewards[Random.Range(0, possibleDrugRewards.Length)];
                     int amountToGive = Random.Range(minDrugAmount, maxDrugAmount + 1);
 
-                    int spaceLeft = InventoryManager.Instance.maxSlots - InventoryManager.Instance.items.Count;
-                    int amountGiven = Mathf.Min(amountToGive, spaceLeft);
-
-                    for (int i = 0; i < amountGiven; i++) InventoryManager.Instance.items.Add(drugToGive);
+                    int amountGiven = InventoryManager.Instance.AddItem(drugToGive, amountToGive, true);
 
                     if (amountGiven > 0)
                     {

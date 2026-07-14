@@ -12,13 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bb379c7bb8a2fad47ad8fca751c90424, type: 3}
   m_Name: Item_ArgentSale
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
-  itemName: Liasse d'Argent Sale
+  itemName: Argent Sale
   description: "De l'argent qui provient d'une \xE9conomie parral\xE8le, inutilisable
     en tant que tel."
   icon: {fileID: 21300000, guid: 42ff27aa0942abb4095ec6822aa84986, type: 3}
   buyPrice: 0
   valueInBlackMarket: 0
   isIllegal: 1
+  isStackable: 1
+  maxStackSize: 25000
   isEquippable: 0
   isConsumable: 0
   healAmount: 0

@@ -2,10 +2,10 @@
 using UnityEngine.UI;
 using System.Collections;
 
-public class BouncerJobTrigger : Interactable
+public class CashierJobTrigger : Interactable
 {
-    [Header("Discussion avec le Patron (Job Videur)")]
-    public Dialogue bossDialogue;
+    [Header("Discussion avec le Gérant")]
+    public Dialogue managerDialogue;
 
     [Header("UI du Choix (Proposition de Job) 📋")]
     public GameObject jobOfferPanel;
@@ -13,8 +13,7 @@ public class BouncerJobTrigger : Interactable
     public Button declineButton;
 
     [Header("Mise en place & Cooldown ⏳")]
-    public Transform bouncerStandPosition;
-    [Tooltip("Bloque le job jusqu'au lendemain en jeu")]
+    public Transform cashierStandPosition;
     public bool requireNextDay = true;
     private float lastTimeWorked = -9999f;
 
@@ -38,28 +37,26 @@ public class BouncerJobTrigger : Interactable
         if (GameManager.Instance != null && GameManager.Instance.wantedLevel > 0)
         {
             if (UIManager.Instance != null)
-                UIManager.Instance.ShowNotification("Le patron : 'Ramène pas les flics dans ma boîte. Reviens quand tu seras clean.'");
+                UIManager.Instance.ShowNotification("Le gérant : 'T'es fou ?! Ramène pas les flics dans ma station !'");
             return;
         }
 
         // --- GESTION DU COOLDOWN (24 Heures In-Game) ---
         if (requireNextDay && TimeManager.Instance != null)
         {
-            // Calcule combien de secondes IRL durent 24h dans ton jeu
             float secondsForFullDay = 1440f / TimeManager.Instance.timeScale;
-
             if (Time.time < lastTimeWorked + secondsForFullDay)
             {
                 if (UIManager.Instance != null)
-                    UIManager.Instance.ShowNotification("Le patron : 'T'as déjà fait ton service. Reviens demain soir !'");
+                    UIManager.Instance.ShowNotification("Le gérant : 'T'as déjà fait la fermeture. Reviens la nuit prochaine.'");
                 return;
             }
         }
 
-        bossDialogue.onDialogueEnd.RemoveAllListeners();
-        bossDialogue.onDialogueEnd.AddListener(ShowJobOffer);
+        managerDialogue.onDialogueEnd.RemoveAllListeners();
+        managerDialogue.onDialogueEnd.AddListener(ShowJobOffer);
 
-        if (DialogueManager.Instance != null) DialogueManager.Instance.StartDialogue(bossDialogue);
+        if (DialogueManager.Instance != null) DialogueManager.Instance.StartDialogue(managerDialogue);
     }
 
     private void ShowJobOffer()
@@ -91,7 +88,7 @@ public class BouncerJobTrigger : Interactable
         if (playerController != null) playerController.enabled = true;
         if (PhoneManager.Instance != null) PhoneManager.Instance.enabled = true;
 
-        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Vous avez refusé le job pour l'instant.");
+        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Vous avez refusé le job.");
     }
 
     private IEnumerator NightShiftRoutine()
@@ -106,16 +103,16 @@ public class BouncerJobTrigger : Interactable
 
         yield return new WaitForSeconds(1.5f);
 
-        // FORCER L'HEURE À 23H00
-        if (TimeManager.Instance != null) TimeManager.Instance.currentTimeOfDay = 1380f;
+        // FORCER L'HEURE À MINUIT (Nuit noire)
+        if (TimeManager.Instance != null) TimeManager.Instance.currentTimeOfDay = 0f;
 
-        if (bouncerStandPosition != null && playerController != null)
+        if (cashierStandPosition != null && playerController != null)
         {
-            playerController.transform.position = bouncerStandPosition.position;
-            playerController.transform.rotation = bouncerStandPosition.rotation;
+            playerController.transform.position = cashierStandPosition.position;
+            playerController.transform.rotation = cashierStandPosition.rotation;
         }
 
-        if (BouncerJobManager.Instance != null) BouncerJobManager.Instance.StartJob();
+        if (CashierJobManager.Instance != null) CashierJobManager.Instance.StartJob();
 
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {

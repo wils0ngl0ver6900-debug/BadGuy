@@ -44,15 +44,11 @@ public class UIManager : MonoBehaviour
 
     private Coroutine notificationCoroutine;
 
-    private void Awake()
-    {
-        if (Instance == null) Instance = this;
-    }
+    private void Awake() { if (Instance == null) Instance = this; }
 
     void Start()
     {
         SetupTransitionPanel();
-
         UpdateHUD();
         HideNotification();
         HideTooltip();
@@ -64,32 +60,23 @@ public class UIManager : MonoBehaviour
         if (textDistrictControl != null) textDistrictControl.gameObject.SetActive(false);
     }
 
-    // ========================================================
-    // --- LA FONCTION TOGGLE HUD INTELLIGENTE ---
-    // ========================================================
     public void ToggleHUD(bool isVisible, bool isPhoneCall = false)
     {
         if (mainHUDGroup != null)
         {
-            // Au lieu d'utiliser SetActive(false) qui tue les scripts d'animation,
-            // on utilise un CanvasGroup qui rend l'écran transparent mais laisse le code tourner !
             CanvasGroup hudCG = mainHUDGroup.GetComponent<CanvasGroup>();
             if (hudCG == null) hudCG = mainHUDGroup.AddComponent<CanvasGroup>();
 
             if (!isVisible)
             {
-                // Si on cache le HUD pour un APPEL TÉLÉPHONIQUE
                 if (isPhoneCall && PhoneManager.Instance != null && PhoneManager.Instance.phonePanel != null)
                 {
                     GameObject phoneObj = PhoneManager.Instance.phonePanel.gameObject;
-
-                    // 1. On immunise le téléphone contre la transparence du HUD
                     CanvasGroup phoneCG = phoneObj.GetComponent<CanvasGroup>();
                     if (phoneCG == null) phoneCG = phoneObj.AddComponent<CanvasGroup>();
                     phoneCG.ignoreParentGroups = true;
                     phoneCG.alpha = 1f;
 
-                    // 2. On le force à s'afficher par-dessus TOUT (même les textes de dialogues)
                     Canvas phoneCanvas = phoneObj.GetComponent<Canvas>();
                     if (phoneCanvas == null)
                     {
@@ -100,20 +87,16 @@ public class UIManager : MonoBehaviour
                     phoneCanvas.sortingOrder = 999;
                 }
 
-                // On rend le HUD transparent et impossible à cliquer
                 hudCG.alpha = 0f;
                 hudCG.interactable = false;
                 hudCG.blocksRaycasts = false;
             }
             else
             {
-                // On rallume tout
                 hudCG.alpha = 1f;
                 hudCG.interactable = true;
                 hudCG.blocksRaycasts = true;
 
-                // On retire l'immunité du téléphone pour qu'il puisse à nouveau
-                // être masqué lors de futures cinématiques (en face à face)
                 if (PhoneManager.Instance != null && PhoneManager.Instance.phonePanel != null)
                 {
                     CanvasGroup phoneCG = PhoneManager.Instance.phonePanel.GetComponent<CanvasGroup>();
@@ -122,7 +105,6 @@ public class UIManager : MonoBehaviour
             }
         }
     }
-    // ========================================================
 
     private void SetupTransitionPanel()
     {
@@ -155,14 +137,12 @@ public class UIManager : MonoBehaviour
         transitionCanvasGroup.interactable = false;
 
         rect.SetAsLastSibling();
-
         transitionPanel = panelObj;
     }
 
     public IEnumerator FadeToBlack(float duration)
     {
         if (transitionCanvasGroup == null) yield break;
-
         transitionCanvasGroup.blocksRaycasts = true;
         float elapsed = 0f;
         while (elapsed < duration)
@@ -177,7 +157,6 @@ public class UIManager : MonoBehaviour
     public IEnumerator FadeToClear(float duration)
     {
         if (transitionCanvasGroup == null) yield break;
-
         float elapsed = 0f;
         while (elapsed < duration)
         {
@@ -199,7 +178,6 @@ public class UIManager : MonoBehaviour
         {
             string stars = "";
             string activeColor = GameManager.Instance.isEvading ? "<color=#AAAAAA>" : "<color=red>";
-
             for (int i = 1; i <= 5; i++)
             {
                 if (i <= GameManager.Instance.wantedLevel) stars += $"{activeColor}★</color> ";
@@ -218,17 +196,8 @@ public class UIManager : MonoBehaviour
             tooltipPanel.SetActive(true);
             if (tooltipName != null) tooltipName.text = item.itemName;
 
-            string finalDescription = item.description;
-
-            if (GameManager.Instance != null && GameManager.Instance.dirtyMoneyItemDef != null)
-            {
-                if (item == GameManager.Instance.dirtyMoneyItemDef)
-                {
-                    finalDescription = $"<b>Montant possédé : <color=red>{GameManager.Instance.dirtyMoney} $</color></b>\n\n" + item.description;
-                }
-            }
-
-            if (tooltipDescription != null) tooltipDescription.text = finalDescription;
+            // CORRECTION ICI : On utilise la description normale, l'argent est une pile maintenant !
+            if (tooltipDescription != null) tooltipDescription.text = item.description;
 
             if (tooltipRarity != null)
             {
@@ -251,10 +220,7 @@ public class UIManager : MonoBehaviour
 
     public void ShowNotification(string message, bool forceDisplay = false)
     {
-        if (!forceDisplay && SettingsApp.Instance != null && !SettingsApp.Instance.showNotifications)
-        {
-            return;
-        }
+        if (!forceDisplay && SettingsApp.Instance != null && !SettingsApp.Instance.showNotifications) return;
 
         if (textNotification != null)
         {

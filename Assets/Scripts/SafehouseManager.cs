@@ -8,7 +8,7 @@ public class SafehouseManager : MonoBehaviour
 
     [Header("Stockage de la Planque 📦")]
     public int storedDirtyMoney = 0;
-    public List<ItemData> storedIllegalItems = new List<ItemData>();
+    public List<InventorySlot> storedIllegalItems = new List<InventorySlot>();
 
     [Header("Interface UI")]
     public GameObject safehousePanel;
@@ -43,10 +43,12 @@ public class SafehouseManager : MonoBehaviour
     private void UpdateUI()
     {
         if (moneyText != null) moneyText.text = $"Argent Sale : {storedDirtyMoney}$";
-        if (itemsText != null) itemsText.text = $"Objets Illégaux : {storedIllegalItems.Count}";
+
+        int totalItems = 0;
+        foreach (var slot in storedIllegalItems) totalItems += slot.amount;
+        if (itemsText != null) itemsText.text = $"Objets Illégaux : {totalItems}";
     }
 
-    // --- ACTIONS SUR L'ARGENT ---
     public void DepositDirtyMoney()
     {
         int amount = GameManager.Instance.dirtyMoney;
@@ -55,7 +57,6 @@ public class SafehouseManager : MonoBehaviour
             storedDirtyMoney += amount;
             GameManager.Instance.dirtyMoney = 0;
 
-            // Fait disparaître l'objet du sac
             GameManager.Instance.SyncDirtyMoneyItem();
             UpdateUI();
             UIManager.Instance.ShowNotification("Argent sale sécurisé dans le coffre !");
@@ -71,7 +72,6 @@ public class SafehouseManager : MonoBehaviour
     {
         if (storedDirtyMoney > 0)
         {
-            // On vérifie s'il y a de la place dans le sac à dos pour la liasse !
             bool success = GameManager.Instance.AddDirtyMoney(storedDirtyMoney);
             if (success)
             {
@@ -82,40 +82,26 @@ public class SafehouseManager : MonoBehaviour
         }
     }
 
-    // --- ACTIONS SUR LES OBJETS ILLÉGAUX ---
     public void DepositIllegalItems()
     {
         int count = 0;
-        List<ItemData> itemsToKeep = new List<ItemData>();
-
-        foreach (var item in InventoryManager.Instance.items)
+        for (int i = InventoryManager.Instance.slots.Count - 1; i >= 0; i--)
         {
-            // On empêche le bouton de voler l'objet "Argent Sale", il ne prend que la drogue et les armes
-            if (item != null && item.isIllegal && item != GameManager.Instance.dirtyMoneyItemDef)
+            var slot = InventoryManager.Instance.slots[i];
+            if (slot.item != null && slot.item.isIllegal && slot.item != GameManager.Instance.dirtyMoneyItemDef)
             {
-                storedIllegalItems.Add(item);
-                count++;
-            }
-            else
-            {
-                itemsToKeep.Add(item);
+                storedIllegalItems.Add(new InventorySlot(slot.item, slot.amount));
+                InventoryManager.Instance.slots.RemoveAt(i);
+                count += slot.amount;
             }
         }
 
-        if (count > 0)
-        {
-            InventoryManager.Instance.items = itemsToKeep;
-            UpdateUI();
+        UpdateUI();
+        InventoryUI ui = FindObjectOfType<InventoryUI>();
+        if (ui != null) ui.RefreshUI();
 
-            InventoryUI ui = FindObjectOfType<InventoryUI>();
-            if (ui != null) ui.RefreshUI();
-
-            UIManager.Instance.ShowNotification($"{count} objets illégaux sécurisés !");
-        }
-        else
-        {
-            UIManager.Instance.ShowNotification("Aucun objet illégal dans votre sac à dos.");
-        }
+        if (count > 0) UIManager.Instance.ShowNotification($"{count} objets illégaux sécurisés !");
+        else UIManager.Instance.ShowNotification("Aucun objet illégal dans votre sac à dos.");
     }
 
     public void WithdrawIllegalItems()
@@ -123,33 +109,21 @@ public class SafehouseManager : MonoBehaviour
         if (storedIllegalItems.Count == 0) return;
 
         int count = 0;
-        List<ItemData> itemsRemaining = new List<ItemData>();
-
-        foreach (var item in storedIllegalItems)
+        for (int i = storedIllegalItems.Count - 1; i >= 0; i--)
         {
-            if (InventoryManager.Instance.items.Count < InventoryManager.Instance.maxSlots)
-            {
-                InventoryManager.Instance.items.Add(item);
-                count++;
-            }
-            else
-            {
-                itemsRemaining.Add(item); // Le sac est plein, ça reste dans le coffre
-            }
+            var slot = storedIllegalItems[i];
+            int added = InventoryManager.Instance.AddItem(slot.item, slot.amount, true);
+            count += added;
+            slot.amount -= added;
+
+            if (slot.amount <= 0) storedIllegalItems.RemoveAt(i);
         }
 
-        storedIllegalItems = itemsRemaining;
         UpdateUI();
+        InventoryUI ui = FindObjectOfType<InventoryUI>();
+        if (ui != null) ui.RefreshUI();
 
-        if (count > 0)
-        {
-            UIManager.Instance.ShowNotification($"{count} objets récupérés !");
-            InventoryUI ui = FindObjectOfType<InventoryUI>();
-            if (ui != null) ui.RefreshUI();
-        }
-        else
-        {
-            UIManager.Instance.ShowNotification("Votre sac à dos est plein !");
-        }
+        if (count > 0) UIManager.Instance.ShowNotification($"{count} objets récupérés !");
+        else UIManager.Instance.ShowNotification("Votre sac à dos est plein !");
     }
 }

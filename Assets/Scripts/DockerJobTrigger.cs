@@ -33,6 +33,14 @@ public class DockerJobTrigger : Interactable
     {
         if (isTransitioning) return;
 
+        // --- SÉCURITÉ ANTI-POLICE ---
+        if (GameManager.Instance != null && GameManager.Instance.wantedLevel > 0)
+        {
+            if (UIManager.Instance != null)
+                UIManager.Instance.ShowNotification("Le contremaître : 'T'as les flics au cul ! Reviens quand tu seras clean.'");
+            return;
+        }
+
         if (requireNextDay && TimeManager.Instance != null)
         {
             float secondsForFullDay = 1440f / TimeManager.Instance.timeScale;

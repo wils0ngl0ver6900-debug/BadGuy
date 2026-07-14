@@ -27,7 +27,6 @@ public class HotbarSlot : MonoBehaviour, IDropHandler
         itemInSlot = draggedItem.itemReference;
         draggedItem.transform.SetParent(transform);
 
-        // --- LA MAGIE DU CENTRAGE PARFAIT EST ICI ---
         RectTransform rect = draggedItem.GetComponent<RectTransform>();
         if (rect != null)
         {
@@ -35,11 +34,10 @@ public class HotbarSlot : MonoBehaviour, IDropHandler
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.anchoredPosition = Vector2.zero;
-            rect.localPosition = Vector3.zero; // Force l'objet exactement au milieu du parent
+            rect.localPosition = Vector3.zero;
         }
         draggedItem.transform.localScale = Vector3.one;
 
-        // --- ON APPLIQUE LE MODE VISUEL DE LA HOTBAR ---
         draggedItem.SetVisualMode(true);
 
         if (draggedItem.originalHotbarSlot != null && draggedItem.originalHotbarSlot != this)
@@ -48,9 +46,9 @@ public class HotbarSlot : MonoBehaviour, IDropHandler
         }
         draggedItem.originalHotbarSlot = this;
 
-        if (InventoryManager.Instance.items.Contains(draggedItem.itemReference))
+        if (InventoryManager.Instance.slots.Contains(draggedItem.slotReference))
         {
-            InventoryManager.Instance.RemoveItem(draggedItem.itemReference);
+            InventoryManager.Instance.slots.Remove(draggedItem.slotReference);
             FindObjectOfType<InventoryUI>().RefreshUI();
         }
 
