@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemName: "H\xE9ro\xEFne"
   description: "1 gramme d'h\xE9ro\xEFne, \xE0 consommer avec mod\xE9ration !"
-  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  icon: {fileID: 21300000, guid: 3819c38b0b471084380ab02de003eb7a, type: 3}
   buyPrice: 0
   valueInBlackMarket: 50
   isIllegal: 1

@@ -15,7 +15,7 @@ MonoBehaviour:
   itemName: Argent Sale
   description: "De l'argent qui provient d'une \xE9conomie parral\xE8le, inutilisable
     en tant que tel."
-  icon: {fileID: 21300000, guid: 42ff27aa0942abb4095ec6822aa84986, type: 3}
+  icon: {fileID: 21300000, guid: 1e0ade284cf36164d98dc8ee0fc8b828, type: 3}
   buyPrice: 0
   valueInBlackMarket: 0
   isIllegal: 1

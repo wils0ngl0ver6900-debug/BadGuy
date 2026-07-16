@@ -51,6 +51,7 @@ public class BouncerJobManager : MonoBehaviour
 
     public RectTransform scannerCursor;
     public RectTransform clientSilhouette;
+    private CanvasGroup silhouetteCanvasGroup; // NOUVEAU : Pour gérer le fondu du squelette
     public Image scannerLight;
     public AudioSource beepAudio;
     public RectTransform weaponZone;
@@ -95,6 +96,13 @@ public class BouncerJobManager : MonoBehaviour
             bouncerUIPanel.SetActive(false);
             bouncerCanvasGroup = bouncerUIPanel.GetComponent<CanvasGroup>();
             if (bouncerCanvasGroup == null) bouncerCanvasGroup = bouncerUIPanel.AddComponent<CanvasGroup>();
+        }
+
+        // NOUVEAU : On s'assure que le squelette a un CanvasGroup pour pouvoir modifier son opacité
+        if (clientSilhouette != null)
+        {
+            silhouetteCanvasGroup = clientSilhouette.GetComponent<CanvasGroup>();
+            if (silhouetteCanvasGroup == null) silhouetteCanvasGroup = clientSilhouette.gameObject.AddComponent<CanvasGroup>();
         }
 
         if (tutorialPanel != null) tutorialPanel.SetActive(false);
@@ -378,6 +386,9 @@ public class BouncerJobManager : MonoBehaviour
         Vector2 startPos = new Vector2(-1500f, idCardOriginalPos.y);
         idCardTransform.anchoredPosition = startPos;
 
+        // NOUVEAU : Préparer l'opacité du squelette à 0 au début de l'animation
+        if (silhouetteCanvasGroup != null) silhouetteCanvasGroup.alpha = 0f;
+
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
@@ -385,10 +396,15 @@ public class BouncerJobManager : MonoBehaviour
             t = t * t * (3f - 2f * t);
 
             idCardTransform.anchoredPosition = Vector2.Lerp(startPos, idCardOriginalPos, t);
+
+            // NOUVEAU : Fondu en entrée du squelette synchronisé avec t
+            if (silhouetteCanvasGroup != null) silhouetteCanvasGroup.alpha = Mathf.Lerp(0f, 1f, t);
+
             yield return null;
         }
 
         idCardTransform.anchoredPosition = idCardOriginalPos;
+        if (silhouetteCanvasGroup != null) silhouetteCanvasGroup.alpha = 1f; // S'assurer qu'il est à 100% à la fin
     }
 
     private IEnumerator AnimateCardOutRoutine()
@@ -407,8 +423,14 @@ public class BouncerJobManager : MonoBehaviour
 
             if (idCardTransform != null)
                 idCardTransform.anchoredPosition = Vector2.Lerp(startPos, endPos, t);
+
+            // NOUVEAU : Fondu en sortie du squelette synchronisé avec t
+            if (silhouetteCanvasGroup != null) silhouetteCanvasGroup.alpha = Mathf.Lerp(1f, 0f, t);
+
             yield return null;
         }
+
+        if (silhouetteCanvasGroup != null) silhouetteCanvasGroup.alpha = 0f; // S'assurer qu'il est bien invisible à la fin
     }
 
     private void Update()

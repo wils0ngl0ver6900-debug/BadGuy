@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemName: "Coca\xEFne"
   description: "1 gramme de Coca\xEFne, \xE0 consommer avec mod\xE9ration !"
-  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  icon: {fileID: 21300000, guid: 11e8ba266d2091a4ea6b02e8ee48af79, type: 3}
   buyPrice: 0
   valueInBlackMarket: 80
   isIllegal: 1

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::ItemData
   itemName: Weed
   description: "1 t\xEAte de weed, \xE0 consommer avec mod\xE9ration !"
-  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  icon: {fileID: 21300000, guid: d8381aa38a418f84aa57c6caccbeec29, type: 3}
   buyPrice: 0
   valueInBlackMarket: 20
   isIllegal: 1
