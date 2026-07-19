@@ -130,7 +130,7 @@ GameObject:
   - component: {fileID: 8320803749360906426}
   - component: {fileID: 6692233687137295573}
   m_Layer: 14
-  m_Name: Rich_PNJ
+  m_Name: RichCasino_PNJ
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -250,11 +250,7 @@ MonoBehaviour:
   bribeCost: 100
   qteTimeToReact: 1.5
   qteStepsRequired: 1
-  possibleLoot:
-  - {fileID: 11400000, guid: fd0cd672a9d4917449b62efd25f7c340, type: 2}
-  - {fileID: 11400000, guid: cc2d3013cd3710446a057b7f3b69fd9e, type: 2}
-  - {fileID: 11400000, guid: b029e28e90d7a004e8722516810783e3, type: 2}
-  - {fileID: 11400000, guid: 66152f32f738ea44bb1e1744161ec16d, type: 2}
+  possibleLoot: []
   requiresTool: 0
   requiredToolName: 
   itemsForSale: []

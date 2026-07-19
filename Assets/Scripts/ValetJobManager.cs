@@ -2,28 +2,53 @@
 using TMPro;
 using UnityEngine.UI;
 using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.AI;
 
 public class ValetJobManager : MonoBehaviour
 {
     public static ValetJobManager Instance;
 
+    [Header("--- PROPOSITION DE JOB & TUTO 📋 ---")]
+    public GameObject jobOfferPanel;
+    public Button acceptJobBtn;
+    public Button declineJobBtn;
+    public GameObject tutorialPanel;
+    public Button closeTutorialBtn;
+
     [Header("UI Globale 🖥️")]
     public GameObject mainJobPanel;
     public TextMeshProUGUI jobStatusText;
     public TextMeshProUGUI feedbackText;
+    public GameObject parkingPromptUI;
+
+    [Header("--- HUD & SYSTÈMES 📱 ---")]
+    public GameObject[] extraHUDElementsToHide;
+    private List<GameObject> hudMemory = new List<GameObject>();
 
     [Header("État du Job")]
     public bool isJobActive = false;
     public int maxVehiclesPerShift = 5;
     private int vehiclesProcessed = 0;
     private int cleanCashEarned = 0;
+    private int failedStandardSearches = 0;
+    private bool vehicleAlreadyGaraged = false;
+
+    private bool isVehicleInPlay = false;
+    private int destroyedVehiclesCount = 0;
+    private bool npcSpawnedForThisCar = false;
 
     [Header("--- VÉHICULES 🚗 ---")]
     public GameObject[] vehiclePrefabs;
     public Transform vehicleSpawnPoint;
     public Transform parkingZoneTarget;
-
     public Transform valetStandReturnPosition;
+
+    [Header("--- PNJ CLIENTS 🚶‍♂️ ---")]
+    [Tooltip("Ajoutez ici les préfabs de personnages que vous souhaitez faire apparaître.")]
+    public GameObject[] npcClientPrefabs;
+    [Tooltip("L'endroit (ex: l'entrée du casino) vers lequel le client va marcher.")]
+    public Transform npcCasinoDestination;
 
     private PlayerController playerController;
     private GameObject currentSpawnedVehicle;
@@ -60,6 +85,7 @@ public class ValetJobManager : MonoBehaviour
     public RectTransform lockTransform;
     public RectTransform pinTransform;
     public TextMeshProUGUI miniGameTimerText;
+    public float lockShakeIntensity = 5f;
 
     public float lockTolerance = 10f;
     public float pinMoveSpeed = 3f;
@@ -69,10 +95,15 @@ public class ValetJobManager : MonoBehaviour
     private float targetPinAngle = 0f;
     private float pinShakeTimer = 0f;
     private bool isLockRotated = false;
+    private Vector2 lockOriginalPos;
 
     private bool isLockpicking = false;
     private bool isHacking = false;
     private bool isCurrentVehicleGangster = false;
+
+    // ---> NOUVEAU : Sécurité pour l'animation de victoire
+    private bool isWinningLockpick = false;
+
     private float currentTimer = 0f;
     private string targetHackCode = "";
 
@@ -81,10 +112,22 @@ public class ValetJobManager : MonoBehaviour
     private void Start()
     {
         playerController = FindObjectOfType<PlayerController>();
+        PlayerPrefs.DeleteKey("ValetTutorialDone");
+        if (lockTransform != null) lockOriginalPos = lockTransform.anchoredPosition;
 
         HideAllPanels();
+
+        if (jobOfferPanel != null) jobOfferPanel.SetActive(false);
+        if (tutorialPanel != null) tutorialPanel.SetActive(false);
+
+        if (acceptJobBtn != null) acceptJobBtn.onClick.AddListener(AcceptJob);
+        if (declineJobBtn != null) declineJobBtn.onClick.AddListener(DeclineJob);
+        if (closeTutorialBtn != null) closeTutorialBtn.onClick.AddListener(CloseTutorial);
+
         if (acceptSearchBtn != null) acceptSearchBtn.onClick.AddListener(StartSearchEvent);
         if (declineSearchBtn != null) declineSearchBtn.onClick.AddListener(FinishVehicleProcessing);
+
+        if (parkingPromptUI != null) parkingPromptUI.SetActive(false);
     }
 
     private void HideAllPanels()
@@ -93,19 +136,134 @@ public class ValetJobManager : MonoBehaviour
         if (searchPromptPanel != null) searchPromptPanel.SetActive(false);
         if (lockpickPanel != null) lockpickPanel.SetActive(false);
         if (hackPanel != null) hackPanel.SetActive(false);
+        if (parkingPromptUI != null) parkingPromptUI.SetActive(false);
     }
 
-    public void StartJob()
+    private void SafeToggleHUD(bool showHUD)
     {
-        if (isJobActive) return;
+        if (extraHUDElementsToHide == null) return;
+        if (!showHUD)
+        {
+            hudMemory.Clear();
+            foreach (GameObject hudElement in extraHUDElementsToHide)
+            {
+                if (hudElement != null && hudElement.activeSelf)
+                {
+                    hudMemory.Add(hudElement);
+                    hudElement.SetActive(false);
+                }
+            }
+        }
+        else
+        {
+            foreach (GameObject hudElement in hudMemory)
+            {
+                if (hudElement != null) hudElement.SetActive(true);
+            }
+            hudMemory.Clear();
+        }
+    }
+
+    public void ShowJobOffer()
+    {
+        if (jobOfferPanel != null)
+        {
+            jobOfferPanel.SetActive(true);
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+
+            if (playerController != null) playerController.enabled = false;
+            if (PhoneManager.Instance != null) PhoneManager.Instance.enabled = false;
+        }
+    }
+
+    public void AcceptJob()
+    {
+        if (jobOfferPanel != null) jobOfferPanel.SetActive(false);
+        if (!isJobActive) StartCoroutine(StartJobRoutine());
+    }
+
+    public void DeclineJob()
+    {
+        if (jobOfferPanel != null) jobOfferPanel.SetActive(false);
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Confined;
+
+        if (playerController != null) playerController.enabled = true;
+        if (PhoneManager.Instance != null) PhoneManager.Instance.enabled = true;
+
+        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Vous avez refusé le poste de voiturier.");
+    }
+
+    private IEnumerator StartJobRoutine()
+    {
         isJobActive = true;
+        isVehicleInPlay = false;
         vehiclesProcessed = 0;
         cleanCashEarned = 0;
+        failedStandardSearches = 0;
+        destroyedVehiclesCount = 0;
+
+        if (parkingPromptUI != null) parkingPromptUI.SetActive(false);
+
+        if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
+        {
+            UIManager.Instance.transitionPanel.SetActive(true);
+            yield return StartCoroutine(UIManager.Instance.FadeToBlack(1f));
+        }
+
+        if (TimeManager.Instance != null)
+        {
+            float currentTime = TimeManager.Instance.currentTimeOfDay;
+            if (currentTime < 1260f && currentTime > 240f)
+            {
+                TimeManager.Instance.currentTimeOfDay = 1320f;
+            }
+        }
+
+        SafeToggleHUD(false);
+        if (InventoryManager.Instance != null) InventoryManager.Instance.enabled = false;
+        if (CallApp.Instance != null) CallApp.Instance.callsBlocked = true;
+        if (PhoneManager.Instance != null) PhoneManager.Instance.enabled = false;
+
+        if (PlayerPrefs.GetInt("ValetTutorialDone", 0) == 0 && tutorialPanel != null)
+        {
+            tutorialPanel.SetActive(true);
+            Cursor.visible = true;
+            Cursor.lockState = CursorLockMode.None;
+            if (playerController != null) playerController.enabled = false;
+        }
+        else
+        {
+            yield return StartCoroutine(BeginGameplayRoutine());
+        }
+    }
+
+    public void CloseTutorial()
+    {
+        if (tutorialPanel != null) tutorialPanel.SetActive(false);
+        PlayerPrefs.SetInt("ValetTutorialDone", 1);
+        StartCoroutine(BeginGameplayRoutine());
+    }
+
+    private IEnumerator BeginGameplayRoutine()
+    {
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Confined;
+        if (playerController != null) playerController.enabled = true;
 
         if (mainJobPanel != null) mainJobPanel.SetActive(true);
         if (UIManager.Instance != null) UIManager.Instance.ToggleHUD(false);
 
         NextVehicle();
+
+        yield return new WaitForSeconds(0.5f);
+
+        if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
+        {
+            yield return StartCoroutine(UIManager.Instance.FadeToClear(1f));
+            UIManager.Instance.transitionPanel.SetActive(false);
+        }
     }
 
     private void NextVehicle()
@@ -116,6 +274,11 @@ public class ValetJobManager : MonoBehaviour
             return;
         }
 
+        vehicleAlreadyGaraged = false;
+        npcSpawnedForThisCar = false;
+        isVehicleInPlay = false;
+
+        if (parkingPromptUI != null) parkingPromptUI.SetActive(false);
         if (jobStatusText != null) jobStatusText.text = "Garez le véhicule du client dans le parking souterrain.";
 
         if (vehiclePrefabs != null && vehiclePrefabs.Length > 0 && vehicleSpawnPoint != null)
@@ -125,6 +288,8 @@ public class ValetJobManager : MonoBehaviour
             GameObject prefabToSpawn = vehiclePrefabs[Random.Range(0, vehiclePrefabs.Length)];
             currentSpawnedVehicle = Instantiate(prefabToSpawn, vehicleSpawnPoint.position, vehicleSpawnPoint.rotation);
 
+            isVehicleInPlay = true;
+
             if (JobPathfinder.Instance != null && parkingZoneTarget != null)
             {
                 JobPathfinder.Instance.SetTargets(parkingZoneTarget);
@@ -132,11 +297,45 @@ public class ValetJobManager : MonoBehaviour
         }
     }
 
+    private void SpawnNPCClient()
+    {
+        if (npcClientPrefabs != null && npcClientPrefabs.Length > 0 && npcCasinoDestination != null && currentSpawnedVehicle != null)
+        {
+            GameObject npcPrefab = npcClientPrefabs[Random.Range(0, npcClientPrefabs.Length)];
+
+            Vector3 spawnPos = currentSpawnedVehicle.transform.position + (currentSpawnedVehicle.transform.right * 1.5f);
+            GameObject npc = Instantiate(npcPrefab, spawnPos, currentSpawnedVehicle.transform.rotation);
+
+            NavMeshAgent agent = npc.GetComponent<NavMeshAgent>();
+            if (agent != null)
+            {
+                agent.SetDestination(npcCasinoDestination.position);
+            }
+
+            Destroy(npc, 20f);
+        }
+    }
+
     public void SubmitParkingValidation(int damageTaken, int alignmentError)
     {
-        if (!isJobActive) return;
+        if (!isJobActive || vehicleAlreadyGaraged) return;
 
+        vehicleAlreadyGaraged = true;
+        isVehicleInPlay = false;
+
+        if (parkingPromptUI != null) parkingPromptUI.SetActive(false);
         if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
+
+        if (currentSpawnedVehicle != null)
+        {
+            Rigidbody carRb = currentSpawnedVehicle.GetComponent<Rigidbody>();
+            if (carRb != null)
+            {
+                carRb.linearVelocity = Vector3.zero;
+                carRb.angularVelocity = Vector3.zero;
+                carRb.isKinematic = true;
+            }
+        }
 
         currentVehicleReward = maxRewardPerVehicle;
         currentVehicleReward -= (damageTaken * penaltyPerDamage);
@@ -155,63 +354,73 @@ public class ValetJobManager : MonoBehaviour
     {
         HideAllPanels();
         mainJobPanel.SetActive(true);
+
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Confined;
+
         cleanCashEarned += currentVehicleReward;
         vehiclesProcessed++;
 
         if (feedbackText != null) feedbackText.text = "Retour au casino en cours...";
-
         if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
 
         StartCoroutine(ReturnToStandRoutine());
     }
 
+    private void HandleDestroyedVehicle()
+    {
+        vehicleAlreadyGaraged = true;
+        isVehicleInPlay = false;
+        destroyedVehiclesCount++;
+
+        HideAllPanels();
+        mainJobPanel.SetActive(true);
+        if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
+
+        if (destroyedVehiclesCount >= 2)
+        {
+            if (UIManager.Instance != null)
+                UIManager.Instance.ShowNotification("<color=red>Le Gérant : 'Tu as détruit 2 caisses ?! T'es viré !'</color>");
+            EndJob(true);
+        }
+        else
+        {
+            if (UIManager.Instance != null)
+                UIManager.Instance.ShowNotification("<color=orange>Le Gérant : 'C'était quoi ce bruit ?! Ramène la prochaine en un seul morceau !'</color>");
+
+            if (feedbackText != null) feedbackText.text = "Retour au casino en cours...";
+            StartCoroutine(ReturnToStandRoutine());
+        }
+    }
+
     private IEnumerator ReturnToStandRoutine()
     {
-        // 1. Fondu au noir 
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
             UIManager.Instance.transitionPanel.SetActive(true);
             yield return StartCoroutine(UIManager.Instance.FadeToBlack(1f));
         }
 
-        // 2. ÉJECTION DU VÉHICULE
         if (currentSpawnedVehicle != null)
         {
             CarInteraction carInteract = currentSpawnedVehicle.GetComponent<CarInteraction>();
             if (carInteract != null)
             {
-                // On encercle l'éjection d'un try/catch pour éviter qu'une erreur bloque la suite
                 try { carInteract.ExitCar(); } catch { Debug.LogWarning("CarInteraction a planté lors de l'éjection."); }
             }
-
             yield return new WaitForFixedUpdate();
             Destroy(currentSpawnedVehicle);
         }
 
-        // 3. RÉANIMATION GLOBALE & TÉLÉPORTATION
         if (playerController != null && valetStandReturnPosition != null)
         {
-            // --- A. ON FORCE TOUT LE JOUEUR À S'ALLUMER ---
             playerController.enabled = true;
-
-            // Rallume TOUS les rendus (pour ne plus être invisible)
             Renderer[] rends = playerController.GetComponentsInChildren<Renderer>(true);
-            foreach (Renderer r in rends)
-            {
-                if (r != null) r.enabled = true;
-            }
-
-            // Rallume TOUS les colliders (pour ne plus traverser le sol)
+            foreach (Renderer r in rends) if (r != null) r.enabled = true;
             Collider[] cols = playerController.GetComponentsInChildren<Collider>(true);
-            foreach (Collider c in cols)
-            {
-                if (c != null && !c.isTrigger) c.enabled = true;
-            }
+            foreach (Collider c in cols) if (c != null && !c.isTrigger) c.enabled = true;
 
-            // --- B. TÉLÉPORTATION PHYSIQUE SÉCURISÉE ---
             Rigidbody rb = playerController.GetComponent<Rigidbody>();
-
-            // On le place à +2 mètres de haut par sécurité
             Vector3 safePosition = valetStandReturnPosition.position;
             safePosition.y += 2.0f;
 
@@ -220,18 +429,15 @@ public class ValetJobManager : MonoBehaviour
                 rb.isKinematic = true;
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
-                // La méthode parfaite pour bouger un Rigidbody :
                 rb.position = safePosition;
             }
 
             playerController.transform.position = safePosition;
             playerController.transform.rotation = valetStandReturnPosition.rotation;
 
-            // On attend 2 frames physiques (pour que Unity "comprenne" qu'il y a un sol en dessous)
             yield return new WaitForFixedUpdate();
             yield return new WaitForFixedUpdate();
 
-            // --- C. RÉVEIL DU MOTEUR PHYSIQUE ---
             if (rb != null)
             {
                 rb.isKinematic = false;
@@ -241,14 +447,13 @@ public class ValetJobManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.5f);
 
-        // 4. Fin du fondu au noir
+        NextVehicle();
+
         if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
             yield return StartCoroutine(UIManager.Instance.FadeToClear(1f));
             UIManager.Instance.transitionPanel.SetActive(false);
         }
-
-        NextVehicle();
     }
 
     private void TriggerSearchOpportunity()
@@ -294,7 +499,11 @@ public class ValetJobManager : MonoBehaviour
         if (hackInputField != null)
         {
             hackInputField.text = "";
+            hackInputField.characterLimit = targetHackCode.Length;
             hackInputField.ActivateInputField();
+
+            hackInputField.onValueChanged.RemoveAllListeners();
+            hackInputField.onValueChanged.AddListener(OnHackInputValueChanged);
         }
     }
 
@@ -302,10 +511,13 @@ public class ValetJobManager : MonoBehaviour
     {
         if (!isHacking) return;
 
-        if (input == targetHackCode)
+        if (input.Trim() == targetHackCode)
         {
             isHacking = false;
+
+            if (hackInputField != null) hackInputField.text = "";
             if (hackPanel != null) hackPanel.SetActive(false);
+
             if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Alarme désactivée. Vite, la serrure !");
 
             StartLockpickMiniGame(gangsterLockpickTime);
@@ -315,7 +527,9 @@ public class ValetJobManager : MonoBehaviour
     private void StartLockpickMiniGame(float timeToComplete)
     {
         isLockpicking = true;
+        isWinningLockpick = false; // On réinitialise l'animation de victoire
         currentTimer = timeToComplete;
+
         if (lockpickPanel != null) lockpickPanel.SetActive(true);
         Cursor.lockState = CursorLockMode.Locked;
 
@@ -329,13 +543,37 @@ public class ValetJobManager : MonoBehaviour
 
     private void Update()
     {
+        if (isJobActive && isVehicleInPlay && !vehicleAlreadyGaraged && currentSpawnedVehicle == null)
+        {
+            HandleDestroyedVehicle();
+            return;
+        }
+
+        if (isJobActive && !vehicleAlreadyGaraged && currentSpawnedVehicle != null && !npcSpawnedForThisCar)
+        {
+            if (playerController != null)
+            {
+                float dist = Vector3.Distance(playerController.transform.position, currentSpawnedVehicle.transform.position);
+                if (dist < 4f && (!playerController.gameObject.activeInHierarchy || !playerController.enabled))
+                {
+                    SpawnNPCClient();
+                    npcSpawnedForThisCar = true;
+                }
+            }
+        }
+
+        if (vehicleAlreadyGaraged && parkingPromptUI != null && parkingPromptUI.activeSelf)
+        {
+            parkingPromptUI.SetActive(false);
+        }
+
         if (isHacking)
         {
             currentTimer -= Time.deltaTime;
             UpdateTimerUI();
             if (currentTimer <= 0) FailBadGuyEvent("Le garde du corps vous a repéré pendant le piratage de l'alarme !");
         }
-        else if (isLockpicking)
+        else if (isLockpicking && !isWinningLockpick) // Bloque le timer si on est dans l'animation de victoire
         {
             currentTimer -= Time.deltaTime;
             UpdateTimerUI();
@@ -387,9 +625,10 @@ public class ValetJobManager : MonoBehaviour
                 pinShakeTimer = 0f;
             }
 
-            if (lockAngle >= 88f)
+            // ---> NOUVEAU : On lance la coroutine de victoire au lieu de valider instantanément
+            if (lockAngle >= 88f && !isWinningLockpick)
             {
-                WinBadGuyEvent();
+                StartCoroutine(WinLockpickRoutine());
             }
         }
         else
@@ -402,6 +641,34 @@ public class ValetJobManager : MonoBehaviour
         UpdateTransforms();
     }
 
+    // ---> NOUVEAU : Coroutine pour l'effet visuel de la serrure qui s'ouvre !
+    private IEnumerator WinLockpickRoutine()
+    {
+        isWinningLockpick = true;
+        isLockpicking = false; // Arrête la soustraction du timer et les inputs
+
+        float startAngle = lockAngle;
+        float elapsed = 0f;
+        float duration = 0.2f; // Le temps que met la serrure à se bloquer à fond (0.2s = rapide et sec)
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            lockAngle = Mathf.Lerp(startAngle, 90f, elapsed / duration);
+            UpdateTransforms();
+            yield return null;
+        }
+
+        lockAngle = 90f; // On s'assure qu'elle est bien calée à 90 degrés
+        UpdateTransforms();
+
+        // Petite pause d'une demi-seconde pour qu'on ait le temps de voir la serrure tournée à fond
+        yield return new WaitForSeconds(0.4f);
+
+        // Et hop, on déclenche le butin !
+        WinBadGuyEvent();
+    }
+
     private void UpdateTransforms()
     {
         if (pinShakeTimer == 0f && pinTransform != null)
@@ -412,6 +679,16 @@ public class ValetJobManager : MonoBehaviour
         if (lockTransform != null)
         {
             lockTransform.localRotation = Quaternion.Euler(0, 0, -lockAngle);
+
+            if (isLockRotated && lockAngle > 15f && !isWinningLockpick) // Bloque le tremblement si on a gagné
+            {
+                float currentShake = lockShakeIntensity * (lockAngle / 90f);
+                lockTransform.anchoredPosition = lockOriginalPos + new Vector2(Random.Range(-currentShake, currentShake), Random.Range(-currentShake, currentShake));
+            }
+            else
+            {
+                lockTransform.anchoredPosition = lockOriginalPos;
+            }
         }
     }
 
@@ -428,6 +705,7 @@ public class ValetJobManager : MonoBehaviour
     {
         isHacking = false;
         isLockpicking = false;
+        isWinningLockpick = false;
         HideAllPanels();
         Cursor.lockState = CursorLockMode.Confined;
 
@@ -441,13 +719,24 @@ public class ValetJobManager : MonoBehaviour
         else
         {
             currentVehicleReward = 0;
-            FinishVehicleProcessing();
+            failedStandardSearches++;
+
+            if (failedStandardSearches >= 2)
+            {
+                if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Le patron vous a grillé en train de fouiller ! Vous êtes viré !</color>");
+                EndJob(true);
+            }
+            else
+            {
+                FinishVehicleProcessing();
+            }
         }
     }
 
     private void WinBadGuyEvent()
     {
         isLockpicking = false;
+        isWinningLockpick = false;
         HideAllPanels();
         Cursor.lockState = CursorLockMode.Confined;
 
@@ -473,9 +762,18 @@ public class ValetJobManager : MonoBehaviour
     private void EndJob(bool forceQuit = false)
     {
         isJobActive = false;
+        vehicleAlreadyGaraged = false;
+        isVehicleInPlay = false;
+        isWinningLockpick = false;
         HideAllPanels();
 
+        if (parkingPromptUI != null) parkingPromptUI.SetActive(false);
         if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
+
+        SafeToggleHUD(true);
+        if (PhoneManager.Instance != null) PhoneManager.Instance.enabled = true;
+        if (InventoryManager.Instance != null) InventoryManager.Instance.enabled = true;
+        if (CallApp.Instance != null) CallApp.Instance.callsBlocked = false;
 
         if (!forceQuit)
         {

@@ -1,46 +1,59 @@
-using UnityEngine;
-using TMPro;
+﻿using UnityEngine;
+using System.Collections;
 
-public class ValetJobStarter : MonoBehaviour
+public class ValetJobTrigger : Interactable
 {
-    [Header("UI d'interaction")]
-    public GameObject interactPromptUI; // Un petit texte "Appuyez sur [E] pour travailler"
+    [Header("Discussion avec le Gérant")]
+    public Dialogue bossDialogue;
 
-    private bool isPlayerInZone = false;
+    [Header("Mise en place & Cooldown ⏳")]
+    public bool requireNextDay = true;
+    private float lastTimeWorked = -9999f;
 
-    private void Start()
+    public override void Interact()
     {
-        if (interactPromptUI != null) interactPromptUI.SetActive(false);
-    }
+        // On empêche d'interagir si le joueur est déjà en train de travailler
+        if (ValetJobManager.Instance != null && ValetJobManager.Instance.isJobActive) return;
 
-    private void OnTriggerEnter(Collider other)
-    {
-        if (other.CompareTag("Player"))
+        // --- SÉCURITÉ ANTI-POLICE ---
+        if (GameManager.Instance != null && GameManager.Instance.wantedLevel > 0)
         {
-            isPlayerInZone = true;
-            if (interactPromptUI != null) interactPromptUI.SetActive(true);
+            if (UIManager.Instance != null)
+                UIManager.Instance.ShowNotification("Le gérant : 'Tu as les flics aux trousses ! Ne les ramène pas devant mon casino.'");
+            return;
         }
-    }
 
-    private void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag("Player"))
+        // --- COOLDOWN (Vérifie si une journée est passée) ---
+        if (requireNextDay && TimeManager.Instance != null)
         {
-            isPlayerInZone = false;
-            if (interactPromptUI != null) interactPromptUI.SetActive(false);
-        }
-    }
-
-    private void Update()
-    {
-        // Si le joueur est dans la zone et appuie sur E, on lance le job
-        if (isPlayerInZone && Input.GetKeyDown(KeyCode.E))
-        {
-            if (ValetJobManager.Instance != null && !ValetJobManager.Instance.isJobActive)
+            float secondsForFullDay = 1440f / TimeManager.Instance.timeScale;
+            if (Time.time < lastTimeWorked + secondsForFullDay)
             {
-                ValetJobManager.Instance.StartJob();
-                if (interactPromptUI != null) interactPromptUI.SetActive(false);
+                if (UIManager.Instance != null)
+                    UIManager.Instance.ShowNotification("Le gérant : 'Le parking est calme, on n'a plus besoin de toi aujourd'hui. Reviens demain !'");
+                return;
             }
+        }
+
+        // --- LANCEMENT DU DIALOGUE ---
+        bossDialogue.onDialogueEnd.RemoveAllListeners();
+        bossDialogue.onDialogueEnd.AddListener(OnDialogueFinished);
+
+        if (DialogueManager.Instance != null)
+        {
+            DialogueManager.Instance.StartDialogue(bossDialogue);
+        }
+    }
+
+    private void OnDialogueFinished()
+    {
+        // On enregistre l'heure pour le cooldown
+        lastTimeWorked = Time.time;
+
+        // On appelle la fonction ShowJobOffer que l'on a créée dans le ValetJobManager
+        if (ValetJobManager.Instance != null)
+        {
+            ValetJobManager.Instance.ShowJobOffer();
         }
     }
 }
