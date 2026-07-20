@@ -68,6 +68,14 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
+        // --- NOUVEAU VERROU : On bloque tout accès si le coffre OU la plantation sont ouverts ---
+        if ((SafehouseManager.Instance != null && SafehouseManager.Instance.isOpen) ||
+            (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen))
+        {
+            moveInput = Vector3.zero;
+            return;
+        }
+
         if (isDoingQTE || isKnockedDown)
         {
             moveInput = Vector3.zero;
@@ -190,10 +198,12 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
+        // --- MISE À JOUR : On inclut la plantation dans la vérification de l'UI pour stopper la physique ---
         bool isUIOpen = (inventoryPanel != null && inventoryPanel.activeSelf) ||
                          (ShopManager.Instance != null && ShopManager.Instance.shopPanel != null && ShopManager.Instance.shopPanel.activeSelf) ||
                          (LaundromatManager.Instance != null && LaundromatManager.Instance.laundromatPanel != null && LaundromatManager.Instance.laundromatPanel.activeSelf) ||
-                         (SafehouseManager.Instance != null && SafehouseManager.Instance.safehousePanel != null && SafehouseManager.Instance.safehousePanel.activeSelf);
+                         (SafehouseManager.Instance != null && SafehouseManager.Instance.isOpen) ||
+                         (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen);
 
         if (isUIOpen || isDoingQTE || isKnockedDown)
         {

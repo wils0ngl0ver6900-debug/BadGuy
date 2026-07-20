@@ -29,13 +29,27 @@ public class DarkNetApp : MonoBehaviour
 
         if (GameManager.Instance.dirtyMoney >= article.price)
         {
+            // 1. On prélève l'argent sale
             GameManager.Instance.dirtyMoney -= article.price;
             GameManager.Instance.SyncDirtyMoneyItem();
 
             if (article.itemData != null)
             {
-                // CORRECTION ICI : On emballe l'objet dans un "InventorySlot" avec une quantité de 1
-                SafehouseManager.Instance.storedIllegalItems.Add(new InventorySlot(article.itemData, 1));
+                // 2. CORRECTION : On utilise la nouvelle fonction du SafehouseManager
+                bool success = SafehouseManager.Instance.AddToStash(article.itemData, 1);
+
+                // 3. SÉCURITÉ : Si le coffre est plein, on annule tout !
+                if (!success)
+                {
+                    // Remboursement
+                    GameManager.Instance.dirtyMoney += article.price;
+                    GameManager.Instance.SyncDirtyMoneyItem();
+
+                    if (UIManager.Instance != null)
+                        UIManager.Instance.ShowNotification("<color=red>Achat annulé : Votre coffre est plein !</color>");
+
+                    return; // On arrête la fonction ici, pas de SMS envoyé.
+                }
             }
 
             if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();

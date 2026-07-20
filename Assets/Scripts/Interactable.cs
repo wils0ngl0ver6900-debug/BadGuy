@@ -3,7 +3,8 @@ using System.Collections;
 
 public class Interactable : MonoBehaviour
 {
-    public enum ActionType { HackATM, Pickpocket, Laundromat, Safehouse, BlackMarket, ShopLegal, ShopIllegal, StashBox }
+    // --- NOUVEAUTÉ ICI : Ajout de WeedLab à la fin ---
+    public enum ActionType { HackATM, Pickpocket, Laundromat, Safehouse, BlackMarket, ShopLegal, ShopIllegal, StashBox, WeedLab }
     public ActionType type;
 
     [Header("Configuration des actions")]
@@ -49,7 +50,6 @@ public class Interactable : MonoBehaviour
 
             if (!playerHasTool && InventoryManager.Instance != null)
             {
-                // CORRECTION ICI : On cherche dans "slots" et on vérifie "slot.item"
                 foreach (InventorySlot slot in InventoryManager.Instance.slots)
                 {
                     if (slot.item != null && slot.item.itemName.Trim().ToLower() == targetTool)
@@ -92,6 +92,10 @@ public class Interactable : MonoBehaviour
                 break;
             case ActionType.ShopIllegal:
                 if (ShopManager.Instance != null) ShopManager.Instance.OpenSellShop("Receleur");
+                break;
+            // --- NOUVEAUTÉ ICI : Le déclencheur 3D de la plantation ---
+            case ActionType.WeedLab:
+                if (WeedLabManager.Instance != null) WeedLabManager.Instance.OpenLab();
                 break;
         }
     }
@@ -169,7 +173,6 @@ public class Interactable : MonoBehaviour
 
         if (itemToSteal != null)
         {
-            // CORRECTION ICI
             int added = InventoryManager.Instance.AddItem(itemToSteal);
             if (added <= 0) return;
         }

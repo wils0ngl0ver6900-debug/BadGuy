@@ -1701,6 +1701,7 @@ PrefabInstance:
     - {fileID: 4328779764877331323, guid: 78d176dce376f074f838aa691b28db93, type: 3}
     - {fileID: 9200583821984841878, guid: 78d176dce376f074f838aa691b28db93, type: 3}
     - {fileID: 5779939655535262212, guid: 78d176dce376f074f838aa691b28db93, type: 3}
+    - {fileID: 8320803749360906426, guid: 78d176dce376f074f838aa691b28db93, type: 3}
     m_RemovedGameObjects:
     - {fileID: 1239862639778482192, guid: 78d176dce376f074f838aa691b28db93, type: 3}
     - {fileID: 8093880140830429752, guid: 78d176dce376f074f838aa691b28db93, type: 3}
@@ -1743,6 +1744,10 @@ MonoBehaviour:
   walkSpeed: 1.5
   runSpeed: 4.5
   visionRange: 15
+  viewAngle: 90
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 0
   currentTrafficNode: {fileID: 0}
   bulletPrefab: {fileID: 391651947737662775, guid: f9d1872e85697a44e97ba3e4503c04a2, type: 3}
   firePoint: {fileID: 750418305872559323}
@@ -1752,6 +1757,7 @@ MonoBehaviour:
   copPedestrianPrefab: {fileID: 0}
   exitDoors: []
   isSeeingPlayer: 0
+  leader: {fileID: 0}
 --- !u!4 &7874992977062134172 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2589456401928173210, guid: 78d176dce376f074f838aa691b28db93, type: 3}

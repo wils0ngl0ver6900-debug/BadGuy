@@ -36,7 +36,8 @@ public class InventoryManager : MonoBehaviour
         {
             foreach (var slot in slots)
             {
-                if (slot.item == itemToAdd && slot.amount < itemToAdd.maxStackSize)
+                // CORRECTION : On compare par itemName pour forcer l'empilement parfait !
+                if (slot.item != null && slot.item.itemName == itemToAdd.itemName && slot.amount < itemToAdd.maxStackSize)
                 {
                     int spaceInSlot = itemToAdd.maxStackSize - slot.amount;
                     int amountToPut = Mathf.Min(spaceInSlot, amountToAdd);
@@ -74,7 +75,8 @@ public class InventoryManager : MonoBehaviour
     {
         for (int i = slots.Count - 1; i >= 0; i--)
         {
-            if (slots[i].item == itemToRemove)
+            // CORRECTION : Comparaison par itemName ici aussi
+            if (slots[i].item != null && slots[i].item.itemName == itemToRemove.itemName)
             {
                 if (slots[i].amount > amountToRemove)
                 {
@@ -94,7 +96,11 @@ public class InventoryManager : MonoBehaviour
     public int GetTotalItemAmount(ItemData item)
     {
         int total = 0;
-        foreach (var slot in slots) if (slot.item == item) total += slot.amount;
+        // CORRECTION : Comparaison par itemName
+        foreach (var slot in slots)
+        {
+            if (slot.item != null && slot.item.itemName == item.itemName) total += slot.amount;
+        }
         return total;
     }
 }

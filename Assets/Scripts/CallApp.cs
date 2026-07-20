@@ -36,8 +36,7 @@ public class CallApp : MonoBehaviour
 
     public List<ContactInfo> contactList = new List<ContactInfo>();
 
-    // --- VARIABLES INTERNES ---
-    [HideInInspector] public bool callsBlocked = false; // <-- La variable de blocage est ici !
+    [HideInInspector] public bool callsBlocked = false;
 
     private string currentCaller = "";
     private Sprite currentCallerPhoto = null;
@@ -58,14 +57,9 @@ public class CallApp : MonoBehaviour
         if (activeCallPanel != null) activeCallPanel.SetActive(false);
 
         GenerateContacts();
-
-        // On lance le compte à rebours de 30 secondes au démarrage
         StartCoroutine(TriggerTutorialCallAfterDelay(30f));
     }
 
-    // ==========================================
-    // --- APPEL AUTOMATIQUE (TUTORIEL) ⏱️ ---
-    // ==========================================
     private IEnumerator TriggerTutorialCallAfterDelay(float delay)
     {
         yield return new WaitForSeconds(delay);
@@ -83,7 +77,6 @@ public class CallApp : MonoBehaviour
 
         ReceiveCall("Tommy", testDialogue);
     }
-    // ==========================================
 
     public void OpenApp()
     {
@@ -109,26 +102,25 @@ public class CallApp : MonoBehaviour
         return null;
     }
 
-    // ==========================================
-    // --- RECEVOIR UN APPEL DE MISSION ---
-    // ==========================================
-
     public void ReceiveCall(string callerName, Dialogue dialogueSequence)
     {
-        // --- NOUVEAUTÉ : On bloque l'appel si le joueur est occupé (ex: Job Videur) ---
-        if (isInCall || callsBlocked) return;
+        // --- MISE À JOUR DU VERROU : On bloque l'appel si on est dans le coffre OU la plantation ---
+        if (isInCall || callsBlocked ||
+           (SafehouseManager.Instance != null && SafehouseManager.Instance.isOpen) ||
+           (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen))
+        {
+            return;
+        }
 
         currentCaller = callerName;
         currentCallDialogue = dialogueSequence;
         currentCallerPhoto = GetPhotoForContact(callerName);
 
-        // --- NOUVEAUTÉ : On force le téléphone à monter de la poche ! ---
         if (PhoneManager.Instance != null && !PhoneManager.Instance.isPhoneOpen)
         {
             PhoneManager.Instance.TogglePhone();
         }
 
-        // --- NOUVEAUTÉ : On cache le HUD immédiatement ---
         if (UIManager.Instance != null)
         {
             UIManager.Instance.ToggleHUD(false, true);
@@ -228,22 +220,16 @@ public class CallApp : MonoBehaviour
         currentCallDialogue = null;
         isInCall = false;
 
-        // --- NOUVEAUTÉ : On restaure le HUD car on a refusé l'appel ---
         if (UIManager.Instance != null)
         {
             UIManager.Instance.ToggleHUD(true);
         }
 
-        // --- NOUVEAUTÉ : On range le téléphone ! ---
         if (PhoneManager.Instance != null && PhoneManager.Instance.isPhoneOpen)
         {
             PhoneManager.Instance.TogglePhone();
         }
     }
-
-    // ==========================================
-    // --- APPELER UN PNJ ---
-    // ==========================================
 
     private void GenerateContacts()
     {
@@ -275,7 +261,6 @@ public class CallApp : MonoBehaviour
 
     public void MakeCall(string contactName)
     {
-        // --- Sécurité : bloque aussi l'émission d'appels pendant le job ---
         if (isInCall || callsBlocked) return;
 
         currentCaller = contactName;
@@ -321,10 +306,8 @@ public class CallApp : MonoBehaviour
         currentCallerPhoto = null;
         currentCallDialogue = null;
 
-        // --- NOUVEAUTÉ : On ferme l'application Appels ---
         CloseApp();
 
-        // --- NOUVEAUTÉ : On range le téléphone ! ---
         if (PhoneManager.Instance != null && PhoneManager.Instance.isPhoneOpen)
         {
             PhoneManager.Instance.TogglePhone();

@@ -6,7 +6,7 @@ public class NPCBrain : MonoBehaviour
 {
     public enum NPCRole { Civil, Policier, Gang }
     public enum Locomotion { Pieton, Vehicule }
-    public enum AIState { Patrouille, Fuite, Poursuite, Panique, Combat, GardeDuCorps }
+    public enum AIState { Patrouille, Fuite, Poursuite, Panique, Combat, GardeDuCorps, Recherche }
 
     [Header("Identité 🪪")]
     public NPCRole role = NPCRole.Civil;
@@ -20,6 +20,8 @@ public class NPCBrain : MonoBehaviour
     public float walkSpeed = 1.5f;
     public float runSpeed = 5.0f;
     public float visionRange = 25f;
+    [Range(0, 360)] public float viewAngle = 90f; // Ajout du cône de vision
+    public LayerMask obstacleMask; // Définition des murs et obstacles
     public TrafficNode currentTrafficNode;
 
     [Header("Système de Combat 🔫")]
@@ -50,9 +52,11 @@ public class NPCBrain : MonoBehaviour
 
     private float followTimer = 0f;
     private Vector3 formationOffset;
-
-    // --- L'AMORTISSEUR (Le secret anti-vibration) ---
     private Quaternion smoothLeaderRot;
+
+    // --- VARIABLES DE RECHERCHE ---
+    private float searchTimer = 0f;
+    private Vector3 searchCenter;
 
     void Awake()
     {
@@ -98,7 +102,6 @@ public class NPCBrain : MonoBehaviour
     {
         StartCoroutine(BrainTick());
 
-        // Anti-collision physique avec le joueur maintenu !
         if (role == NPCRole.Gang && player != null)
         {
             Collider[] myColliders = GetComponentsInChildren<Collider>();
@@ -118,7 +121,6 @@ public class NPCBrain : MonoBehaviour
     {
         ExecuteStateAction();
 
-        // Lissage visuel de l'animation pour les jambes
         if (animator != null && agent != null && locomotion == Locomotion.Pieton)
         {
             float targetSpeed = agent.velocity.magnitude;
@@ -156,7 +158,21 @@ public class NPCBrain : MonoBehaviour
         Vector3 actualPlayerPos = isPlayerInCar ? playerCar.transform.position : (player != null ? player.position : transform.position);
 
         float distToPlayer = Vector3.Distance(transform.position, actualPlayerPos);
-        isSeeingPlayer = distToPlayer <= visionRange;
+
+        isSeeingPlayer = false;
+
+        if (distToPlayer <= visionRange)
+        {
+            Vector3 dirToPlayer = (actualPlayerPos - transform.position).normalized;
+
+            if (Vector3.Angle(transform.forward, dirToPlayer) < viewAngle / 2f)
+            {
+                if (!Physics.Raycast(transform.position + (Vector3.up * 1.5f), dirToPlayer, distToPlayer, obstacleMask))
+                {
+                    isSeeingPlayer = true;
+                }
+            }
+        }
 
         if (role != NPCRole.Civil)
         {
@@ -236,7 +252,8 @@ public class NPCBrain : MonoBehaviour
         }
         else if (role == NPCRole.Policier)
         {
-            if (GameManager.Instance != null && GameManager.Instance.wantedLevel > 0) ChangeState(AIState.Poursuite);
+            // Transition vers l'état Recherche si le joueur n'est pas vu mais toujours recherché
+            if (GameManager.Instance != null && GameManager.Instance.wantedLevel > 0) ChangeState(AIState.Recherche);
             else ChangeState(AIState.Patrouille);
         }
         else if (role == NPCRole.Gang)
@@ -269,16 +286,17 @@ public class NPCBrain : MonoBehaviour
             case AIState.GardeDuCorps:
                 if (locomotion == Locomotion.Pieton) FollowLeader();
                 break;
+            case AIState.Recherche:
+                if (locomotion == Locomotion.Pieton) InvestigatePedestrian();
+                else InvestigateVehicle();
+                break;
         }
     }
 
-    // --- LE SUIVI ORGANIQUE SANS VIBRATION ---
     private void FollowLeader()
     {
         if (leader == null || agent == null || !agent.isOnNavMesh) return;
 
-        // 1. L'AMORTISSEUR DE ROTATION
-        // Filtre les micro-mouvements de ton personnage pour offrir une cible stable aux PNJ
         smoothLeaderRot = Quaternion.Slerp(smoothLeaderRot, leader.rotation, Time.deltaTime * 2f);
         Vector3 idealPosition = leader.position + (smoothLeaderRot * formationOffset);
 
@@ -291,35 +309,30 @@ public class NPCBrain : MonoBehaviour
         float distToLeader = Vector3.Distance(transform.position, leader.position);
         float distToFormationPos = Vector3.Distance(transform.position, finalDestination);
 
-        // 2. LA VITESSE PURE (Fini les bridages et les lissages qui faisaient ramper le PNJ)
         agent.speed = runSpeed;
         agent.stoppingDistance = 0.5f;
 
-        // Le freinage d'urgence logiciel (L'anti-poussette en douceur)
         if (distToLeader < 1.5f)
         {
-            agent.speed = walkSpeed * 0.5f; // Il ralentit fortement s'il est presque sur toi
+            agent.speed = walkSpeed * 0.5f;
         }
         else if (distToLeader > 8.0f)
         {
-            agent.speed = runSpeed * 1.2f; // Petit boost s'il est très loin
+            agent.speed = runSpeed * 1.2f;
         }
 
         if (agent.isStopped) agent.isStopped = false;
 
-        // 3. LA MISE À JOUR DU GPS
         followTimer += Time.deltaTime;
         if (followTimer >= 0.2f)
         {
             followTimer = 0f;
-            // On recalcule le chemin que si la cible amortie a vraiment bougé
             if (Vector3.Distance(agent.destination, finalDestination) > 0.5f)
             {
                 agent.SetDestination(finalDestination);
             }
         }
 
-        // 4. LE PIVOT DE GARDE DU CORPS (À L'ARRÊT)
         if (distToFormationPos <= agent.stoppingDistance + 0.5f && agent.velocity.sqrMagnitude < 0.2f)
         {
             Vector3 lookDir = leader.forward;
@@ -340,11 +353,17 @@ public class NPCBrain : MonoBehaviour
             nextFireTime = Time.time + Random.Range(0.1f, 0.8f);
         }
 
+        if (newState == AIState.Recherche)
+        {
+            searchTimer = 0f;
+        }
+
         currentState = newState;
 
         if (locomotion == Locomotion.Pieton && agent != null)
         {
             agent.speed = (newState == AIState.Patrouille) ? walkSpeed : runSpeed;
+            if (newState == AIState.Recherche) agent.speed = walkSpeed * 1.5f; // Pas de recherche rapide
             if (newState == AIState.Combat) agent.isStopped = true;
             else agent.isStopped = false;
         }
@@ -483,6 +502,45 @@ public class NPCBrain : MonoBehaviour
         CarAI ai = GetComponent<CarAI>();
         if (ai != null) ai.chaseTarget = null;
     }
+
+    // --- NOUVELLES FONCTIONS D'INVESTIGATION ---
+    private void InvestigatePedestrian()
+    {
+        if (agent == null || !agent.isOnNavMesh) return;
+
+        agent.stoppingDistance = 0f;
+        searchTimer += Time.deltaTime;
+
+        // On utilise la dernière position connue donnée par le système de police global
+        if (PoliceManager.Instance != null)
+        {
+            searchCenter = PoliceManager.Instance.lastKnownPosition;
+        }
+        else if (player != null)
+        {
+            searchCenter = player.position;
+        }
+
+        // Si l'agent a atteint son point, il choisit un nouveau point proche pour continuer la fouille
+        if (!agent.pathPending && agent.remainingDistance < 1.5f)
+        {
+            Vector3 randomDir = Random.insideUnitSphere * 15f + searchCenter;
+            if (NavMesh.SamplePosition(randomDir, out NavMeshHit hit, 15f, NavMesh.AllAreas))
+            {
+                agent.SetDestination(hit.position);
+            }
+        }
+    }
+
+    private void InvestigateVehicle()
+    {
+        CarAI ai = GetComponent<CarAI>();
+        if (ai != null)
+        {
+            ai.chaseTarget = null; // La voiture reprend une patrouille routière active
+        }
+    }
+    // -------------------------------------------
 
     private void FleePedestrian()
     {
