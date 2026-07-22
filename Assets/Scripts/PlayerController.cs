@@ -28,6 +28,7 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public bool isKnockedDown = false;
 
     private Rigidbody rb;
+    private Animator anim; // --- AJOUT : Variable globale pour l'Animator ---
     private Vector3 moveInput;
     private Interactable currentInteractable;
 
@@ -40,6 +41,7 @@ public class PlayerController : MonoBehaviour
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        anim = GetComponentInChildren<Animator>(); // --- AJOUT : Initialisation de l'Animator au lancement ---
         originalMoveSpeed = moveSpeed;
 
         if (UIManager.Instance != null)
@@ -73,12 +75,14 @@ public class PlayerController : MonoBehaviour
             (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen))
         {
             moveInput = Vector3.zero;
+            UpdateAnimator(); // --- AJOUT : Force le retour à l'animation "Idle" ---
             return;
         }
 
         if (isDoingQTE || isKnockedDown)
         {
             moveInput = Vector3.zero;
+            UpdateAnimator(); // --- AJOUT : Force le retour à l'animation "Idle" ---
             return;
         }
 
@@ -89,6 +93,7 @@ public class PlayerController : MonoBehaviour
         if (isUIOpen)
         {
             moveInput = Vector3.zero;
+            UpdateAnimator(); // --- AJOUT : Force le retour à l'animation "Idle" ---
 
             if (Input.GetKeyDown(KeyCode.I) && inventoryPanel != null && inventoryPanel.activeSelf)
             {
@@ -110,6 +115,9 @@ public class PlayerController : MonoBehaviour
         }
 
         moveInput = new Vector3(moveX, 0f, moveZ).normalized;
+
+        // --- AJOUT : Envoi constant de la vitesse de déplacement à l'Animator ---
+        UpdateAnimator();
 
         if (Input.GetKeyDown(KeyCode.I))
         {
@@ -193,6 +201,20 @@ public class PlayerController : MonoBehaviour
             {
                 currentInteractable.Interact();
             }
+        }
+    }
+
+    // --- MISE A JOUR : Méthode personnalisée pour mettre à jour l'Animator proprement en 2D ---
+    private void UpdateAnimator()
+    {
+        if (anim != null)
+        {
+            // Convertit le mouvement global en mouvement local (par rapport à la visée)
+            Vector3 localMove = transform.InverseTransformDirection(moveInput);
+
+            // Envoie les valeurs X et Z au Blend Tree 2D
+            anim.SetFloat("InputX", localMove.x);
+            anim.SetFloat("InputY", localMove.z);
         }
     }
 
@@ -307,7 +329,7 @@ public class PlayerController : MonoBehaviour
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification("Le monde ralentit... (30s)");
 
-        Animator anim = GetComponentInChildren<Animator>();
+        // --- MODIFICATION : Utilisation de la variable globale au lieu de chercher le composant à nouveau ---
         if (anim != null) anim.updateMode = AnimatorUpdateMode.UnscaledTime;
 
         Time.timeScale = 0.4f;

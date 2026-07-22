@@ -15,8 +15,14 @@ public class PlayerCombat : MonoBehaviour
     public int currentAmmo;
     private float nextFireTime = 0f;
 
+    // --- AJOUT : Référence à l'Animator ---
+    private Animator anim;
+
     void Start()
     {
+        // --- AJOUT : Récupération de l'Animator au lancement ---
+        anim = GetComponentInChildren<Animator>();
+
         if (muzzleFlashLight != null)
         {
             muzzleFlashLight.enabled = false;
@@ -25,6 +31,14 @@ public class PlayerCombat : MonoBehaviour
 
     void Update()
     {
+        // --- AJOUT : Vérification continue de l'arme équipée pour l'Animator ---
+        if (anim != null && HotbarManager.Instance != null)
+        {
+            ItemData currentItem = HotbarManager.Instance.GetEquippedItem();
+            bool hasWeapon = (currentItem != null && currentItem.isWeapon);
+            anim.SetBool("WeaponEquipped", hasWeapon);
+        }
+
         if (Input.GetMouseButtonDown(0) && !Cursor.visible)
         {
             AttemptShoot();
@@ -61,6 +75,9 @@ public class PlayerCombat : MonoBehaviour
 
             currentAmmo--;
             nextFireTime = Time.time + weapon.fireRate;
+
+            // --- AJOUT : Déclenchement de l'animation de tir ---
+            if (anim != null) anim.SetTrigger("Shoot");
 
             if (weapon.bulletPrefab != null && firePoint != null)
             {
@@ -99,6 +116,9 @@ public class PlayerCombat : MonoBehaviour
         ItemData weapon = HotbarManager.Instance.GetEquippedItem();
         if (weapon != null && weapon.isWeapon)
         {
+            // --- AJOUT : Déclenchement de l'animation de rechargement ---
+            if (anim != null) anim.SetTrigger("Reload");
+
             currentAmmo = weapon.maxAmmo;
             UIManager.Instance.ShowNotification("Rechargement terminé !");
             UIManager.Instance.UpdateAmmoDisplay(currentAmmo, weapon.maxAmmo, true);

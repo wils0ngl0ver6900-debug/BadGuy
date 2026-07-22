@@ -13,7 +13,8 @@ public class PlayerAim : MonoBehaviour
         Cursor.lockState = CursorLockMode.Confined;
     }
 
-    void Update()
+    // --- MODIFICATION ICI : Update() devient LateUpdate() ---
+    void LateUpdate()
     {
         // --- LE CORRECTIF EST ICI ---
         // Si le jeu est figé (Map ouverte, Menu de pause...), on bloque la visée !
