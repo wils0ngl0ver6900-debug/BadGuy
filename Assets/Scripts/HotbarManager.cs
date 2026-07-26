@@ -13,8 +13,8 @@ public class HotbarManager : MonoBehaviour
     public int currentSelectedIndex = -1;
 
     [Header("Système 3D (Mains)")]
+    [Tooltip("Glisse ici le Transform de la main (ex: RightHandProp ou Player_Hand) qui contient les modèles 3D d'armes en enfants.")]
     public Transform playerHand;
-    private GameObject currentWeaponModel;
 
     private void Awake()
     {
@@ -25,6 +25,12 @@ public class HotbarManager : MonoBehaviour
             Image cadreImg = cadreSelection.GetComponent<Image>();
             if (cadreImg != null) cadreImg.raycastTarget = false;
         }
+    }
+
+    private void Start()
+    {
+        // Masque toutes les armes enfants de la main au démarrage
+        HideAllWeapons();
     }
 
     void Update()
@@ -41,12 +47,13 @@ public class HotbarManager : MonoBehaviour
     {
         if (index < 0 || index >= hotbarSlots.Length) return;
 
+        // Si on reclique sur le même slot, on déséquipe tout
         if (currentSelectedIndex == index)
         {
             currentSelectedIndex = -1;
             if (cadreSelection != null) cadreSelection.gameObject.SetActive(false);
 
-            if (currentWeaponModel != null) Destroy(currentWeaponModel);
+            HideAllWeapons();
             if (UIManager.Instance != null) UIManager.Instance.UpdateAmmoDisplay(0, 0, false);
             return;
         }
@@ -58,13 +65,24 @@ public class HotbarManager : MonoBehaviour
             cadreSelection.position = hotbarSlots[index].transform.position;
         }
 
-        if (currentWeaponModel != null) Destroy(currentWeaponModel);
+        // On masque l'arme active précédente
+        HideAllWeapons();
 
         ItemData item = hotbarSlots[index].itemInSlot;
 
-        if (item != null && item.isWeapon && item.weaponPrefab != null && playerHand != null)
+        // Si le slot contient une arme, on active le GameObject correspondant déjà présent dans la main
+        if (item != null && item.isWeapon && playerHand != null)
         {
-            currentWeaponModel = Instantiate(item.weaponPrefab, playerHand);
+            Transform weaponTransform = FindWeaponInHand(item);
+
+            if (weaponTransform != null)
+            {
+                weaponTransform.gameObject.SetActive(true);
+            }
+            else
+            {
+                Debug.LogWarning($"[HotbarManager] Aucun modèle 3D trouvé dans '{playerHand.name}' pour l'arme '{item.itemName}' !");
+            }
 
             if (UIManager.Instance != null)
             {
@@ -93,9 +111,9 @@ public class HotbarManager : MonoBehaviour
 
             if (itemDansSlot != null && itemDansSlot.itemReference != null && itemDansSlot.itemReference.isIllegal)
             {
-                if (i == currentSelectedIndex && currentWeaponModel != null)
+                if (i == currentSelectedIndex)
                 {
-                    Destroy(currentWeaponModel);
+                    HideAllWeapons();
                     currentSelectedIndex = -1;
                     if (cadreSelection != null) cadreSelection.gameObject.SetActive(false);
                 }
@@ -119,7 +137,7 @@ public class HotbarManager : MonoBehaviour
             {
                 Destroy(itemDansSlot.gameObject);
                 hotbarSlots[currentSelectedIndex].itemInSlot = null;
-                if (currentWeaponModel != null) Destroy(currentWeaponModel);
+                HideAllWeapons();
                 currentSelectedIndex = -1;
                 if (cadreSelection != null) cadreSelection.gameObject.SetActive(false);
                 if (UIManager.Instance != null) UIManager.Instance.UpdateAmmoDisplay(0, 0, false);
@@ -129,5 +147,46 @@ public class HotbarManager : MonoBehaviour
                 itemDansSlot.SetVisualMode(true);
             }
         }
+    }
+
+    // ========================================================
+    // --- GESTION DU RÂTELIER D'ARMES (Membres enfants de playerHand) ---
+    // ========================================================
+
+    public void HideAllWeapons()
+    {
+        if (playerHand == null) return;
+
+        foreach (Transform child in playerHand)
+        {
+            child.gameObject.SetActive(false);
+        }
+    }
+
+    private Transform FindWeaponInHand(ItemData item)
+    {
+        if (playerHand == null || item == null) return null;
+
+        // 1. Cherche un enfant portant le nom exact de l'item (ex: "Pistolet")
+        Transform found = playerHand.Find(item.itemName);
+        if (found != null) return found;
+
+        // 2. Cherche un enfant portant le nom du prefab associable s'il est défini
+        if (item.weaponPrefab != null)
+        {
+            found = playerHand.Find(item.weaponPrefab.name);
+            if (found != null) return found;
+        }
+
+        // 3. Recherche tolérante (si le nom contient partiellement le nom de l'item)
+        foreach (Transform child in playerHand)
+        {
+            if (child.name.ToLower().Contains(item.itemName.ToLower()))
+            {
+                return child;
+            }
+        }
+
+        return null;
     }
 }
