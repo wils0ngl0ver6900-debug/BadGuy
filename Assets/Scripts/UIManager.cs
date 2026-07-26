@@ -38,6 +38,11 @@ public class UIManager : MonoBehaviour
     public TextMeshProUGUI qteKeyText;
     public Slider qteSlider;
 
+    [Header("Barre de Progression Générique (Actions type Vente/Attente) ⏳")]
+    public GameObject actionProgressPanel;
+    public TextMeshProUGUI actionProgressLabel;
+    public Slider actionProgressSlider;
+
     [Header("Écran Noir (Transition) 🎬")]
     public GameObject transitionPanel;
     private CanvasGroup transitionCanvasGroup;
@@ -285,6 +290,30 @@ public class UIManager : MonoBehaviour
     public void HideQTE()
     {
         if (qtePanel != null) qtePanel.SetActive(false);
+    }
+
+    // --- NOUVEAU : Barre de progression générique (remplit de 0 à 1, contrairement à qteSlider qui décompte) ---
+    // Réutilisable pour n'importe quelle action tenue dans le temps (vente de drogue, et potentiellement
+    // d'autres actions similaires plus tard, pour éviter de dupliquer un Slider par système comme c'est
+    // déjà le cas dans CashierJobManager/DockerJobManager).
+    public void ShowActionProgress(string label)
+    {
+        if (actionProgressPanel != null)
+        {
+            actionProgressPanel.SetActive(true);
+            if (actionProgressLabel != null) actionProgressLabel.text = label;
+            if (actionProgressSlider != null) actionProgressSlider.value = 0f;
+        }
+    }
+
+    public void UpdateActionProgress(float fillAmount01)
+    {
+        if (actionProgressSlider != null) actionProgressSlider.value = fillAmount01;
+    }
+
+    public void HideActionProgress()
+    {
+        if (actionProgressPanel != null) actionProgressPanel.SetActive(false);
     }
 
     public void ShowVehicleHUD(string vehicleName)

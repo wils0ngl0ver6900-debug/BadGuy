@@ -4,7 +4,7 @@ using System.Collections;
 public class Interactable : MonoBehaviour
 {
     // --- NOUVEAUTÉ ICI : Ajout de WeedLab à la fin ---
-    public enum ActionType { HackATM, Pickpocket, Laundromat, Safehouse, BlackMarket, ShopLegal, ShopIllegal, StashBox, WeedLab }
+    public enum ActionType { HackATM, Pickpocket, Laundromat, Safehouse, BlackMarket, ShopLegal, ShopIllegal, StashBox, WeedLab, SellDrugs }
     public ActionType type;
 
     [Header("Configuration des actions")]
@@ -26,6 +26,13 @@ public class Interactable : MonoBehaviour
     [Header("Magasin (Boutique)")]
     public ItemData[] itemsForSale;
     public string shopName = "Boutique";
+
+    [Header("Vente de Drogue au PNJ 💊")]
+    public ItemData desiredDrug;                  // Assigné à l'instanciation par DrugDealZone (dépend du district)
+    public float saleDuration = 4f;                // Durée de la barre de progression
+    [Range(0, 100)] public int saleFailChancePercent = 15;
+    public int saleReward = 150;                   // Prix unitaire de secours SI desiredDrug.valueInBlackMarket == 0
+    private bool isSelling = false;
 
     public virtual void Interact()
     {
@@ -97,6 +104,9 @@ public class Interactable : MonoBehaviour
             case ActionType.WeedLab:
                 if (WeedLabManager.Instance != null) WeedLabManager.Instance.OpenLab();
                 break;
+            case ActionType.SellDrugs:
+                if (!isSelling) StartCoroutine(SellDrugRoutine());
+                break;
         }
     }
 
@@ -161,6 +171,108 @@ public class Interactable : MonoBehaviour
                 string failMsg = caughtInTheAct ? "VU EN FLAGRANT DÉLIT !" : $"ÉCHEC ({actionName}) !";
                 if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"{failMsg} L'alarme sonne !");
             }
+        }
+    }
+
+    private IEnumerator SellDrugRoutine()
+    {
+        if (desiredDrug == null)
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Ce client n'attend rien pour l'instant.");
+            yield break;
+        }
+
+        // Le client peut être un DrugClientNPC (comportement d'attente/départ), mais Interactable
+        // reste utilisable seul si jamais tu veux un point de vente fixe sans PNJ qui se déplace.
+        DrugClientNPC client = GetComponent<DrugClientNPC>();
+
+        int ownedAmount = (InventoryManager.Instance != null) ? InventoryManager.Instance.GetTotalItemAmount(desiredDrug) : 0;
+        if (ownedAmount <= 0)
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"Vous n'avez pas de {desiredDrug.itemName} sur vous.");
+            yield break;
+        }
+
+        // Le client négocie une quantité aléatoire (1 à 8), jamais plus que ce que tu as réellement sur toi.
+        int requestedQty = Mathf.Min(Random.Range(1, 9), ownedAmount);
+
+        isSelling = true;
+        if (client != null) client.OnSaleStarted();
+
+        PlayerController pc = FindObjectOfType<PlayerController>();
+        if (pc != null) pc.isDoingQTE = true; // Réutilise le même verrou de mouvement/tir que les autres mini-actions
+
+        if (UIManager.Instance != null) UIManager.Instance.ShowActionProgress($"Vente de {requestedQty}x {desiredDrug.itemName}...");
+
+        float elapsed = 0f;
+        bool cancelled = false;
+        while (elapsed < saleDuration)
+        {
+            // Annulation si le joueur s'éloigne (le trigger le déclenche via OnTriggerExit du PlayerController,
+            // mais on vérifie aussi ici la distance en sécurité si le collider est grand)
+            if (pc == null || Vector3.Distance(pc.transform.position, transform.position) > 6f)
+            {
+                cancelled = true;
+                break;
+            }
+            elapsed += Time.deltaTime;
+            if (UIManager.Instance != null) UIManager.Instance.UpdateActionProgress(elapsed / saleDuration);
+            yield return null;
+        }
+
+        if (UIManager.Instance != null) UIManager.Instance.HideActionProgress();
+        if (pc != null) pc.isDoingQTE = false;
+        isSelling = false;
+
+        if (cancelled)
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Vente annulée.");
+            if (client != null) client.OnSaleStarted(); // relance l'attente normale (annule l'état "en cours")
+            yield break;
+        }
+
+        // --- CORRECTION DU BUG SIGNALÉ : on revérifie le stock RÉEL ici, juste avant de conclure.
+        // Sans cette seconde vérification, négocier avec 2 clients en même temps (le temps que les 2
+        // barres se remplissent en parallèle) permettait aux deux ventes de "réussir" alors qu'un seul
+        // pochon existait réellement — chacune se basait sur le contrôle initial, jamais remis à jour.
+        int actuallyOwned = (InventoryManager.Instance != null) ? InventoryManager.Instance.GetTotalItemAmount(desiredDrug) : 0;
+        int qty = Mathf.Min(requestedQty, actuallyOwned);
+
+        if (qty <= 0)
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Un autre client vous a pris vos dernières doses entre-temps !");
+            if (client != null) client.OnSaleResolved(false);
+            yield break;
+        }
+
+        bool clientRefuses = Random.Range(0, 100) < saleFailChancePercent;
+
+        if (clientRefuses)
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Le client se méfie et appelle les flics !");
+            if (GameManager.Instance != null) GameManager.Instance.ReportCrime(15);
+            if (client != null) client.OnSaleResolved(false);
+        }
+        else
+        {
+            InventoryManager.Instance.RemoveItem(desiredDrug, qty);
+
+            // Prix unitaire basé sur la valeur "marché noir" déjà définie sur l'objet (ItemData.valueInBlackMarket).
+            // saleReward sert de secours si cette valeur n'a pas été configurée sur l'objet (= 0).
+            int unitPrice = (desiredDrug.valueInBlackMarket > 0) ? desiredDrug.valueInBlackMarket : saleReward;
+            int totalReward = unitPrice * qty;
+            bool paid = (GameManager.Instance != null) && GameManager.Instance.AddDirtyMoney(totalReward);
+
+            if (!paid && UIManager.Instance != null)
+            {
+                UIManager.Instance.ShowNotification("Vente faite, mais impossible d'encaisser (inventaire plein) !");
+            }
+            else if (UIManager.Instance != null)
+            {
+                UIManager.Instance.ShowNotification($"Vente réussie : {qty}x {desiredDrug.itemName} (+{totalReward}$ sale)");
+            }
+
+            if (client != null) client.OnSaleResolved(true);
         }
     }
 

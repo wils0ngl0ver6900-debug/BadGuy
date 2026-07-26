@@ -131,75 +131,83 @@ public class PlayerController : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.E))
         {
-            ItemData equippedItem = null;
-            if (HotbarManager.Instance != null)
+            // --- CORRECTION : l'interaction (PNJ, ATM, boutique...) passe désormais AVANT la
+            // consommation d'un objet équipé. Avant ce changement, avoir une drogue équipée en
+            // s'approchant d'un Interactable la faisait consommer sur soi au lieu de déclencher
+            // l'interaction — bloquant notamment toute vente de drogue à un PNJ, puisqu'il faut
+            // justement avoir la drogue "en main" pour s'en approcher.
+            if (currentInteractable != null)
             {
-                equippedItem = HotbarManager.Instance.GetEquippedItem();
+                currentInteractable.Interact();
             }
-
-            if (equippedItem != null && equippedItem.isConsumable)
+            else
             {
-                bool itemHasBeenUsed = false;
-
-                if (equippedItem.isDrugWithComedown)
+                ItemData equippedItem = null;
+                if (HotbarManager.Instance != null)
                 {
-                    if (!isSpeedBoosted && !isInComedown && !isTimeSlowed)
-                    {
-                        string itemNameLower = equippedItem.itemName.ToLower();
+                    equippedItem = HotbarManager.Instance.GetEquippedItem();
+                }
 
-                        if (itemNameLower.Contains("weed"))
+                if (equippedItem != null && equippedItem.isConsumable)
+                {
+                    bool itemHasBeenUsed = false;
+
+                    if (equippedItem.isDrugWithComedown)
+                    {
+                        if (!isSpeedBoosted && !isInComedown && !isTimeSlowed)
                         {
-                            StartCoroutine(WeedEffectRoutine());
-                        }
-                        else if (itemNameLower.Contains("héro") || itemNameLower.Contains("hero"))
-                        {
-                            StartCoroutine(HeroinEffectRoutine(equippedItem));
+                            string itemNameLower = equippedItem.itemName.ToLower();
+
+                            if (itemNameLower.Contains("weed"))
+                            {
+                                StartCoroutine(WeedEffectRoutine());
+                            }
+                            else if (itemNameLower.Contains("héro") || itemNameLower.Contains("hero"))
+                            {
+                                StartCoroutine(HeroinEffectRoutine(equippedItem));
+                            }
+                            else
+                            {
+                                StartCoroutine(DrugDoubleEffectRoutine(equippedItem));
+                            }
+
+                            itemHasBeenUsed = true;
                         }
                         else
                         {
-                            StartCoroutine(DrugDoubleEffectRoutine(equippedItem));
+                            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Votre corps ne supporterait pas une dose supplémentaire !");
                         }
-
-                        itemHasBeenUsed = true;
                     }
                     else
                     {
-                        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Votre corps ne supporterait pas une dose supplémentaire !");
-                    }
-                }
-                else
-                {
-                    if (equippedItem.healAmount > 0)
-                    {
-                        if (currentHealth < maxHealth)
+                        if (equippedItem.healAmount > 0)
                         {
-                            Heal(equippedItem.healAmount);
-                            itemHasBeenUsed = true;
+                            if (currentHealth < maxHealth)
+                            {
+                                Heal(equippedItem.healAmount);
+                                itemHasBeenUsed = true;
+                            }
+                            else if (equippedItem.speedBoostMultiplier == 0)
+                            {
+                                if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Santé déjà au maximum !");
+                            }
                         }
-                        else if (equippedItem.speedBoostMultiplier == 0)
+
+                        if (equippedItem.speedBoostMultiplier > 0)
                         {
-                            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Santé déjà au maximum !");
+                            if (!isSpeedBoosted && !isInComedown)
+                            {
+                                StartCoroutine(SimpleSpeedBoostRoutine(equippedItem.speedBoostMultiplier, equippedItem.buffDuration));
+                                itemHasBeenUsed = true;
+                            }
                         }
                     }
 
-                    if (equippedItem.speedBoostMultiplier > 0)
+                    if (itemHasBeenUsed)
                     {
-                        if (!isSpeedBoosted && !isInComedown)
-                        {
-                            StartCoroutine(SimpleSpeedBoostRoutine(equippedItem.speedBoostMultiplier, equippedItem.buffDuration));
-                            itemHasBeenUsed = true;
-                        }
+                        HotbarManager.Instance.ConsumeEquippedItem();
                     }
                 }
-
-                if (itemHasBeenUsed)
-                {
-                    HotbarManager.Instance.ConsumeEquippedItem();
-                }
-            }
-            else if (currentInteractable != null)
-            {
-                currentInteractable.Interact();
             }
         }
     }
