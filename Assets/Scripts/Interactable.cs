@@ -33,6 +33,8 @@ public class Interactable : MonoBehaviour
     [Range(0, 100)] public int saleFailChancePercent = 15;
     public int saleReward = 150;                   // Prix unitaire de secours SI desiredDrug.valueInBlackMarket == 0
     private bool isSelling = false;
+    private bool hasBeenResolved = false;          // Empêche de revendre au même PNJ une fois la vente conclue (succès, refus, ou stock épuisé)
+    private bool hasBeenServed = false;            // Une fois vrai, ce PNJ précis ne peut plus être resollicité (évite de vendre 2x pendant qu'il s'en va)
 
     public virtual void Interact()
     {
@@ -105,7 +107,9 @@ public class Interactable : MonoBehaviour
                 if (WeedLabManager.Instance != null) WeedLabManager.Instance.OpenLab();
                 break;
             case ActionType.SellDrugs:
-                if (!isSelling) StartCoroutine(SellDrugRoutine());
+                TargetHealth th = GetComponent<TargetHealth>();
+                if (th != null && th.isDead) break; // PNJ déjà mort, plus rien à vendre
+                if (!isSelling && !hasBeenResolved) StartCoroutine(SellDrugRoutine());
                 break;
         }
     }
@@ -240,12 +244,14 @@ public class Interactable : MonoBehaviour
 
         if (qty <= 0)
         {
+            hasBeenResolved = true;
             if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Un autre client vous a pris vos dernières doses entre-temps !");
             if (client != null) client.OnSaleResolved(false);
             yield break;
         }
 
         bool clientRefuses = Random.Range(0, 100) < saleFailChancePercent;
+        hasBeenResolved = true;
 
         if (clientRefuses)
         {

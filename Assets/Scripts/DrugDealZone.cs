@@ -34,9 +34,12 @@ public class DrugDealZone : MonoBehaviour
     public int saleReward = 150;
 
     private readonly List<GameObject> activeClients = new List<GameObject>();
+    private Camera mainCam;
+    private const int MAX_SPAWN_ATTEMPTS = 10;
 
     void Start()
     {
+        mainCam = Camera.main;
         StartCoroutine(SpawnLoop());
     }
 
@@ -52,16 +55,40 @@ public class DrugDealZone : MonoBehaviour
         }
     }
 
+    // Essaie plusieurs points dans la zone et ne retient que ceux hors du champ de la caméra
+    // (même technique que PoliceManager pour les renforts : WorldToViewportPoint + marge).
+    // Si aucun point hors champ n'est trouvé (le joueur couvre toute la zone du regard),
+    // on ne spawn pas cette fois-ci — le SpawnLoop retentera au prochain intervalle.
+    private bool TryFindOffscreenSpawnPoint(out Vector3 result)
+    {
+        result = transform.position;
+        if (mainCam == null) mainCam = Camera.main;
+
+        for (int attempt = 0; attempt < MAX_SPAWN_ATTEMPTS; attempt++)
+        {
+            Vector2 randomCircle = Random.insideUnitCircle * zoneRadius;
+            Vector3 candidate = transform.position + new Vector3(randomCircle.x, 0f, randomCircle.y);
+
+            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, zoneRadius + 2f, NavMesh.AllAreas))
+                continue;
+
+            if (mainCam != null)
+            {
+                Vector3 viewPos = mainCam.WorldToViewportPoint(hit.position);
+                bool isOffScreen = viewPos.x < -0.1f || viewPos.x > 1.1f || viewPos.y < -0.1f || viewPos.y > 1.1f || viewPos.z < 0;
+                if (!isOffScreen) continue; // Visible par le joueur : on retente un autre point
+            }
+
+            result = hit.position;
+            return true;
+        }
+
+        return false;
+    }
+
     private void SpawnClient()
     {
-        Vector3 spawnPos = transform.position;
-        Vector2 randomCircle = Random.insideUnitCircle * zoneRadius;
-        Vector3 candidate = transform.position + new Vector3(randomCircle.x, 0f, randomCircle.y);
-
-        if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, zoneRadius + 2f, NavMesh.AllAreas))
-        {
-            spawnPos = hit.position;
-        }
+        if (!TryFindOffscreenSpawnPoint(out Vector3 spawnPos)) return;
 
         GameObject clientObj = Instantiate(clientPrefab, spawnPos, Quaternion.identity);
         activeClients.Add(clientObj);

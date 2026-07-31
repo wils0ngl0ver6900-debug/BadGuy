@@ -2,13 +2,6 @@ using UnityEngine;
 using UnityEngine.AI;
 
 // Comportement léger du PNJ "client" qui attend dans une DrugDealZone.
-// Volontairement séparé de NPCBrain (726 lignes, rôle Policier/Gang/Civil déjà complexe) :
-// ce PNJ n'a besoin ni de vision, ni de fuite face à la police, ni de combat — juste
-// d'attendre dans une petite zone, de se faire servir, puis de partir. Le coupler à
-// NPCBrain aurait ajouté de la complexité et du risque pour un besoin très ciblé.
-//
-// Doit être placé sur le même GameObject qu'un Interactable (type = SellDrugs) et un
-// NavMeshAgent + un Collider (isTrigger = true) pour être détectable par PlayerController.
 [RequireComponent(typeof(NavMeshAgent))]
 public class DrugClientNPC : MonoBehaviour
 {
@@ -19,6 +12,8 @@ public class DrugClientNPC : MonoBehaviour
     public float wanderIdleTimeMax = 6f;
 
     private NavMeshAgent agent;
+    private TargetHealth targetHealth;
+    private Animator anim; // <-- NOUVEAU : On déclare l'Animator
     private ClientState state = ClientState.Attente;
 
     private Vector3 zoneCenter;
@@ -28,14 +23,15 @@ public class DrugClientNPC : MonoBehaviour
 
     private float nextWanderTime;
     private float leaveTimeoutTimer;
-    private const float LEAVE_TIMEOUT = 20f; // Sécurité : si le NPC reste coincé, on le détruit quand même
+    private const float LEAVE_TIMEOUT = 20f;
 
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
+        targetHealth = GetComponent<TargetHealth>();
+        anim = GetComponentInChildren<Animator>(); // <-- NOUVEAU : On récupère l'Animator
     }
 
-    // Appelé par DrugDealZone juste après Instantiate()
     public void Initialize(Vector3 center, float radius, Transform exit, DrugDealZone zone)
     {
         zoneCenter = center;
@@ -47,6 +43,17 @@ public class DrugClientNPC : MonoBehaviour
 
     void Update()
     {
+        if (targetHealth != null && targetHealth.isDead) return;
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
+
+        // --- NOUVEAU : On transmet la vitesse de l'Agent à l'Animator ---
+        if (anim != null)
+        {
+            // agent.velocity.magnitude renvoie la vitesse actuelle (ex: 0 à l'arrêt, 3.5 en marchant)
+            anim.SetFloat("Speed", agent.velocity.magnitude);
+        }
+        // ----------------------------------------------------------------
+
         switch (state)
         {
             case ClientState.Attente:
@@ -61,19 +68,19 @@ public class DrugClientNPC : MonoBehaviour
                 bool arrived = !agent.pathPending && agent.remainingDistance < 1f;
                 if (arrived || leaveTimeoutTimer <= 0f)
                 {
-                    if (parentZone != null) parentZone.NotifyClientLeft(gameObject);
                     Destroy(gameObject);
                 }
                 break;
 
             case ClientState.EnCoursDeService:
-                // Immobile, ne fait rien de spécial ici — géré par Interactable.SellDrugRoutine()
                 break;
         }
     }
 
     private void PickNewWanderTarget()
     {
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
+
         Vector2 randomCircle = Random.insideUnitCircle * zoneRadius;
         Vector3 candidate = zoneCenter + new Vector3(randomCircle.x, 0f, randomCircle.y);
 
@@ -84,18 +91,21 @@ public class DrugClientNPC : MonoBehaviour
         nextWanderTime = Time.time + Random.Range(wanderIdleTimeMin, wanderIdleTimeMax);
     }
 
-    // --- Appelé par Interactable.SellDrugRoutine() ---
-
     public void OnSaleStarted()
     {
+        if (targetHealth != null && targetHealth.isDead) return;
         state = ClientState.EnCoursDeService;
-        agent.ResetPath();
+        if (agent != null && agent.enabled && agent.isOnNavMesh) agent.ResetPath();
     }
 
     public void OnSaleResolved(bool success)
     {
+        if (targetHealth != null && targetHealth.isDead) return;
+
         state = ClientState.Depart;
         leaveTimeoutTimer = LEAVE_TIMEOUT;
+
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 
         Vector3 destination;
         if (exitPoint != null)
@@ -104,7 +114,6 @@ public class DrugClientNPC : MonoBehaviour
         }
         else
         {
-            // Pas de point de sortie assigné : on part loin dans une direction aléatoire hors zone
             Vector2 dir = Random.insideUnitCircle.normalized * (zoneRadius + 15f);
             destination = zoneCenter + new Vector3(dir.x, 0f, dir.y);
         }
@@ -114,7 +123,11 @@ public class DrugClientNPC : MonoBehaviour
             agent.SetDestination(hit.position);
         }
 
-        // Si la vente a échoué (client méfiant qui appelle les flics), on accélère un peu son départ
         if (!success) agent.speed *= 1.6f;
+    }
+
+    void OnDestroy()
+    {
+        if (parentZone != null) parentZone.NotifyClientLeft(gameObject);
     }
 }

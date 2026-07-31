@@ -42066,9 +42066,9 @@ MonoBehaviour:
   clientPrefab: {fileID: 6512716062819704709, guid: 5228f14b4053fd642bef85ff81e49f24, type: 3}
   exitPoint: {fileID: 0}
   zoneRadius: 16.82
-  maxClients: 3
-  minSpawnDelay: 8
-  maxSpawnDelay: 20
+  maxClients: 20
+  minSpawnDelay: 4
+  maxSpawnDelay: 6
   saleDuration: 4
   saleFailChancePercent: 15
   saleReward: 150
