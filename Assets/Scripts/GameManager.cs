@@ -230,6 +230,19 @@ public class GameManager : MonoBehaviour
     // pas en conflit avec les Rigidbody des os du ragdoll, qui eux prennent le relais visuellement.
     private void EnablePlayerRagdoll(GameObject player)
     {
+        // Vérification décisive : y a-t-il vraiment un collider de sol sous les pieds à cet
+        // endroit ? Si ce raycast ne touche rien, ce n'est pas un problème de Joints/calques —
+        // il n'y a simplement aucun collider physique de sol ici (le joueur pourrait ne tenir
+        // debout que grâce à autre chose, ex: contrainte de NavMesh ou logique différente).
+        if (Physics.Raycast(player.transform.position + Vector3.up * 0.5f, Vector3.down, out RaycastHit groundHit, 10f))
+        {
+            Debug.Log($"[GameManager] Sol détecté sous le joueur : '{groundHit.collider.gameObject.name}' à {groundHit.distance:F2}m en dessous, calque : {LayerMask.LayerToName(groundHit.collider.gameObject.layer)}");
+        }
+        else
+        {
+            Debug.LogWarning("[GameManager] AUCUN collider détecté sous le joueur sur 10m ! Ce n'est pas un souci de ragdoll — il n'y a simplement rien à percuter ici.");
+        }
+
         Animator anim = player.GetComponentInChildren<Animator>();
         if (anim != null) anim.enabled = false;
 
@@ -263,6 +276,56 @@ public class GameManager : MonoBehaviour
         }
         // NOTE : l'impulsion initiale (AddForce) a été retirée — sur un ragdoll déjà instable,
         // elle ne faisait qu'ajouter du carburant à l'explosion plutôt qu'un vrai "coup de recul".
+
+        StartCoroutine(RagdollSafetyNet(player, player.transform.position.y));
+    }
+
+    // Filet de sécurité : si un os tombe anormalement bas (chute infinie, quelle qu'en soit
+    // la cause exacte), on le rattrape au lieu de laisser le joueur "disparaître" pour de bon.
+    // Inverse exact d'EnablePlayerRagdoll — rend le contrôle à l'Animator et redésactive la
+    // physique sur les os, sinon le perso reste en ragdoll indéfiniment après réapparition.
+    private void DisablePlayerRagdoll(GameObject player)
+    {
+        Animator anim = player.GetComponentInChildren<Animator>();
+        if (anim != null) anim.enabled = true;
+
+        Rigidbody rootRb = player.GetComponent<Rigidbody>();
+        if (rootRb != null) rootRb.isKinematic = false;
+
+        Collider mainCollider = player.GetComponent<Collider>();
+        if (mainCollider != null) mainCollider.enabled = true;
+
+        Rigidbody[] rbs = player.GetComponentsInChildren<Rigidbody>();
+        foreach (Rigidbody rb in rbs)
+        {
+            if (rb.gameObject == player) continue;
+            rb.isKinematic = true; // L'Animator reprend la main sur les os, plus la physique
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+        }
+    }
+
+    private IEnumerator RagdollSafetyNet(GameObject player, float startY)
+    {
+        float elapsed = 0f;
+        while (elapsed < 6f)
+        {
+            yield return new WaitForSeconds(0.05f); // Réduit de 0.2s à 0.05s : le passage sous la carte devient imperceptible
+            elapsed += 0.05f;
+            if (player == null) yield break;
+
+            Rigidbody[] rbs = player.GetComponentsInChildren<Rigidbody>();
+            foreach (Rigidbody rb in rbs)
+            {
+                if (rb.gameObject == player) continue;
+                if (rb.position.y < startY - 1f)
+                {
+                    rb.linearVelocity = Vector3.zero;
+                    rb.angularVelocity = Vector3.zero;
+                    rb.position = new Vector3(rb.position.x, startY + 0.2f, rb.position.z);
+                }
+            }
+        }
     }
 
     private IEnumerator DefeatSequence(bool isBusted)
@@ -392,6 +455,8 @@ public class GameManager : MonoBehaviour
 
             Rigidbody playerRb = pc.GetComponent<Rigidbody>();
             if (playerRb != null) { playerRb.linearVelocity = Vector3.zero; playerRb.angularVelocity = Vector3.zero; }
+
+            DisablePlayerRagdoll(pc.gameObject);
 
             foreach (Transform child in pc.transform) child.gameObject.SetActive(true);
             foreach (Renderer r in pc.GetComponentsInChildren<Renderer>(true)) r.enabled = true;

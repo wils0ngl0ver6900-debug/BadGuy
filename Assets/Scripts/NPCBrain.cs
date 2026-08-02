@@ -70,6 +70,16 @@ public class NPCBrain : MonoBehaviour
     private float searchTimer = 0f;
     private Vector3 searchCenter;
 
+    [Header("Recherche (GTA Style) 🔍")]
+    [Tooltip("Au-delà de cette durée sans retrouver le joueur, le PNJ abandonne et repart en patrouille.")]
+    public float maxSearchDuration = 18f;
+    [Tooltip("Rayon de fouille au début de la recherche.")]
+    public float searchRadiusStart = 15f;
+    [Tooltip("Rayon de fouille en fin de recherche (se resserre avec le temps, comme dans GTA).")]
+    public float searchRadiusEnd = 6f;
+    [Tooltip("Distance à laquelle un autre flic à pied est alerté quand celui-ci se fait attaquer.")]
+    public float backupAlertRadius = 25f;
+
     void Awake()
     {
         GameObject p = GameObject.FindGameObjectWithTag("Player");
@@ -556,6 +566,14 @@ public class NPCBrain : MonoBehaviour
         agent.stoppingDistance = 0f;
         searchTimer += Time.deltaTime;
 
+        // Abandon après un certain temps sans retrouver le joueur — avant, ce timer était
+        // suivi mais jamais utilisé, donc un PNJ en Recherche ne renonçait JAMAIS de lui-même.
+        if (searchTimer > maxSearchDuration)
+        {
+            ChangeState(AIState.Patrouille);
+            return;
+        }
+
         // On utilise la dernière position connue donnée par le système de police global
         if (PoliceManager.Instance != null)
         {
@@ -566,11 +584,16 @@ public class NPCBrain : MonoBehaviour
             searchCenter = player.position;
         }
 
+        // Le rayon de fouille se resserre à mesure que la recherche avance (façon GTA :
+        // large zone au début, puis fouille plus précise autour du dernier point connu).
+        float searchProgress = Mathf.Clamp01(searchTimer / maxSearchDuration);
+        float currentRadius = Mathf.Lerp(searchRadiusStart, searchRadiusEnd, searchProgress);
+
         // Si l'agent a atteint son point, il choisit un nouveau point proche pour continuer la fouille
         if (!agent.pathPending && agent.remainingDistance < 1.5f)
         {
-            Vector3 randomDir = Random.insideUnitSphere * 15f + searchCenter;
-            if (NavMesh.SamplePosition(randomDir, out NavMeshHit hit, 15f, NavMesh.AllAreas))
+            Vector3 randomDir = Random.insideUnitSphere * currentRadius + searchCenter;
+            if (NavMesh.SamplePosition(randomDir, out NavMeshHit hit, currentRadius, NavMesh.AllAreas))
             {
                 agent.SetDestination(hit.position);
             }
@@ -727,6 +750,53 @@ public class NPCBrain : MonoBehaviour
 
         ChangeState(AIState.Panique);
         if (locomotion == Locomotion.Pieton && agent != null) FleePedestrian();
+    }
+
+    // Remplace ForcePanic() pour les cas où on connaît la position exacte de l'attaquant
+    // (on vient d'être touché) — contrairement à l'ancien système, ça fonctionne pour TOUS
+    // les rôles, pas seulement les civils, et utilise la vraie position de l'attaque plutôt
+    // qu'une position globale potentiellement obsolète.
+    public void AlertToAttack(Vector3 attackerPosition)
+    {
+        if (role == NPCRole.Civil)
+        {
+            ForcePanic();
+            return;
+        }
+
+        if (role == NPCRole.Policier)
+        {
+            searchCenter = attackerPosition;
+            ChangeState(AIState.Recherche);
+
+            // L'escouade entière reçoit l'info exacte, pas juste ce PNJ-là — comme un appel radio.
+            if (PoliceManager.Instance != null)
+            {
+                PoliceManager.Instance.ReportPlayerSight(attackerPosition);
+            }
+
+            AlertNearbyPolicier(attackerPosition);
+        }
+    }
+
+    // Un flic attaqué appelle du renfort — les collègues à proximité convergent aussi
+    // vers la même position, plutôt qu'un seul PNJ isolé qui réagit dans son coin.
+    private void AlertNearbyPolicier(Vector3 attackerPosition)
+    {
+        NPCBrain[] allBrains = FindObjectsOfType<NPCBrain>();
+        foreach (NPCBrain brain in allBrains)
+        {
+            if (brain == this || brain == null) continue;
+            if (brain.role != NPCRole.Policier) continue;
+            if (brain.currentState == AIState.Poursuite || brain.currentState == AIState.Combat) continue; // Déjà occupé, on ne le détourne pas
+
+            float dist = Vector3.Distance(brain.transform.position, transform.position);
+            if (dist <= backupAlertRadius)
+            {
+                brain.searchCenter = attackerPosition;
+                brain.ChangeState(AIState.Recherche);
+            }
+        }
     }
 
     private void FleeVehicle()

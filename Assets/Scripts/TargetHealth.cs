@@ -53,7 +53,17 @@ public class TargetHealth : MonoBehaviour
         if (isDead || Time.time < spawnProtectionEndTime) return;
 
         NPCBrain npc = GetComponent<NPCBrain>();
-        if (npc != null) npc.ForcePanic();
+        if (npc != null)
+        {
+            if (attacker != null)
+            {
+                npc.AlertToAttack(attacker.transform.position);
+            }
+            else
+            {
+                npc.ForcePanic();
+            }
+        }
 
         currentHealth -= amount;
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"Touché ! -{amount} PV");
