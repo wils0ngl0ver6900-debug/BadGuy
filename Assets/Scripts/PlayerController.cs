@@ -50,6 +50,44 @@ public class PlayerController : MonoBehaviour
         }
 
         SetupPostProcessing();
+        SetupRagdollColliderIgnores();
+    }
+
+    // Les colliders ajoutés par l'Assistant Ragdoll sur les os (bras, jambes, bassin...)
+    // entrent en collision avec le collider principal ET entre eux en permanence pendant
+    // que le perso est vivant et animé — d'où les tremblements et les poussées quand la
+    // caméra/visée fait tourner le squelette. Il faut leur dire de s'ignorer mutuellement
+    // tant qu'ils ne servent pas encore de vrai ragdoll (géré séparément par GameManager
+    // à la mort, qui active la physique dessus — l'ignore-collision configuré ici reste
+    // actif même à ce moment-là, ce qui est correct : les os du ragdoll n'ont pas besoin
+    // de se cogner contre l'ancien collider principal, désactivé de toute façon à la mort).
+    private void SetupRagdollColliderIgnores()
+    {
+        Collider mainCollider = GetComponent<Collider>();
+        Collider[] allColliders = GetComponentsInChildren<Collider>();
+
+        // Force tous les colliders des os sur le MÊME calque que la racine. L'Assistant
+        // Ragdoll crée souvent ses colliders sur un calque par défaut différent de celui
+        // du personnage — s'il ne collisionne pas avec le sol dans la matrice de collision
+        // du projet, les os tombent à travers le monde indéfiniment au lieu de s'arrêter.
+        int rootLayer = gameObject.layer;
+        foreach (Collider col in allColliders)
+        {
+            col.gameObject.layer = rootLayer;
+        }
+
+        for (int i = 0; i < allColliders.Length; i++)
+        {
+            if (mainCollider != null && allColliders[i] != mainCollider)
+            {
+                Physics.IgnoreCollision(mainCollider, allColliders[i], true);
+            }
+
+            for (int j = i + 1; j < allColliders.Length; j++)
+            {
+                Physics.IgnoreCollision(allColliders[i], allColliders[j], true);
+            }
+        }
     }
 
     private void SetupPostProcessing()

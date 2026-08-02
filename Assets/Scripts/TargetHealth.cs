@@ -48,7 +48,7 @@ public class TargetHealth : MonoBehaviour
         DisableRagdoll();
     }
 
-    public void TakeDamage(int amount, GameObject attacker = null)
+    public void TakeDamage(int amount, GameObject attacker = null, bool isMelee = false)
     {
         if (isDead || Time.time < spawnProtectionEndTime) return;
 
@@ -60,25 +60,30 @@ public class TargetHealth : MonoBehaviour
 
         if (currentHealth <= 0)
         {
-            Die(attacker);
+            Die(attacker, isMelee);
         }
         else
         {
             if (attacker != null && attacker.CompareTag("Player") && GameManager.Instance != null)
             {
-                GameManager.Instance.ReportHitOrMurder();
+                GameManager.Instance.ReportHitOrMurder(isMelee);
             }
         }
     }
 
-    void Die(GameObject attacker = null)
+    void Die(GameObject attacker = null, bool isMelee = false)
     {
         isDead = true;
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Cible éliminée !");
 
+        if (isMelee && attacker != null && attacker.CompareTag("Player") && GameManager.Instance != null)
+        {
+            GameManager.Instance.RegisterUnarmedKill();
+        }
+
         if (attacker != null && attacker.CompareTag("Player") && GameManager.Instance != null)
         {
-            GameManager.Instance.ReportHitOrMurder();
+            GameManager.Instance.ReportHitOrMurder(isMelee);
         }
 
         GangObjective gangObj = GetComponent<GangObjective>();
@@ -97,7 +102,35 @@ public class TargetHealth : MonoBehaviour
         SpawnLoot();
         EnableRagdoll();
 
+        StartCoroutine(SpawnBloodPoolDelayed());
+
         Destroy(gameObject, 15f);
+    }
+
+    private IEnumerator SpawnBloodPoolDelayed()
+    {
+        yield return new WaitForSeconds(1.5f); // Laisse le ragdoll retomber avant de placer la flaque
+
+        // Le Transform racine ne suit PAS le ragdoll (seuls les os/Rigidbody enfants bougent
+        // physiquement) — il reste à l'endroit où le PNJ marchait à sa mort. On calcule donc
+        // la position réelle du corps en moyennant les os du ragdoll, sinon la flaque apparaît
+        // loin du cadavre.
+        Vector3 corpsePosition = transform.position;
+        Rigidbody[] ragdollBones = GetComponentsInChildren<Rigidbody>();
+        if (ragdollBones.Length > 0)
+        {
+            Vector3 sum = Vector3.zero;
+            int count = 0;
+            foreach (Rigidbody rb in ragdollBones)
+            {
+                if (rb.gameObject == this.gameObject) continue;
+                sum += rb.position;
+                count++;
+            }
+            if (count > 0) corpsePosition = sum / count;
+        }
+
+        VFXHelper.SpawnGrowingBloodPool(corpsePosition, transform);
     }
 
     private void DisableRagdoll()

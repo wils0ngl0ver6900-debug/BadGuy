@@ -18,6 +18,8 @@ MonoBehaviour:
   buyPrice: 15000
   valueInBlackMarket: 200
   isIllegal: 1
+  isStackable: 0
+  maxStackSize: 99
   isEquippable: 1
   isConsumable: 0
   healAmount: 0
@@ -37,5 +39,5 @@ MonoBehaviour:
   damage: 40
   maxAmmo: 15
   fireRate: 0.5
-  weaponPrefab: {fileID: 919132149155446097, guid: 45018c3cf72de1344adc1cc880aeb68d, type: 3}
+  weaponPrefab: {fileID: 2384444801022405482, guid: b52bed4c0775dc441b8e0451965ad5de, type: 3}
   bulletPrefab: {fileID: 391651947737662775, guid: f9d1872e85697a44e97ba3e4503c04a2, type: 3}

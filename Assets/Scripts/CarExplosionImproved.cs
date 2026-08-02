@@ -17,6 +17,9 @@ public class CarExplosionImproved : MonoBehaviour
     [Tooltip("Glissez ici votre Prefab BigExplosion !")]
     public GameObject bigExplosionPrefab;
 
+    [Tooltip("Optionnel : vrais morceaux de carrosserie/pièces détachées. Si vide, utilise des primitives (Cube/Sphère/Cylindre) comme avant.")]
+    public GameObject[] debrisPrefabs;
+
     private CarController car;
     private CarInteraction carInteraction;
     private bool isTriggered = false;
@@ -89,6 +92,7 @@ public class CarExplosionImproved : MonoBehaviour
         }
 
         SetupExplosionLight();
+        VFXHelper.SpawnSparkAndSmokeBurst(transform.position);
 
         Collider[] colliders = Physics.OverlapSphere(transform.position, explosionRadius);
         foreach (Collider hit in colliders)
@@ -131,57 +135,98 @@ public class CarExplosionImproved : MonoBehaviour
 
         for (int i = 0; i < debrisCount; i++)
         {
-            GameObject debris = GameObject.CreatePrimitive(Random.value > 0.5f ? PrimitiveType.Cube : PrimitiveType.Sphere);
-            debris.transform.position = transform.position + Vector3.up * 1.5f + Random.insideUnitSphere * 1f;
-
-            debris.transform.localScale = new Vector3(
-                Random.Range(0.2f, 1.0f),
-                Random.Range(0.05f, 0.3f),
-                Random.Range(0.3f, 1.5f)
-            );
-
-            Renderer rend = debris.GetComponent<Renderer>();
-
-            Material mat = null;
-            if (debrisMaterialTemplate != null)
+            if (debrisPrefabs != null && debrisPrefabs.Length > 0)
             {
-                mat = new Material(debrisMaterialTemplate);
-                mat.SetColor("_EmissiveColor", new Color(1f, 0.3f, 0f) * 15f);
-                rend.material = mat;
-            }
-
-            Rigidbody rb = debris.AddComponent<Rigidbody>();
-            rb.mass = 25f;
-            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-
-            rb.AddExplosionForce(explosionForce * 0.8f, transform.position - Vector3.up * 0.5f, explosionRadius, 1.5f, ForceMode.Impulse);
-            rb.AddTorque(Random.insideUnitSphere * 500f, ForceMode.Impulse);
-
-            if (mat != null && GameManager.Instance != null)
-            {
-                GameManager.Instance.StartCoroutine(DebrisCoolingAndCleanup(debris, mat, Random.Range(3.5f, 5f)));
+                SpawnRealDebrisPiece();
             }
             else
             {
-                Destroy(debris, Random.Range(3.5f, 5f));
+                SpawnPrimitiveDebrisPiece();
             }
         }
     }
 
-    private IEnumerator DebrisCoolingAndCleanup(GameObject debris, Material mat, float lifeTime)
+    // Utilise de vrais morceaux (si assignés dans l'Inspector) — bien plus "pro" visuellement
+    // qu'une primitive, à condition d'avoir des meshes de débris à disposition.
+    private void SpawnRealDebrisPiece()
+    {
+        GameObject prefab = debrisPrefabs[Random.Range(0, debrisPrefabs.Length)];
+        GameObject debris = Instantiate(prefab, transform.position + Vector3.up * 1.5f + Random.insideUnitSphere * 1f, Random.rotation);
+
+        Rigidbody rb = debris.GetComponent<Rigidbody>();
+        if (rb == null) rb = debris.AddComponent<Rigidbody>();
+        rb.mass = Random.Range(15f, 30f);
+        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+
+        rb.AddExplosionForce(explosionForce * 0.8f, transform.position - Vector3.up * 0.5f, explosionRadius, 1.5f, ForceMode.Impulse);
+        rb.AddTorque(Random.insideUnitSphere * 500f, ForceMode.Impulse);
+
+        Destroy(debris, Random.Range(8f, 12f)); // Les vrais morceaux restent plus longtemps au sol (plus discrets qu'un cube qui brille)
+    }
+
+    // Solution de secours si aucun vrai morceau n'est fourni : primitives Unity, mais avec
+    // plus de variété (ajout du Cylindre) et sans créer 15 instances de Material séparées
+    // à chaque explosion (MaterialPropertyBlock à la place — beaucoup plus léger).
+    private void SpawnPrimitiveDebrisPiece()
+    {
+        PrimitiveType[] shapes = { PrimitiveType.Cube, PrimitiveType.Sphere, PrimitiveType.Cylinder };
+        GameObject debris = GameObject.CreatePrimitive(shapes[Random.Range(0, shapes.Length)]);
+        debris.transform.position = transform.position + Vector3.up * 1.5f + Random.insideUnitSphere * 1f;
+        debris.transform.rotation = Random.rotation;
+
+        debris.transform.localScale = new Vector3(
+            Random.Range(0.2f, 1.0f),
+            Random.Range(0.05f, 0.3f),
+            Random.Range(0.3f, 1.5f)
+        );
+
+        Renderer rend = debris.GetComponent<Renderer>();
+        Color emissionColor = new Color(1f, 0.3f, 0f) * 15f;
+
+        MaterialPropertyBlock block = new MaterialPropertyBlock();
+        if (debrisMaterialTemplate != null)
+        {
+            rend.sharedMaterial = debrisMaterialTemplate;
+        }
+        rend.GetPropertyBlock(block);
+        block.SetColor("_EmissiveColor", emissionColor);
+        rend.SetPropertyBlock(block);
+
+        Rigidbody rb = debris.AddComponent<Rigidbody>();
+        rb.mass = 25f;
+        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+
+        rb.AddExplosionForce(explosionForce * 0.8f, transform.position - Vector3.up * 0.5f, explosionRadius, 1.5f, ForceMode.Impulse);
+        rb.AddTorque(Random.insideUnitSphere * 500f, ForceMode.Impulse);
+
+        if (debrisMaterialTemplate != null && GameManager.Instance != null)
+        {
+            GameManager.Instance.StartCoroutine(DebrisCoolingAndCleanup(debris, Random.Range(3.5f, 5f)));
+        }
+        else
+        {
+            Destroy(debris, Random.Range(3.5f, 5f));
+        }
+    }
+
+    private IEnumerator DebrisCoolingAndCleanup(GameObject debris, float lifeTime)
     {
         float elapsed = 0f;
         Color startEmission = new Color(1f, 0.3f, 0f) * 15f;
         Color endEmission = Color.black;
+        Renderer rend = debris != null ? debris.GetComponent<Renderer>() : null;
+        MaterialPropertyBlock block = new MaterialPropertyBlock();
 
         while (elapsed < lifeTime && debris != null)
         {
             elapsed += Time.deltaTime;
             float normalizedTime = elapsed / lifeTime;
 
-            if (mat != null)
+            if (rend != null)
             {
-                mat.SetColor("_EmissiveColor", Color.Lerp(startEmission, endEmission, normalizedTime));
+                rend.GetPropertyBlock(block);
+                block.SetColor("_EmissiveColor", Color.Lerp(startEmission, endEmission, normalizedTime));
+                rend.SetPropertyBlock(block);
             }
 
             yield return null;

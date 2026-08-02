@@ -19,6 +19,11 @@ public class GameManager : MonoBehaviour
     public int crimePoints = 0;
     [HideInInspector] public bool isBeingSeen { get; private set; }
 
+    [Header("Bagarre à mains nues 👊")]
+    [Tooltip("Nombre de morts à mains nues nécessaires pour qu'une bagarre puisse dépasser 2 étoiles.")]
+    public int unarmedKillsNeededToEscalate = 2;
+    public int unarmedKills = 0;
+
     [Header("Points de Réapparition (Spawns) 🏥/🚓")]
     public Transform hospitalSpawnPoint;
     public Transform policeStationSpawnPoint;
@@ -123,9 +128,35 @@ public class GameManager : MonoBehaviour
         UpdateWantedLevel();
     }
 
-    public void ReportHitOrMurder()
+    // Une bagarre à mains nues ne doit pas escalader comme une fusillade : tant que le
+    // joueur n'a pas tué assez de monde à mains nues (2 par défaut), les coups de poing
+    // ne font simplement plus monter la recherche une fois 2 étoiles atteintes — ni au-delà,
+    // ni en dessous (si le joueur est déjà à un niveau supérieur à cause d'armes à feu, on n'y touche pas).
+    public void ReportMeleeCrime(int points)
+    {
+        if (unarmedKills < unarmedKillsNeededToEscalate && wantedLevel >= 2)
+        {
+            return;
+        }
+        ReportCrime(points);
+    }
+
+    public void RegisterUnarmedKill()
+    {
+        unarmedKills++;
+    }
+
+    public void ReportHitOrMurder(bool isMelee = false)
     {
         if (Time.time - lastHitReportTime < 1.0f) return;
+
+        // Même plafond que ReportMeleeCrime : un coup à mains nues qui ne tue pas ne doit pas
+        // non plus pousser au-delà de 2 étoiles tant que les 2 morts à mains nues ne sont pas atteintes.
+        if (isMelee && unarmedKills < unarmedKillsNeededToEscalate && wantedLevel >= 2)
+        {
+            return;
+        }
+
         lastHitReportTime = Time.time;
 
         if (wantedLevel < 2) crimePoints = 30;
@@ -193,6 +224,34 @@ public class GameManager : MonoBehaviour
         StartCoroutine(DefeatSequence(false));
     }
 
+    // Même principe que TargetHealth.EnableRagdoll() pour les PNJ, adapté au joueur : contrairement
+    // aux PNJ (déplacés par NavMeshAgent, sans Rigidbody sur la racine), le joueur a son propre
+    // Rigidbody de mouvement sur la racine — il faut le neutraliser (kinematic) pour qu'il n'entre
+    // pas en conflit avec les Rigidbody des os du ragdoll, qui eux prennent le relais visuellement.
+    private void EnablePlayerRagdoll(GameObject player)
+    {
+        Animator anim = player.GetComponentInChildren<Animator>();
+        if (anim != null) anim.enabled = false;
+
+        Rigidbody rootRb = player.GetComponent<Rigidbody>();
+        if (rootRb != null)
+        {
+            rootRb.isKinematic = true; // La capsule de mouvement ne doit plus bouger elle-même
+        }
+
+        Collider mainCollider = player.GetComponent<Collider>();
+        if (mainCollider != null) mainCollider.enabled = false;
+
+        Rigidbody[] rbs = player.GetComponentsInChildren<Rigidbody>();
+        foreach (Rigidbody rb in rbs)
+        {
+            if (rb.gameObject == player) continue; // La racine est déjà gérée au-dessus
+            rb.isKinematic = false;
+            rb.useGravity = true;
+            rb.AddForce(-player.transform.forward * 3f + Vector3.up * 1.5f, ForceMode.Impulse);
+        }
+    }
+
     private IEnumerator DefeatSequence(bool isBusted)
     {
         isDefeated = true;
@@ -209,6 +268,8 @@ public class GameManager : MonoBehaviour
             playerCombat = pc.GetComponent("PlayerCombat") as MonoBehaviour;
             if (playerAim != null) playerAim.enabled = false;
             if (playerCombat != null) playerCombat.enabled = false;
+
+            if (!isBusted) EnablePlayerRagdoll(pc.gameObject);
         }
 
         ColorAdjustments colorAdjustments = null;
@@ -219,7 +280,9 @@ public class GameManager : MonoBehaviour
             if (globalVolume != null && globalVolume.profile != null) globalVolume.profile.TryGet(out colorAdjustments);
         }
 
-        Time.timeScale = 0.25f;
+        // Ralenti moins extrême qu'avant (0.25 écrasait quasiment tout mouvement du ragdoll
+        // pendant les 3 secondes de désaturation — le corps semblait figé au lieu de tomber).
+        Time.timeScale = 0.6f;
         Time.fixedDeltaTime = 0.02f * Time.timeScale;
 
         NPCBrain[] allBrains = FindObjectsOfType<NPCBrain>();

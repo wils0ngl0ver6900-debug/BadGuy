@@ -32,6 +32,18 @@ public class NPCBrain : MonoBehaviour
 
     public Light muzzleFlashLight;
 
+    [Header("Arme visible (identique au joueur) 🔫👐")]
+    [Tooltip("La même ItemData que celle utilisée par le joueur — on réutilise son champ weaponPrefab, pas besoin d'un modèle séparé.")]
+    public ItemData equippedWeapon;
+    [Tooltip("Le Transform de la main sur le squelette de ce PNJ (équivalent du Player_Hand du joueur).")]
+    public Transform weaponHandSocket;
+    [Tooltip("Ajuste ces valeurs dans l'Inspector si l'arme apparaît mal orientée/positionnée dans la main. Valeurs de départ = celles qui fonctionnent déjà pour le joueur.")]
+    public Vector3 weaponPositionOffset = new Vector3(0.18f, -0.07f, -0.35f);
+    public Vector3 weaponRotationOffset = new Vector3(15.95f, 30f, 90f);
+    [Tooltip("Échelle MONDE souhaitée pour l'arme (pas locale) — le code compense automatiquement l'échelle du squelette du PNJ, qui peut différer de celle du joueur.")]
+    public Vector3 weaponScaleOffset = new Vector3(0.055f, 0.015f, 0.04f);
+    private GameObject spawnedWeaponInstance;
+
     private float nextFireTime = 0f;
     private Transform currentTarget;
 
@@ -96,6 +108,32 @@ public class NPCBrain : MonoBehaviour
         }
 
         if (muzzleFlashLight != null) muzzleFlashLight.enabled = false;
+
+        // Fait apparaître la même arme 3D que le joueur (via ItemData.weaponPrefab, le champ
+        // déjà utilisé par HotbarManager) — cachée par défaut, comme l'animation "arme rangée".
+        if (equippedWeapon != null && equippedWeapon.weaponPrefab != null && weaponHandSocket != null)
+        {
+            spawnedWeaponInstance = Instantiate(equippedWeapon.weaponPrefab, weaponHandSocket);
+            spawnedWeaponInstance.transform.localPosition = weaponPositionOffset;
+            spawnedWeaponInstance.transform.localRotation = Quaternion.Euler(weaponRotationOffset);
+
+            // weaponScaleOffset représente l'échelle MONDE voulue, pas locale — on compense
+            // l'échelle du parent (le squelette du PNJ peut être mis à l'échelle très différemment
+            // de celui du joueur, ce qui rendait l'arme minuscule/énorme selon le PNJ utilisé).
+            Vector3 parentLossy = weaponHandSocket.lossyScale;
+            Vector3 safeParentScale = new Vector3(
+                Mathf.Approximately(parentLossy.x, 0f) ? 1f : parentLossy.x,
+                Mathf.Approximately(parentLossy.y, 0f) ? 1f : parentLossy.y,
+                Mathf.Approximately(parentLossy.z, 0f) ? 1f : parentLossy.z
+            );
+            spawnedWeaponInstance.transform.localScale = new Vector3(
+                weaponScaleOffset.x / safeParentScale.x,
+                weaponScaleOffset.y / safeParentScale.y,
+                weaponScaleOffset.z / safeParentScale.z
+            );
+
+            spawnedWeaponInstance.SetActive(false);
+        }
     }
 
     void Start()
@@ -360,6 +398,12 @@ public class NPCBrain : MonoBehaviour
 
         currentState = newState;
 
+        if (spawnedWeaponInstance != null)
+        {
+            bool shouldBeDrawn = (newState == AIState.Combat || newState == AIState.Poursuite);
+            spawnedWeaponInstance.SetActive(shouldBeDrawn);
+        }
+
         if (locomotion == Locomotion.Pieton && agent != null)
         {
             agent.speed = (newState == AIState.Patrouille) ? walkSpeed : runSpeed;
@@ -474,6 +518,7 @@ public class NPCBrain : MonoBehaviour
             }
 
             if (muzzleFlashLight != null) StartCoroutine(FlashMuzzleLight());
+            if (animator != null) animator.SetTrigger("Shoot"); // Calque WeaponLayer, réutilise le clip du joueur
         }
     }
 

@@ -7631,6 +7631,14 @@ PrefabInstance:
       propertyPath: m_Layer
       value: 15
       objectReference: {fileID: 0}
+    - target: {fileID: 5524962357798009172, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
+      propertyPath: m_LODs.Array.data[1].renderers.Array.data[0].renderer
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 5524962357798009172, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
+      propertyPath: m_LODs.Array.data[2].renderers.Array.data[0].renderer
+      value: 
+      objectReference: {fileID: 0}
     - target: {fileID: 7874992977062134172, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
       propertyPath: m_LocalPosition.x
       value: -489
@@ -7672,7 +7680,9 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 5524962357778657700, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
+    - {fileID: 5524962357778657722, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 5cd3b9ed8e5098742902adc3fe484d61, type: 3}
@@ -7813,6 +7823,63 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 233704825}
   m_CullTransparentMesh: 1
+--- !u!1001 &235492379
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -479.4461
+      objectReference: {fileID: 0}
+    - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.00000016230769
+      objectReference: {fileID: 0}
+    - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -82.485504
+      objectReference: {fileID: 0}
+    - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8514994718984807279, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9034368435028163029, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
+      propertyPath: m_Name
+      value: Compactico (1)
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: bc5545e86c7ff9e42ae3817ac25a1a73, type: 3}
 --- !u!1 &235510185
 GameObject:
   m_ObjectHideFlags: 0
@@ -46282,6 +46349,12 @@ MonoBehaviour:
   spawnCooldown: 5
   minSpawnDist: 60
   maxSpawnDist: 150
+  copPedestrianPrefab: {fileID: 0}
+  activeFootCops: []
+  maxFootCopsAllowed: 0
+  footSpawnCooldown: 6
+  minFootSpawnDist: 20
+  maxFootSpawnDist: 50
 --- !u!114 &1403774084
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -76282,3 +76355,4 @@ SceneRoots:
   - {fileID: 1509280190}
   - {fileID: 598192442}
   - {fileID: 1285251139}
+  - {fileID: 235492379}

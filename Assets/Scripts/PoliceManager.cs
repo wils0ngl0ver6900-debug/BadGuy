@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.AI;
 using System.Collections;
 using System.Collections.Generic;
 
@@ -24,6 +25,16 @@ public class PoliceManager : MonoBehaviour
     [Header("Apparition Organique (Hors-Champ) 🗺️")]
     public float minSpawnDist = 60f;
     public float maxSpawnDist = 150f;
+
+    [Header("Renforts à Pied 🚶")]
+    public GameObject copPedestrianPrefab;
+    public List<GameObject> activeFootCops = new List<GameObject>();
+    public int maxFootCopsAllowed = 0;
+    public float footSpawnCooldown = 6f;
+    private float nextFootSpawnTime = 0f;
+    public float minFootSpawnDist = 20f;
+    public float maxFootSpawnDist = 50f;
+    private const int MAX_FOOT_SPAWN_ATTEMPTS = 10;
 
     private Transform player;
     private Camera mainCam;
@@ -63,6 +74,9 @@ public class PoliceManager : MonoBehaviour
         ManageEscape();
         UpdateMaxCops(currentStars);
         ManageReinforcements();
+
+        UpdateMaxFootCops(currentStars);
+        ManageFootReinforcements();
     }
 
     public void ReportPlayerSight(Vector3 pos)
@@ -107,6 +121,22 @@ public class PoliceManager : MonoBehaviour
         }
     }
 
+    // Les flics à pied montent en puissance plus progressivement que les voitures :
+    // à 1-2 étoiles, c'est surtout des voitures qui patrouillent ; à partir de 3, du
+    // monde à pied commence à converger vers ta position.
+    private void UpdateMaxFootCops(int stars)
+    {
+        switch (stars)
+        {
+            case 1: maxFootCopsAllowed = 0; break;
+            case 2: maxFootCopsAllowed = 1; break;
+            case 3: maxFootCopsAllowed = 2; break;
+            case 4: maxFootCopsAllowed = 4; break;
+            case 5: maxFootCopsAllowed = 6; break;
+            default: maxFootCopsAllowed = stars > 5 ? 6 : 0; break;
+        }
+    }
+
     private void ManageReinforcements()
     {
         activeCops.RemoveAll(item => item == null);
@@ -115,6 +145,17 @@ public class PoliceManager : MonoBehaviour
         {
             SpawnCopOrganically();
             nextSpawnTime = Time.time + spawnCooldown;
+        }
+    }
+
+    private void ManageFootReinforcements()
+    {
+        activeFootCops.RemoveAll(item => item == null);
+
+        if (activeFootCops.Count < maxFootCopsAllowed && copPedestrianPrefab != null && Time.time >= nextFootSpawnTime)
+        {
+            SpawnFootCopOrganically();
+            nextFootSpawnTime = Time.time + footSpawnCooldown;
         }
     }
 
@@ -164,6 +205,46 @@ public class PoliceManager : MonoBehaviour
         return bestNode;
     }
 
+    // Contrairement aux voitures (qui suivent le réseau TrafficNode), les flics à pied
+    // apparaissent sur un point du NavMesh, dans un anneau autour du joueur et hors champ
+    // (même vérification WorldToViewportPoint que pour les voitures un peu plus haut).
+    private void SpawnFootCopOrganically()
+    {
+        if (player == null || copPedestrianPrefab == null) return;
+        if (!TryFindOffscreenFootSpawnPoint(out Vector3 spawnPos)) return;
+
+        GameObject cop = Instantiate(copPedestrianPrefab, spawnPos, Quaternion.identity);
+        activeFootCops.Add(cop);
+    }
+
+    private bool TryFindOffscreenFootSpawnPoint(out Vector3 result)
+    {
+        result = player.position;
+        if (mainCam == null) mainCam = Camera.main;
+
+        for (int attempt = 0; attempt < MAX_FOOT_SPAWN_ATTEMPTS; attempt++)
+        {
+            float angle = Random.Range(0f, Mathf.PI * 2f);
+            float dist = Random.Range(minFootSpawnDist, maxFootSpawnDist);
+            Vector3 candidate = player.position + new Vector3(Mathf.Cos(angle) * dist, 0f, Mathf.Sin(angle) * dist);
+
+            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, 10f, NavMesh.AllAreas))
+                continue;
+
+            if (mainCam != null)
+            {
+                Vector3 viewPos = mainCam.WorldToViewportPoint(hit.position);
+                bool isOffScreen = viewPos.x < -0.1f || viewPos.x > 1.1f || viewPos.y < -0.1f || viewPos.y > 1.1f || viewPos.z < 0;
+                if (!isOffScreen) continue;
+            }
+
+            result = hit.position;
+            return true;
+        }
+
+        return false;
+    }
+
     public void DespawnAllCops()
     {
         foreach (GameObject cop in activeCops)
@@ -171,6 +252,15 @@ public class PoliceManager : MonoBehaviour
             if (cop != null) Destroy(cop);
         }
         activeCops.Clear();
+
+        // Les renforts à pied sont des flics "convoqués" pour l'occasion, tout comme les
+        // voitures — ils repartent avec le niveau de recherche. Les Policier PRÉSENTS dans
+        // le monde avant (patrouille de base, non trackés ici) ne sont pas concernés.
+        foreach (GameObject cop in activeFootCops)
+        {
+            if (cop != null) Destroy(cop);
+        }
+        activeFootCops.Clear();
 
         NPCBrain[] allNPCs = FindObjectsOfType<NPCBrain>();
         foreach (NPCBrain npc in allNPCs)
