@@ -248,8 +248,21 @@ public class GameManager : MonoBehaviour
             if (rb.gameObject == player) continue; // La racine est déjà gérée au-dessus
             rb.isKinematic = false;
             rb.useGravity = true;
-            rb.AddForce(-player.transform.forward * 3f + Vector3.up * 1.5f, ForceMode.Impulse);
+
+            // Unity autorise par défaut une vitesse de "dépénétration" très élevée quand des
+            // colliders se chevauchent au moment de l'activation — sur un ragdoll dont les
+            // Joints ne sont pas dans une pose parfaitement neutre, ça peut littéralement
+            // faire "exploser" les os à une vitesse largement supérieure à la gravité seule
+            // (c'est ce qu'on a vu : -102 en 1 seconde, la gravité seule donnerait environ -9.8).
+            // Plafonner ça évite l'explosion.
+            rb.maxDepenetrationVelocity = 2f;
+
+            // Détection continue : évite qu'un os assez rapide traverse le sol en un seul pas
+            // de simulation physique (tunneling) si jamais la vitesse reste élevée malgré tout.
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         }
+        // NOTE : l'impulsion initiale (AddForce) a été retirée — sur un ragdoll déjà instable,
+        // elle ne faisait qu'ajouter du carburant à l'explosion plutôt qu'un vrai "coup de recul".
     }
 
     private IEnumerator DefeatSequence(bool isBusted)

@@ -37564,6 +37564,11 @@ MonoBehaviour:
   fireRate: 0.5
   attackDamage: 15
   muzzleFlashLight: {fileID: 0}
+  equippedWeapon: {fileID: 0}
+  weaponHandSocket: {fileID: 0}
+  weaponPositionOffset: {x: 0, y: 0, z: 0}
+  weaponRotationOffset: {x: 0, y: 0, z: 0}
+  weaponScaleOffset: {x: 0.055, y: 0.015, z: 0.04}
   copPedestrianPrefab: {fileID: 0}
   exitDoors: []
   isSeeingPlayer: 0
@@ -46137,6 +46142,8 @@ MonoBehaviour:
   dirtyMoneyItemDef: {fileID: 11400000, guid: e532503402a095845989ce23b2fce619, type: 2}
   wantedLevel: 0
   crimePoints: 0
+  unarmedKillsNeededToEscalate: 2
+  unarmedKills: 0
   hospitalSpawnPoint: {fileID: 1430368521}
   policeStationSpawnPoint: {fileID: 1674776372}
 --- !u!4 &1403774075
@@ -55460,6 +55467,7 @@ MonoBehaviour:
   explosionDamage: 50
   debrisMaterialTemplate: {fileID: 2100000, guid: 6a08578255b03464b94a01129b64913e, type: 2}
   bigExplosionPrefab: {fileID: 2140037346408830436, guid: 8b82fdbc769ef1c4fb9d4bb20e502d80, type: 3}
+  debrisPrefabs: []
 --- !u!1 &1588991788
 GameObject:
   m_ObjectHideFlags: 0
@@ -64299,7 +64307,7 @@ Transform:
   m_GameObject: {fileID: 1823688464}
   serializedVersion: 2
   m_LocalRotation: {x: 0.53729963, y: -0, z: -0, w: 0.8433915}
-  m_LocalPosition: {x: -473, y: 20, z: -87}
+  m_LocalPosition: {x: 19, y: 20, z: -13}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -75791,7 +75799,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1806478852275368282, guid: b9a7d4953d5ffce4b8691f23fb674e0c, type: 3}
       propertyPath: m_LocalPosition.x
-      value: -473
+      value: 19
       objectReference: {fileID: 0}
     - target: {fileID: 1806478852275368282, guid: b9a7d4953d5ffce4b8691f23fb674e0c, type: 3}
       propertyPath: m_LocalPosition.y
@@ -75799,7 +75807,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1806478852275368282, guid: b9a7d4953d5ffce4b8691f23fb674e0c, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -81
+      value: -7
       objectReference: {fileID: 0}
     - target: {fileID: 1806478852275368282, guid: b9a7d4953d5ffce4b8691f23fb674e0c, type: 3}
       propertyPath: m_LocalRotation.w
@@ -75828,6 +75836,10 @@ PrefabInstance:
     - target: {fileID: 1806478852275368282, guid: b9a7d4953d5ffce4b8691f23fb674e0c, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2349524114380428028, guid: b9a7d4953d5ffce4b8691f23fb674e0c, type: 3}
+      propertyPath: maxHealth
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 2349524114380428028, guid: b9a7d4953d5ffce4b8691f23fb674e0c, type: 3}
       propertyPath: inventoryPanel
