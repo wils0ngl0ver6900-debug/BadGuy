@@ -53,7 +53,7 @@ public class MapSatelliteCamera : MonoBehaviour
         minimapFollow.enabled = false; // On coupe le suivi du joueur pendant que la carte plein écran est ouverte
 
         Vector2 center = (worldBottomLeft + worldTopRight) * 0.5f;
-        float halfHeight = (worldTopRight.y - worldBottomLeft.y) * 0.5f;
+        float halfHeight = Mathf.Abs(worldTopRight.y - worldBottomLeft.y) * 0.5f;
 
         minimapCamera.orthographic = true;
         minimapCamera.transform.position = new Vector3(center.x, heightAboveWorld, center.y);
