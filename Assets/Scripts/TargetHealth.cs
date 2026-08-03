@@ -53,6 +53,7 @@ public class TargetHealth : MonoBehaviour
         if (isDead || Time.time < spawnProtectionEndTime) return;
 
         NPCBrain npc = GetComponent<NPCBrain>();
+        Debug.Log($"[TargetHealth] TakeDamage sur '{gameObject.name}' — NPCBrain trouvé : {npc != null}{(npc != null ? $", rôle : {npc.role}" : "")}, attacker : {(attacker != null ? attacker.name : "null")}");
         if (npc != null)
         {
             if (attacker != null)

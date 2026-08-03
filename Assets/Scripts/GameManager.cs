@@ -228,7 +228,7 @@ public class GameManager : MonoBehaviour
     // aux PNJ (déplacés par NavMeshAgent, sans Rigidbody sur la racine), le joueur a son propre
     // Rigidbody de mouvement sur la racine — il faut le neutraliser (kinematic) pour qu'il n'entre
     // pas en conflit avec les Rigidbody des os du ragdoll, qui eux prennent le relais visuellement.
-    private void EnablePlayerRagdoll(GameObject player)
+    public void EnablePlayerRagdoll(GameObject player)
     {
         // Vérification décisive : y a-t-il vraiment un collider de sol sous les pieds à cet
         // endroit ? Si ce raycast ne touche rien, ce n'est pas un problème de Joints/calques —
@@ -284,7 +284,7 @@ public class GameManager : MonoBehaviour
     // la cause exacte), on le rattrape au lieu de laisser le joueur "disparaître" pour de bon.
     // Inverse exact d'EnablePlayerRagdoll — rend le contrôle à l'Animator et redésactive la
     // physique sur les os, sinon le perso reste en ragdoll indéfiniment après réapparition.
-    private void DisablePlayerRagdoll(GameObject player)
+    public void DisablePlayerRagdoll(GameObject player)
     {
         Animator anim = player.GetComponentInChildren<Animator>();
         if (anim != null) anim.enabled = true;

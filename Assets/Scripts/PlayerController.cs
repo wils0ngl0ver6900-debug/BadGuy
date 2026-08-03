@@ -88,6 +88,19 @@ public class PlayerController : MonoBehaviour
                 Physics.IgnoreCollision(allColliders[i], allColliders[j], true);
             }
         }
+
+        // MANQUAIT DEPUIS LE DÉBUT : tant que le joueur est vivant, les Rigidbody des os
+        // doivent être kinematic (contrôlés par l'Animator, pas par la physique). Sans ça,
+        // un os non-kinematic déplacé par l'animation (bras qui swing en marchant) est
+        // interprété par PhysX comme un déplacement physique réel à très haute vitesse —
+        // ce qui explique un simple contact avec une voiture À L'ARRÊT calculant un impact
+        // énorme et tuant d'un coup, alors que la voiture, elle, ne bouge pas.
+        Rigidbody[] boneRigidbodies = GetComponentsInChildren<Rigidbody>();
+        foreach (Rigidbody boneRb in boneRigidbodies)
+        {
+            if (boneRb.gameObject == gameObject) continue; // La racine reste non-kinematic (mouvement normal)
+            boneRb.isKinematic = true;
+        }
     }
 
     private void SetupPostProcessing()
@@ -555,22 +568,25 @@ public class PlayerController : MonoBehaviour
         isKnockedDown = true;
         this.enabled = false;
 
-        if (rb != null)
+        // Réutilise le vrai système de ragdoll (les os) plutôt que de faire tourner la seule
+        // capsule racine pendant que l'Animator continue d'animer par-dessus — c'est ce
+        // conflit-là qui causait le bazar visuel/collisions bizarres avec les véhicules
+        // depuis l'ajout du rig de ragdoll.
+        if (GameManager.Instance != null) GameManager.Instance.EnablePlayerRagdoll(gameObject);
+
+        Rigidbody[] boneRbs = GetComponentsInChildren<Rigidbody>();
+        foreach (Rigidbody boneRb in boneRbs)
         {
-            rb.constraints = RigidbodyConstraints.None;
-            rb.AddForce(pushForce, ForceMode.Impulse);
-            rb.AddTorque(Random.insideUnitSphere * pushForce.magnitude, ForceMode.Impulse);
+            if (boneRb.gameObject == gameObject) continue; // Racine déjà gérée par EnablePlayerRagdoll
+            boneRb.AddForce(pushForce, ForceMode.Impulse);
+            boneRb.AddTorque(Random.insideUnitSphere * pushForce.magnitude, ForceMode.Impulse);
         }
 
         yield return new WaitForSeconds(3f);
 
         if (currentHealth > 0)
         {
-            if (rb != null)
-            {
-                transform.rotation = Quaternion.Euler(0, transform.eulerAngles.y, 0);
-                rb.constraints = RigidbodyConstraints.FreezeRotation;
-            }
+            if (GameManager.Instance != null) GameManager.Instance.DisablePlayerRagdoll(gameObject);
             this.enabled = true;
         }
 

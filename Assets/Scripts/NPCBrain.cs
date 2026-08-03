@@ -74,7 +74,7 @@ public class NPCBrain : MonoBehaviour
     [Tooltip("Au-delà de cette durée sans retrouver le joueur, le PNJ abandonne et repart en patrouille.")]
     public float maxSearchDuration = 18f;
     [Tooltip("Rayon de fouille au début de la recherche.")]
-    public float searchRadiusStart = 15f;
+    public float searchRadiusStart = 3f;
     [Tooltip("Rayon de fouille en fin de recherche (se resserre avec le temps, comme dans GTA).")]
     public float searchRadiusEnd = 6f;
     [Tooltip("Distance à laquelle un autre flic à pied est alerté quand celui-ci se fait attaquer.")]
@@ -561,7 +561,11 @@ public class NPCBrain : MonoBehaviour
     // --- NOUVELLES FONCTIONS D'INVESTIGATION ---
     private void InvestigatePedestrian()
     {
-        if (agent == null || !agent.isOnNavMesh) return;
+        if (agent == null || !agent.isOnNavMesh)
+        {
+            Debug.LogWarning($"[NPCBrain] '{gameObject.name}' en Recherche mais agent invalide (agent null: {agent == null}, isOnNavMesh: {(agent != null ? agent.isOnNavMesh.ToString() : "N/A")})");
+            return;
+        }
 
         agent.stoppingDistance = 0f;
         searchTimer += Time.deltaTime;
@@ -758,6 +762,8 @@ public class NPCBrain : MonoBehaviour
     // qu'une position globale potentiellement obsolète.
     public void AlertToAttack(Vector3 attackerPosition)
     {
+        Debug.Log($"[NPCBrain] AlertToAttack sur '{gameObject.name}' (rôle={role}, état actuel={currentState})");
+
         if (role == NPCRole.Civil)
         {
             ForcePanic();
@@ -768,6 +774,18 @@ public class NPCBrain : MonoBehaviour
         {
             searchCenter = attackerPosition;
             ChangeState(AIState.Recherche);
+            Debug.Log($"[NPCBrain] '{gameObject.name}' -> searchCenter={searchCenter}, état après ChangeState={currentState}");
+
+            // Redirige IMMÉDIATEMENT vers la position de l'attaque, sans attendre que le PNJ
+            // termine son trajet de patrouille en cours (sinon il continue tout droit jusqu'à
+            // la fin de son chemin actuel avant de réagir — exactement le bug rapporté).
+            if (agent != null && agent.isOnNavMesh)
+            {
+                if (NavMesh.SamplePosition(searchCenter, out NavMeshHit hit, 5f, NavMesh.AllAreas))
+                {
+                    agent.SetDestination(hit.position);
+                }
+            }
 
             // L'escouade entière reçoit l'info exacte, pas juste ce PNJ-là — comme un appel radio.
             if (PoliceManager.Instance != null)
@@ -795,6 +813,14 @@ public class NPCBrain : MonoBehaviour
             {
                 brain.searchCenter = attackerPosition;
                 brain.ChangeState(AIState.Recherche);
+
+                if (brain.agent != null && brain.agent.isOnNavMesh)
+                {
+                    if (NavMesh.SamplePosition(attackerPosition, out NavMeshHit hit, 5f, NavMesh.AllAreas))
+                    {
+                        brain.agent.SetDestination(hit.position);
+                    }
+                }
             }
         }
     }

@@ -11,7 +11,7 @@ public class CarInteraction : MonoBehaviour
     public GameObject driverPrefab;
 
     private GameObject player;
-    private Collider playerCollider;
+    private Collider[] playerColliders;
     private MonoBehaviour playerMovementScript;
     private Renderer[] playerRenderers;
 
@@ -25,7 +25,12 @@ public class CarInteraction : MonoBehaviour
 
         if (player != null)
         {
-            playerCollider = player.GetComponent<Collider>();
+            // GetComponentsInChildren (pas juste GetComponent) : le joueur a maintenant des
+            // colliders sur chaque os du ragdoll, pas seulement la capsule principale. Sans
+            // tous les désactiver en voiture, ils restent solides et se retrouvent incrustés
+            // dans la voiture à chaque frame (le joueur est téléporté dessus) — la voiture
+            // se fait alors repousser violemment par la résolution physique.
+            playerColliders = player.GetComponentsInChildren<Collider>();
             playerMovementScript = player.GetComponent("PlayerController") as MonoBehaviour;
             playerRenderers = player.GetComponentsInChildren<Renderer>();
         }
@@ -68,7 +73,13 @@ public class CarInteraction : MonoBehaviour
         }
 
         // On coupe le joueur à pied
-        if (playerCollider != null) playerCollider.enabled = false;
+        if (playerColliders != null)
+        {
+            foreach (Collider col in playerColliders)
+            {
+                if (col != null) col.enabled = false;
+            }
+        }
         if (playerMovementScript != null) playerMovementScript.enabled = false;
 
         foreach (Renderer rend in playerRenderers)
@@ -93,7 +104,13 @@ public class CarInteraction : MonoBehaviour
         carCamera.SetActive(false);
 
         player.transform.position = exitPoint.position;
-        if (playerCollider != null) playerCollider.enabled = true;
+        if (playerColliders != null)
+        {
+            foreach (Collider col in playerColliders)
+            {
+                if (col != null) col.enabled = true;
+            }
+        }
         if (playerMovementScript != null) playerMovementScript.enabled = true;
 
         foreach (Renderer rend in playerRenderers) rend.enabled = true;
