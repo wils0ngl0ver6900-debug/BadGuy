@@ -26,6 +26,7 @@ public class MapApp : MonoBehaviour
 
     public void OpenApp()
     {
+        Debug.Log("[MapApp] OpenApp() appelée");
         if (mapAppPanel != null) mapAppPanel.SetActive(true);
         if (satelliteCamera != null) satelliteCamera.ActivateMap();
 
@@ -38,6 +39,7 @@ public class MapApp : MonoBehaviour
 
     public void CloseApp()
     {
+        Debug.Log($"[MapApp] CloseApp() appelée — mapAppPanel assigné : {mapAppPanel != null}");
         if (mapAppPanel != null) mapAppPanel.SetActive(false);
         if (satelliteCamera != null) satelliteCamera.DeactivateMap();
 

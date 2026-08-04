@@ -13,6 +13,8 @@ public class MapSatelliteCamera : MonoBehaviour
     [Tooltip("Coordonnées (X, Z) du point tout en HAUT À DROITE de ta ville 3D")]
     public Vector2 worldTopRight = new Vector2(500f, 500f);
     public float heightAboveWorld = 300f;
+    [Tooltip("Si les bâtiments/rues apparaissent tournés (ex: horizontal au lieu de vertical), ajuste ça par pas de 90 jusqu'à ce que ça s'aligne.")]
+    public float cameraYaw = 0f;
 
     [Header("Calques visibles en vue satellite (rues/bâtiments SEULEMENT)")]
     [Tooltip("Coche uniquement les calques que tu veux voir sur la carte plein écran — décoche tout ce qui est PNJ/icônes tactiques/effets, réservés à la minimap rapprochée.")]
@@ -41,7 +43,13 @@ public class MapSatelliteCamera : MonoBehaviour
 
     public void ActivateMap()
     {
-        if (minimapCamera == null || minimapFollow == null) return;
+        if (minimapCamera == null || minimapFollow == null)
+        {
+            Debug.LogWarning($"[MapSatelliteCamera] ActivateMap() annulée — minimapCamera null: {minimapCamera == null}, minimapFollow null: {minimapFollow == null}");
+            return;
+        }
+
+        Debug.Log($"[MapSatelliteCamera] ActivateMap() sur la caméra '{minimapCamera.gameObject.name}', cameraYaw={cameraYaw}");
 
         // Sauvegarde l'état actuel de la minimap pour pouvoir tout remettre en place après
         savedPosition = minimapCamera.transform.position;
@@ -57,7 +65,8 @@ public class MapSatelliteCamera : MonoBehaviour
 
         minimapCamera.orthographic = true;
         minimapCamera.transform.position = new Vector3(center.x, heightAboveWorld, center.y);
-        minimapCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+        minimapCamera.transform.rotation = Quaternion.Euler(90f, 0f, cameraYaw);
+        Debug.Log($"[MapSatelliteCamera] Rotation appliquée : {minimapCamera.transform.rotation.eulerAngles}, position : {minimapCamera.transform.position}, orthoSize : {minimapCamera.orthographicSize}");
         minimapCamera.orthographicSize = halfHeight;
         minimapCamera.cullingMask = satelliteViewCullingMask;
     }
