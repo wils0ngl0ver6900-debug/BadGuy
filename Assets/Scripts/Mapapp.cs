@@ -30,7 +30,9 @@ public class MapApp : MonoBehaviour
         if (mapAppPanel != null) mapAppPanel.SetActive(true);
         if (satelliteCamera != null) satelliteCamera.ActivateMap();
 
-        Time.timeScale = 0f;
+        Time.timeScale = 0f; // La map met le jeu en pause
+
+        // On s'assure que la souris est bien libre et visible
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
 
@@ -43,9 +45,14 @@ public class MapApp : MonoBehaviour
         if (mapAppPanel != null) mapAppPanel.SetActive(false);
         if (satelliteCamera != null) satelliteCamera.DeactivateMap();
 
+        // Si ton téléphone gère la pause de son côté, tu peux retirer Time.timeScale = 1f.
+        // Sinon, on remet le temps normal à la fermeture de l'application map.
         Time.timeScale = 1f;
-        Cursor.lockState = CursorLockMode.Confined;
-        Cursor.visible = false;
+
+        // --- LE CORRECTIF EST ICI ---
+        // Le téléphone est toujours ouvert, donc on force la souris à RESTER visible !
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
 
         isOpen = false;
     }

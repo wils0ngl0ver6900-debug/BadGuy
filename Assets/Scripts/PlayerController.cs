@@ -121,9 +121,11 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // --- NOUVEAU VERROU : On bloque tout accès si le coffre OU la plantation sont ouverts ---
+        // --- NOUVEAU VERROU : On bloque tout accès si le coffre, la plantation, OU LA NOUVELLE MAP sont ouverts ---
+        // (Note : le téléphone n'est plus dans cette liste pour permettre de marcher en l'utilisant)
         if ((SafehouseManager.Instance != null && SafehouseManager.Instance.isOpen) ||
-            (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen))
+            (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen) ||
+            (MapApp.Instance != null && MapApp.Instance.isOpen))
         {
             moveInput = Vector3.zero;
             UpdateAnimator(); // --- AJOUT : Force le retour à l'animation "Idle" ---
@@ -279,12 +281,13 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        // --- MISE À JOUR : On inclut la plantation dans la vérification de l'UI pour stopper la physique ---
+        // --- MISE À JOUR : On inclut l'application Map pour stopper la physique ---
         bool isUIOpen = (inventoryPanel != null && inventoryPanel.activeSelf) ||
                          (ShopManager.Instance != null && ShopManager.Instance.shopPanel != null && ShopManager.Instance.shopPanel.activeSelf) ||
                          (LaundromatManager.Instance != null && LaundromatManager.Instance.laundromatPanel != null && LaundromatManager.Instance.laundromatPanel.activeSelf) ||
                          (SafehouseManager.Instance != null && SafehouseManager.Instance.isOpen) ||
-                         (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen);
+                         (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen) ||
+                         (MapApp.Instance != null && MapApp.Instance.isOpen);
 
         if (isUIOpen || isDoingQTE || isKnockedDown)
         {
