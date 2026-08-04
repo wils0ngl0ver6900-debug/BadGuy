@@ -56,6 +56,9 @@ public class PhoneManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.T) || Input.GetKeyDown(KeyCode.P))
         {
+            // --- SÉCURITÉ AJOUTÉE : On interdit de ranger/sortir le téléphone si la Map est ouverte ---
+            if (MapApp.Instance != null && MapApp.Instance.isOpen) return;
+
             if (!isPhoneOpen && requiresItemToUse)
             {
                 if (!CheckPlayerHasPhone())
