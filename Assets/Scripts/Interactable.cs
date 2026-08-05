@@ -4,7 +4,10 @@ using System.Collections;
 public class Interactable : MonoBehaviour
 {
     // --- NOUVEAUTÉ ICI : Ajout de WeedLab à la fin ---
-    public enum ActionType { HackATM, Pickpocket, Laundromat, Safehouse, BlackMarket, ShopLegal, ShopIllegal, StashBox, WeedLab, SellDrugs }
+    // HeroinLab et CocaineLab ajoutés à la fin aussi, pour la même raison : insérer au
+    // milieu décalerait les valeurs numériques de tout ce qui vient après (SellDrugs...)
+    // et casserait le "type" déjà configuré sur tous tes Interactable existants.
+    public enum ActionType { HackATM, Pickpocket, Laundromat, Safehouse, BlackMarket, ShopLegal, ShopIllegal, StashBox, WeedLab, SellDrugs, HeroinLab, CocaineLab }
     public ActionType type;
 
     [Header("Configuration des actions")]
@@ -110,6 +113,13 @@ public class Interactable : MonoBehaviour
                 TargetHealth th = GetComponent<TargetHealth>();
                 if (th != null && th.isDead) break; // PNJ déjà mort, plus rien à vendre
                 if (!isSelling && !hasBeenResolved) StartCoroutine(SellDrugRoutine());
+                break;
+            // --- AJOUT : Déclencheurs 3D des labos Héroïne / Cocaïne (même principe que WeedLab) ---
+            case ActionType.HeroinLab:
+                if (HeroinLabManager.Instance != null) HeroinLabManager.Instance.OpenLab();
+                break;
+            case ActionType.CocaineLab:
+                if (CocaineLabManager.Instance != null) CocaineLabManager.Instance.OpenLab();
                 break;
         }
     }

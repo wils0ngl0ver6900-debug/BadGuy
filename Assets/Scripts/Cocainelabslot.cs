@@ -132,7 +132,21 @@ public class CocaineLabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         if (slotImage == null) return;
 
         if (isReady) { slotImage.sprite = imgPret; return; }
-        if (isProcessing) { slotImage.sprite = imgEnCours; return; }
+
+        if (isProcessing)
+        {
+            // Si la dernière étape (celle qui a lancé la cuisson) a sa propre image,
+            // on la garde affichée pendant le minuteur plutôt que de forcer imgEnCours.
+            // C'est ce qui permet d'avoir une image dédiée pour CHAQUE étape (5 sur 5),
+            // et pas juste 4 images génériques.
+            if (recipeSteps != null && recipeSteps.Length > 0)
+            {
+                RecipeStep finalStep = recipeSteps[recipeSteps.Length - 1];
+                if (finalStep.visualAfterStep != null) { slotImage.sprite = finalStep.visualAfterStep; return; }
+            }
+            slotImage.sprite = imgEnCours;
+            return;
+        }
 
         if (currentStepIndex <= 0 || recipeSteps == null || recipeSteps.Length == 0)
         {
