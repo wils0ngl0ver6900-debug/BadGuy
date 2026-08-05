@@ -100,7 +100,7 @@ public class CocaineLabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
             {
                 isProcessing = true;
                 currentTimer = tempsDeProduction;
-                if (manager != null) manager.ShowFeedback("Ça chauffe... la production a démarré.", new Color(0.2f, 0.6f, 1f));
+                if (manager != null) manager.ShowFeedback("Ça presse... la production a démarré.", new Color(0.2f, 0.6f, 1f));
             }
 
             UpdateVisuel();
