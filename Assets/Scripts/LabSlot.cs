@@ -18,6 +18,15 @@ public class LabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     public Sprite imgPotCroissance;
     public Sprite imgPotPret;
 
+    [Header("Audio 🔊")]
+    [Tooltip("Optionnel : si vide, un AudioSource est ajouté automatiquement sur cet objet au lancement.")]
+    public AudioSource audioSource;
+    public AudioClip sonTerre;
+    public AudioClip sonGraine;
+    public AudioClip sonArrosoir;
+    public AudioClip sonRate;
+    public AudioClip sonRecolte;
+
     [Header("Récompense de Récolte 🌿")]
     public ItemData itemWeedDef;
     public int quantiteParRecolte = 5;
@@ -26,7 +35,14 @@ public class LabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     public float growTime = 120f;
     private float currentTimer = 0f;
 
-    void Start() { UpdateVisuel(); }
+    void Start()
+    {
+        if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+        audioSource.playOnAwake = false;
+
+        UpdateVisuel();
+    }
 
     void Update()
     {
@@ -56,36 +72,36 @@ public class LabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         switch (currentState)
         {
             case PlantState.Vide:
-                if (itemLache.itemName == "Terre") { currentState = PlantState.Terre_1_Mise; ConsommerItem(itemLache, true, "Terre placée au fond du pot !"); }
+                if (itemLache.itemName == "Terre") { currentState = PlantState.Terre_1_Mise; ConsommerItem(itemLache, true, "Terre placée au fond du pot !", sonTerre); }
                 else Refuser("Il faut d'abord mettre de la terre !");
                 break;
 
             case PlantState.Terre_1_Mise:
                 // --- MODIFICATION ICI : "Graine de Weed" ---
-                if (itemLache.itemName == "Graine de Weed") { currentState = PlantState.Graine_Mise; ConsommerItem(itemLache, true, "Graine plantée avec succès !"); }
+                if (itemLache.itemName == "Graine de Weed") { currentState = PlantState.Graine_Mise; ConsommerItem(itemLache, true, "Graine plantée avec succès !", sonGraine); }
                 else DetruirePlantation("Il fallait planter une graine");
                 break;
 
             case PlantState.Graine_Mise:
                 // --- MODIFICATION ICI : Texte simplifié ---
-                if (itemLache.itemName == "Arrosoir") { currentState = PlantState.Arrosage_1_Fait; AccepterOutil("Terre humidifiée !"); }
+                if (itemLache.itemName == "Arrosoir") { currentState = PlantState.Arrosage_1_Fait; AccepterOutil("Terre humidifiée !", null, sonArrosoir); }
                 else DetruirePlantation("La graine avait besoin d'eau");
                 break;
 
             case PlantState.Arrosage_1_Fait:
-                if (itemLache.itemName == "Terre") { currentState = PlantState.Terre_2_Mise; ConsommerItem(itemLache, false, "Graine recouverte de terre !"); }
+                if (itemLache.itemName == "Terre") { currentState = PlantState.Terre_2_Mise; ConsommerItem(itemLache, false, "Graine recouverte de terre !", sonTerre); }
                 else DetruirePlantation("Il fallait recouvrir la graine");
                 break;
 
             case PlantState.Terre_2_Mise:
                 // --- MODIFICATION ICI : Texte simplifié ---
-                if (itemLache.itemName == "Arrosoir") { currentState = PlantState.Arrosage_2_Fait; AccepterOutil("Plante arrosée !"); }
+                if (itemLache.itemName == "Arrosoir") { currentState = PlantState.Arrosage_2_Fait; AccepterOutil("Plante arrosée !", null, sonArrosoir); }
                 else DetruirePlantation("Mauvais ordre, il fallait arroser");
                 break;
 
             case PlantState.Arrosage_2_Fait:
                 // --- MODIFICATION ICI : Texte simplifié ---
-                if (itemLache.itemName == "Arrosoir") { currentState = PlantState.Arrosage_3_Fait; AccepterOutil("Plante arrosée !"); }
+                if (itemLache.itemName == "Arrosoir") { currentState = PlantState.Arrosage_3_Fait; AccepterOutil("Plante arrosée !", null, sonArrosoir); }
                 else DetruirePlantation("Mauvais ordre, il fallait encore arroser");
                 break;
 
@@ -95,7 +111,7 @@ public class LabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
                 {
                     currentState = PlantState.EnCroissance;
                     currentTimer = growTime;
-                    AccepterOutil("Plante bien hydratée ! La croissance commence.", Color.green);
+                    AccepterOutil("Plante bien hydratée ! La croissance commence.", Color.green, sonArrosoir);
                 }
                 else DetruirePlantation("Mauvais ordre, il fallait arroser");
                 break;
@@ -114,6 +130,7 @@ public class LabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     {
         currentState = PlantState.Vide;
         UpdateVisuel();
+        JouerSon(sonRate);
 
         if (WeedLabManager.Instance != null)
         {
@@ -121,26 +138,33 @@ public class LabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         }
     }
 
-    private void ConsommerItem(ItemData item, bool detruireObjet, string message)
+    private void ConsommerItem(ItemData item, bool detruireObjet, string message, AudioClip sound = null)
     {
         if (WeedLabManager.Instance != null)
         {
             WeedLabManager.Instance.ShowFeedback(message, Color.white);
             if (detruireObjet) WeedLabManager.Instance.ConsumeItem(item);
         }
+        JouerSon(sound);
     }
 
-    private void AccepterOutil(string message, Color? customColor = null)
+    private void AccepterOutil(string message, Color? customColor = null, AudioClip sound = null)
     {
         if (WeedLabManager.Instance != null)
         {
             WeedLabManager.Instance.ShowFeedback(message, customColor ?? new Color(0.2f, 0.6f, 1f)); // Bleu clair par défaut
         }
+        JouerSon(sound);
     }
 
     private void Refuser(string msg)
     {
         if (WeedLabManager.Instance != null) WeedLabManager.Instance.ShowFeedback(msg, new Color(1f, 0.5f, 0f)); // Orange
+    }
+
+    private void JouerSon(AudioClip clip)
+    {
+        if (audioSource != null && clip != null) audioSource.PlayOneShot(clip);
     }
 
     private void UpdateVisuel()
@@ -171,6 +195,7 @@ public class LabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
                 if (amountAdded > 0)
                 {
                     if (WeedLabManager.Instance != null) WeedLabManager.Instance.ShowFeedback($"Récolte : +{amountAdded} Pochons de Weed !", Color.green);
+                    JouerSon(sonRecolte);
                     currentState = PlantState.Vide;
                     UpdateVisuel();
 

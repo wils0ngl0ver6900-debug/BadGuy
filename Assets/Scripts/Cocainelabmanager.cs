@@ -25,6 +25,15 @@ public class CocaineLabManager : MonoBehaviour
     [Header("Feedback Visuel 💬")]
     public TextMeshProUGUI textFeedback;
 
+    [Header("Ambiance sonore 🔊")]
+    [Tooltip("Optionnel : si vide, un AudioSource est ajouté automatiquement sur cet objet au lancement.")]
+    public AudioSource ambientAudioSource;
+    [Tooltip("Son en boucle joué tant que le labo est ouvert.")]
+    public AudioClip ambientSound;
+    [Range(0f, 1f)] public float ambientVolume = 0.5f;
+    public float ambientFadeDuration = 1f;
+    private Coroutine ambientFadeRoutine;
+
     [HideInInspector] public bool isOpen = false;
 
     private void Awake()
@@ -37,6 +46,12 @@ public class CocaineLabManager : MonoBehaviour
     {
         if (labUIPanel != null) labUIPanel.SetActive(false);
         if (textFeedback != null) textFeedback.gameObject.SetActive(false);
+
+        if (ambientAudioSource == null) ambientAudioSource = GetComponent<AudioSource>();
+        if (ambientAudioSource == null) ambientAudioSource = gameObject.AddComponent<AudioSource>();
+        ambientAudioSource.playOnAwake = false;
+        ambientAudioSource.loop = true;
+        ambientAudioSource.volume = 0f;
     }
 
     public void OpenLab()
@@ -51,6 +66,11 @@ public class CocaineLabManager : MonoBehaviour
 
         Cursor.visible = true;
         Cursor.lockState = CursorLockMode.None;
+
+        // On empêche le téléphone de sonner tant que le craft est en cours.
+        CallApp.RequestCallBlock();
+
+        PlayAmbient();
     }
 
     public void CloseLab()
@@ -62,6 +82,53 @@ public class CocaineLabManager : MonoBehaviour
 
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Confined;
+
+        // On relâche le blocage du téléphone (les autres labos peuvent encore le garder actif).
+        CallApp.ReleaseCallBlock();
+
+        StopAmbient();
+    }
+
+    private void PlayAmbient()
+    {
+        if (ambientAudioSource == null || ambientSound == null) return;
+
+        ambientAudioSource.clip = ambientSound;
+        if (!ambientAudioSource.isPlaying) ambientAudioSource.Play();
+
+        if (ambientFadeRoutine != null) StopCoroutine(ambientFadeRoutine);
+        ambientFadeRoutine = StartCoroutine(FadeAmbient(ambientVolume, ambientFadeDuration, stopAtEnd: false));
+    }
+
+    private void StopAmbient()
+    {
+        if (ambientAudioSource == null) return;
+
+        if (ambientFadeRoutine != null) StopCoroutine(ambientFadeRoutine);
+        ambientFadeRoutine = StartCoroutine(FadeAmbient(0f, ambientFadeDuration, stopAtEnd: true));
+    }
+
+    private IEnumerator FadeAmbient(float targetVolume, float duration, bool stopAtEnd)
+    {
+        float startVolume = ambientAudioSource.volume;
+        float t = 0f;
+
+        if (duration <= 0f)
+        {
+            ambientAudioSource.volume = targetVolume;
+        }
+        else
+        {
+            while (t < duration)
+            {
+                t += Time.unscaledDeltaTime;
+                ambientAudioSource.volume = Mathf.Lerp(startVolume, targetVolume, t / duration);
+                yield return null;
+            }
+            ambientAudioSource.volume = targetVolume;
+        }
+
+        if (stopAtEnd) ambientAudioSource.Stop();
     }
 
     void Update()

@@ -39,9 +39,11 @@ public class PhoneManager : MonoBehaviour
 
     private void Update()
     {
-        // --- MISE À JOUR DU VERROU : On bloque tout si le coffre OU la plantation sont ouverts ---
+        // --- MISE À JOUR DU VERROU : On bloque tout si le coffre OU un des labos sont ouverts ---
         if ((SafehouseManager.Instance != null && SafehouseManager.Instance.isOpen) ||
-            (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen))
+            (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen) ||
+            (HeroinLabManager.Instance != null && HeroinLabManager.Instance.isOpen) ||
+            (CocaineLabManager.Instance != null && CocaineLabManager.Instance.isOpen))
         {
             // Sécurité : On force le téléphone à se ranger si on l'avait en main
             if (isPhoneOpen) TogglePhone();

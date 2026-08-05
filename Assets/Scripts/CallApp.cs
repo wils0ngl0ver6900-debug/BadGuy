@@ -38,6 +38,33 @@ public class CallApp : MonoBehaviour
 
     [HideInInspector] public bool callsBlocked = false;
 
+    // Compteur de "demandes de blocage" actives (un par labo ouvert en même temps, par
+    // exemple). Le téléphone ne redevient joignable que quand TOUT le monde a relâché
+    // son blocage, jamais dès qu'UN SEUL le relâche.
+    private static int blockRequests = 0;
+
+    public static void RequestCallBlock()
+    {
+        blockRequests++;
+        if (Instance == null) return;
+
+        Instance.callsBlocked = true;
+
+        // Si un appel est en train de sonner (pas encore décroché) au moment où le
+        // blocage démarre, on le coupe proprement plutôt que de le laisser sonner
+        // par-dessus le crafting.
+        if (Instance.incomingCallPanel != null && Instance.incomingCallPanel.activeSelf && !Instance.isInCall)
+        {
+            Instance.DeclineCall();
+        }
+    }
+
+    public static void ReleaseCallBlock()
+    {
+        blockRequests = Mathf.Max(0, blockRequests - 1);
+        if (Instance != null) Instance.callsBlocked = blockRequests > 0;
+    }
+
     private string currentCaller = "";
     private Sprite currentCallerPhoto = null;
     private Dialogue currentCallDialogue;
@@ -104,10 +131,12 @@ public class CallApp : MonoBehaviour
 
     public void ReceiveCall(string callerName, Dialogue dialogueSequence)
     {
-        // --- MISE À JOUR DU VERROU : On bloque l'appel si on est dans le coffre OU la plantation ---
+        // --- MISE À JOUR DU VERROU : On bloque l'appel si on est dans le coffre OU un labo ---
         if (isInCall || callsBlocked ||
            (SafehouseManager.Instance != null && SafehouseManager.Instance.isOpen) ||
-           (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen))
+           (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen) ||
+           (HeroinLabManager.Instance != null && HeroinLabManager.Instance.isOpen) ||
+           (CocaineLabManager.Instance != null && CocaineLabManager.Instance.isOpen))
         {
             return;
         }

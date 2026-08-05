@@ -20,6 +20,9 @@ public class HeroinLabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
 
         [Tooltip("Sprite du bac une fois cette étape validée. Laisse vide pour garder le sprite de l'étape précédente.")]
         public Sprite visualAfterStep;
+
+        [Tooltip("Son joué quand CET ingrédient est accepté. Laisse vide pour ne rien jouer sur cette étape.")]
+        public AudioClip stepSound;
     }
 
     [Header("Référence au Manager parent")]
@@ -35,6 +38,16 @@ public class HeroinLabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     public Sprite imgEnCours;
     public Sprite imgPret;
 
+    [Header("Audio 🔊")]
+    [Tooltip("Optionnel : si vide, un AudioSource est ajouté automatiquement sur cet objet au lancement.")]
+    public AudioSource audioSource;
+    [Tooltip("Joué quand un mauvais ingrédient est déposé (lot perdu).")]
+    public AudioClip wrongItemSound;
+    [Tooltip("Joué au moment où la production devient prête à récupérer.")]
+    public AudioClip readySound;
+    [Tooltip("Joué quand on clique pour récupérer la production.")]
+    public AudioClip harvestSound;
+
     [Header("Récompense de Production 💊")]
     public ItemData itemProduitFini;
     public int quantiteParProduction = 5;
@@ -47,7 +60,14 @@ public class HeroinLabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     private bool isProcessing = false; // Équivalent de "EnCroissance" chez la weed
     private bool isReady = false;
 
-    void Start() { UpdateVisuel(); }
+    void Start()
+    {
+        if (audioSource == null) audioSource = GetComponent<AudioSource>();
+        if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+        audioSource.playOnAwake = false;
+
+        UpdateVisuel();
+    }
 
     void Update()
     {
@@ -59,6 +79,7 @@ public class HeroinLabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
                 isProcessing = false;
                 isReady = true;
                 UpdateVisuel();
+                JouerSon(readySound);
 
                 string nom = itemProduitFini != null ? itemProduitFini.itemName : "Production";
                 if (manager != null) manager.ShowFeedback($"{nom} prête à être récupérée !", Color.green);
@@ -91,6 +112,7 @@ public class HeroinLabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
                 manager.ShowFeedback(step.successMessage, Color.white);
                 if (step.consumeItem) manager.ConsumeItem(itemLache);
             }
+            JouerSon(step.stepSound);
 
             if (step.visualAfterStep != null && slotImage != null) slotImage.sprite = step.visualAfterStep;
 
@@ -117,6 +139,7 @@ public class HeroinLabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         isProcessing = false;
         isReady = false;
         UpdateVisuel();
+        JouerSon(wrongItemSound);
 
         if (manager != null)
             manager.ShowFeedback($"💥 RATÉ : mauvais ingrédient ({itemRefuse.itemName}). Le lot est perdu.", Color.red);
@@ -125,6 +148,11 @@ public class HeroinLabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
     private void Refuser(string msg)
     {
         if (manager != null) manager.ShowFeedback(msg, new Color(1f, 0.5f, 0f));
+    }
+
+    private void JouerSon(AudioClip clip)
+    {
+        if (audioSource != null && clip != null) audioSource.PlayOneShot(clip);
     }
 
     private void UpdateVisuel()
@@ -167,6 +195,7 @@ public class HeroinLabSlot : MonoBehaviour, IDropHandler, IPointerClickHandler
         if (amountAdded > 0)
         {
             if (manager != null) manager.ShowFeedback($"Récupéré : +{amountAdded} {itemProduitFini.itemName} !", Color.green);
+            JouerSon(harvestSound);
 
             currentStepIndex = 0;
             isReady = false;
