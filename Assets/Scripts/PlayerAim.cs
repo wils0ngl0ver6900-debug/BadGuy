@@ -1,14 +1,15 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class PlayerAim : MonoBehaviour
 {
     private Camera mainCamera;
+    public Vector3 AimDirection { get; private set; } = Vector3.forward;
 
     void Start()
     {
         mainCamera = Camera.main;
 
-        // Le curseur est confiné à la fenêtre pour pouvoir tourner !
+        // Le curseur est confinï¿½ ï¿½ la fenï¿½tre pour pouvoir tourner !
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Confined;
     }
@@ -17,7 +18,7 @@ public class PlayerAim : MonoBehaviour
     void LateUpdate()
     {
         // --- LE CORRECTIF EST ICI ---
-        // Si le jeu est figé (Map ouverte, Menu de pause...), on bloque la visée !
+        // Si le jeu est figï¿½ (Map ouverte, Menu de pause...), on bloque la visï¿½e !
         if (Time.timeScale == 0f) return;
         // ----------------------------
 
@@ -33,7 +34,7 @@ public class PlayerAim : MonoBehaviour
         RotateTowardsMouse();
     }
 
-    void RotateTowardsMouse()
+    public void RotateTowardsMouse()
     {
         if (mainCamera == null)
         {
@@ -52,6 +53,7 @@ public class PlayerAim : MonoBehaviour
 
             if (direction != Vector3.zero)
             {
+                AimDirection = direction;
                 Quaternion targetRotation = Quaternion.LookRotation(direction);
                 transform.rotation = targetRotation;
             }

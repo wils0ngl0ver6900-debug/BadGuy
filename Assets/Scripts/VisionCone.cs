@@ -1,22 +1,26 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using System.Collections;
 
 public class VisionCone : MonoBehaviour
 {
-    [Header("Paramètres de Vision")]
+    [Header("Paramï¿½tres de Vision")]
     public float viewRadius = 15f;
     [Range(0, 360)] public float viewAngle = 90f;
-    public LayerMask obstacleMask; // N'oublie pas de cocher les murs/décors dans Unity !
+    public LayerMask obstacleMask; // N'oublie pas de cocher les murs/dï¿½cors dans Unity !
 
     [HideInInspector] public bool isSeeingPlayer = false;
     private Transform playerTarget;
+
+    [Header("Discretion (Masque)")]
+    [Tooltip("Multiplie le rayon de detection quand le joueur porte un objet marque isMask. 0.5 = distance de detection divisee par 2.")]
+    [Range(0.1f, 1f)] public float maskDetectionMultiplier = 0.5f;
 
     void Start()
     {
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null) playerTarget = p.transform;
 
-        // Optimisation : Le cône de vision scanne 5 fois par seconde au lieu de 60
+        // Optimisation : Le cï¿½ne de vision scanne 5 fois par seconde au lieu de 60
         StartCoroutine(FindPlayerWithDelay(0.2f));
     }
 
@@ -33,10 +37,17 @@ public class VisionCone : MonoBehaviour
     {
         if (playerTarget == null) return;
 
-        isSeeingPlayer = false; // Par défaut, on ne le voit pas
+        isSeeingPlayer = false; // Par dï¿½faut, on ne le voit pas
         float distToPlayer = Vector3.Distance(transform.position, playerTarget.position);
 
-        if (distToPlayer < viewRadius)
+        // Un masque ne rend pas invisible : il reduit juste la distance a laquelle on te
+        // repere, comme si tu te fondais mieux dans la foule / etais moins reconnaissable.
+        float effectiveRadius = viewRadius;
+        if (EquipmentManager.Instance != null && EquipmentManager.Instance.IsWearingMask())
+        {
+            effectiveRadius *= maskDetectionMultiplier;
+        }
+        if (distToPlayer < effectiveRadius)
         {
             Vector3 dirToPlayer = (playerTarget.position - transform.position).normalized;
 
@@ -52,7 +63,7 @@ public class VisionCone : MonoBehaviour
         }
     }
 
-    // --- DESSINE LE CÔNE DANS L'ÉDITEUR ---
+    // --- DESSINE LE Cï¿½NE DANS L'ï¿½DITEUR ---
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;

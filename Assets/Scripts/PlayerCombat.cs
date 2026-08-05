@@ -31,11 +31,13 @@ public class PlayerCombat : MonoBehaviour
 
     // --- AJOUT : Référence à l'Animator ---
     private Animator anim;
+    private PlayerAim playerAim; // Pour resynchroniser la visée pile avant de tirer (fix décalage flingue/curseur)
 
     void Start()
     {
         // --- AJOUT : Récupération de l'Animator au lancement ---
         anim = GetComponentInChildren<Animator>();
+        playerAim = GetComponent<PlayerAim>();
 
         if (muzzleFlashLight != null)
         {
@@ -101,32 +103,33 @@ public class PlayerCombat : MonoBehaviour
             // --- AJOUT : Déclenchement de l'animation de tir ---
             if (anim != null) anim.SetTrigger("Shoot");
 
-            if (weapon.bulletPrefab != null && firePoint != null)
+            if (weapon.bulletPrefab != null && firePoint != null && playerAim != null)
             {
-                Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                Plane groundPlane = new Plane(Vector3.up, new Vector3(0, transform.position.y, 0));
+                // CORRECTIF VISÉE : on force PlayerAim à se resynchroniser sur la souris À CET INSTANT
+                // (sinon on lisait la rotation calculée à la frame précédente, Update() s'exécutant
+                // toujours avant LateUpdate()), puis on tire dans EXACTEMENT la même direction que
+                // celle utilisée pour orienter le perso, au lieu de refaire un raycast séparé depuis
+                // firePoint. Avant ce correctif, les deux directions partaient d'un point différent
+                // (centre du perso vs bout du canon) et ne pointaient donc pas toujours pareil,
+                // surtout sur les cibles proches — d'où le flingue visuellement pas aligné avec
+                // l'endroit où la balle partait vraiment.
+                playerAim.RotateTowardsMouse();
+                Vector3 correctiveDirection = playerAim.AimDirection;
 
-                if (groundPlane.Raycast(ray, out float distance))
+                GameObject newBullet = Instantiate(weapon.bulletPrefab, firePoint.position, Quaternion.LookRotation(correctiveDirection));
+
+                Bullet bulletScript = newBullet.GetComponent<Bullet>();
+                if (bulletScript != null)
                 {
-                    Vector3 targetPoint = ray.GetPoint(distance);
-                    Vector3 correctiveDirection = (targetPoint - firePoint.position).normalized;
-                    correctiveDirection.y = 0;
+                    bulletScript.damage = weapon.damage;
+                    bulletScript.shooter = this.gameObject; // <--- SÉCURITÉ DU JOUEUR ICI
+                }
 
-                    GameObject newBullet = Instantiate(weapon.bulletPrefab, firePoint.position, Quaternion.LookRotation(correctiveDirection));
+                if (GameManager.Instance != null) GameManager.Instance.ReportCrime(10);
 
-                    Bullet bulletScript = newBullet.GetComponent<Bullet>();
-                    if (bulletScript != null)
-                    {
-                        bulletScript.damage = weapon.damage;
-                        bulletScript.shooter = this.gameObject; // <--- SÉCURITÉ DU JOUEUR ICI
-                    }
-
-                    if (GameManager.Instance != null) GameManager.Instance.ReportCrime(10);
-
-                    if (muzzleFlashLight != null)
-                    {
-                        StartCoroutine(ShowMuzzleFlash());
-                    }
+                if (muzzleFlashLight != null)
+                {
+                    StartCoroutine(ShowMuzzleFlash());
                 }
             }
 

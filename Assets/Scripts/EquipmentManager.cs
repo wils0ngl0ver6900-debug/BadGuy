@@ -20,6 +20,17 @@ public class EquipmentManager : MonoBehaviour
         player = FindObjectOfType<PlayerController>();
     }
 
+    // Vrai si un objet actuellement équipé (n'importe quel emplacement : tête, torse...)
+    // a isMask = true. Utilisé par VisionCone pour réduire la distance de détection.
+    public bool IsWearingMask()
+    {
+        foreach (ItemData item in currentEquipment)
+        {
+            if (item != null && item.isMask) return true;
+        }
+        return false;
+    }
+
     private void Update()
     {
         if (GameManager.Instance == null) return;
