@@ -1326,6 +1326,7 @@ MonoBehaviour:
   baseValue: 1500
   maxHealth: 100
   currentHealth: 0
+  isPlayerOwned: 0
   smokeEffectPrefab: {fileID: 7621480317597576956, guid: b8d6329a1e1790144a2ffd942dd7abd6, type: 3}
   hoodPosition: {fileID: 4579214316469578207}
   tireSmokeParticles:
@@ -1379,6 +1380,7 @@ MonoBehaviour:
   explosionDamage: 50
   debrisMaterialTemplate: {fileID: 2100000, guid: 6a08578255b03464b94a01129b64913e, type: 2}
   bigExplosionPrefab: {fileID: 2140037346408830436, guid: 8b82fdbc769ef1c4fb9d4bb20e502d80, type: 3}
+  debrisPrefabs: []
 --- !u!114 &3286609999590830304
 MonoBehaviour:
   m_ObjectHideFlags: 0
