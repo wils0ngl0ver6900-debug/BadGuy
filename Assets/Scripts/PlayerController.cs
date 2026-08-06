@@ -287,6 +287,8 @@ public class PlayerController : MonoBehaviour
                          (LaundromatManager.Instance != null && LaundromatManager.Instance.laundromatPanel != null && LaundromatManager.Instance.laundromatPanel.activeSelf) ||
                          (SafehouseManager.Instance != null && SafehouseManager.Instance.isOpen) ||
                          (WeedLabManager.Instance != null && WeedLabManager.Instance.isOpen) ||
+                         (HeroinLabManager.Instance != null && HeroinLabManager.Instance.isOpen) ||
+                         (CocaineLabManager.Instance != null && CocaineLabManager.Instance.isOpen) ||
                          (MapApp.Instance != null && MapApp.Instance.isOpen);
 
         if (isUIOpen || isDoingQTE || isKnockedDown)

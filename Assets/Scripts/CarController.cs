@@ -27,6 +27,10 @@ public class CarController : MonoBehaviour
     public float maxHealth = 100f;
     public float currentHealth;
 
+    [Header("Propriété 🔑")]
+    [Tooltip("Vrai seulement si le joueur a payé ce véhicule (via CarForSale). Sert de garde-fou au garage : une voiture volée ne peut pas y être rangée.")]
+    public bool isPlayerOwned = false;
+
     [Header("Effets Visuels (Dégâts) 💥")]
     public GameObject smokeEffectPrefab;
     public Transform hoodPosition;
