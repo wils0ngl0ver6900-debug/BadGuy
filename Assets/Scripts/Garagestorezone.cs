@@ -40,6 +40,10 @@ public class GarageStoreZone : MonoBehaviour
             currentInteraction = car.GetComponentInChildren<CarInteraction>();
             canStore = true;
             if (storePromptUI != null) storePromptUI.SetActive(true);
+
+            // Un appel qui sonne pile pendant la manœuvre de rangement fait sursauter le
+            // panneau HUD/téléphone au même moment — même précaution que pour les labos.
+            CallApp.RequestCallBlock();
         }
     }
 
@@ -52,6 +56,8 @@ public class GarageStoreZone : MonoBehaviour
             currentInteraction = null;
             canStore = false;
             if (storePromptUI != null) storePromptUI.SetActive(false);
+
+            CallApp.ReleaseCallBlock();
         }
     }
 
@@ -70,6 +76,11 @@ public class GarageStoreZone : MonoBehaviour
                     currentInteraction = null;
                     canStore = false;
                     if (storePromptUI != null) storePromptUI.SetActive(false);
+
+                    // La voiture est détruite : OnTriggerExit ne se déclenchera jamais pour
+                    // elle, donc on relâche le blocage ici plutôt que de le laisser bloqué
+                    // pour de bon.
+                    CallApp.ReleaseCallBlock();
                 }
             }
         }
