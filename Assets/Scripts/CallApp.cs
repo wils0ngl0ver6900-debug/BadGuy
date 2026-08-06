@@ -292,6 +292,22 @@ public class CallApp : MonoBehaviour
     {
         if (isInCall || callsBlocked) return;
 
+        // Jimmy est un contact spécial : au lieu du répondeur générique, l'appeler tente
+        // une livraison de véhicule (voir GarageManager). Si plusieurs véhicules sont
+        // disponibles, RequestVehicleDelivery() renvoie null et ouvre elle-même le panneau
+        // de choix — dans ce cas on saute entièrement l'UI d'appel classique, le panneau
+        // de sélection prend le relais par-dessus le téléphone.
+        bool isJimmy = GarageManager.Instance != null && contactName == GarageManager.Instance.jimmyContactName;
+        string jimmyResult = isJimmy ? GarageManager.Instance.RequestVehicleDelivery() : null;
+
+        if (isJimmy && jimmyResult == null)
+        {
+            contactsView.SetActive(false);
+            if (appPanel != null) appPanel.SetActive(false);
+            if (PhoneManager.Instance != null && PhoneManager.Instance.isPhoneOpen) PhoneManager.Instance.TogglePhone();
+            return;
+        }
+
         currentCaller = contactName;
         currentCallerPhoto = GetPhotoForContact(contactName);
         isInCall = true;
@@ -310,9 +326,11 @@ public class CallApp : MonoBehaviour
             else activeCallerPhoto.gameObject.SetActive(false);
         }
 
+        string voicemailLine = isJimmy ? jimmyResult : "Je suis occupé pour le moment. Laisse un message.";
+
         Dialogue voicemail = new Dialogue();
         voicemail.lines = new DialogueLine[1];
-        voicemail.lines[0] = new DialogueLine { speakerName = contactName, sentence = "Je suis occupé pour le moment. Laisse un message." };
+        voicemail.lines[0] = new DialogueLine { speakerName = contactName, sentence = voicemailLine };
 
         currentCallDialogue = voicemail;
 

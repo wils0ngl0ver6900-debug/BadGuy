@@ -139,6 +139,24 @@ public class CarInteraction : MonoBehaviour
             player.transform.position = worldPosition;
         }
 
+        // Remet UNIQUEMENT les os du ragdoll dans un état sûr (kinematic, vitesse nulle)
+        // AVANT de réactiver leurs colliders — surtout PAS la racine ni l'Animator.
+        // GameManager.DisablePlayerRagdoll() fait aussi rootRb.isKinematic = false, pensé
+        // pour le contexte précis d'un retour de VRAI ragdoll de KO (où la racine avait été
+        // mise kinematic exprès) — l'appeler ici cassait le mode kinematic normal de la
+        // racine du joueur en dehors de tout KO, d'où le nouveau bug sur la Compactico.
+        if (player != null)
+        {
+            Rigidbody[] boneRbs = player.GetComponentsInChildren<Rigidbody>();
+            foreach (Rigidbody boneRb in boneRbs)
+            {
+                if (boneRb.gameObject == player) continue; // La racine ne doit jamais être touchée ici
+                boneRb.isKinematic = true;
+                boneRb.linearVelocity = Vector3.zero;
+                boneRb.angularVelocity = Vector3.zero;
+            }
+        }
+
         if (playerColliders != null)
         {
             foreach (Collider col in playerColliders)

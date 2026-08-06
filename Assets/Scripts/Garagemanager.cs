@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using System.Collections;
 using System.Collections.Generic;
 
 // Gère le garage de la planque : stockage de 1 à 5 véhicules, débloqué en même temps
@@ -21,6 +22,8 @@ public class GarageManager : MonoBehaviour
         public string modelName;
         [Tooltip("Le prefab à faire réapparaître quand on récupère ce véhicule.")]
         public GameObject prefab;
+        [Tooltip("Petite photo/icône du véhicule, utilisée dans l'UI du garage et dans le choix de livraison de Jimmy.")]
+        public Sprite photo;
     }
 
     [System.Serializable]
@@ -53,6 +56,8 @@ public class GarageManager : MonoBehaviour
     public TextMeshProUGUI[] slotLabels;
     [Tooltip("5 cases, dans l'ordre : bouton \"Récupérer\" de l'emplacement 1 à 5 (désactivé automatiquement si l'emplacement est vide ou pas encore débloqué).")]
     public Button[] slotButtons;
+    [Tooltip("5 cases, dans l'ordre : photo du véhicule pour l'emplacement 1 à 5 (masquée automatiquement si l'emplacement est vide).")]
+    public Image[] slotPhotos;
 
     [HideInInspector] public bool isOpen = false;
 
@@ -114,8 +119,8 @@ public class GarageManager : MonoBehaviour
         }
     }
 
-    // Met à jour les 5 cases : nom du véhicule si occupé, "-- Vide --" sinon, et grise
-    // le bouton Récupérer correspondant si rien à récupérer à cet emplacement.
+    // Met à jour les 5 cases : nom du véhicule si occupé, "-- Vide --" sinon, la photo
+    // correspondante (masquée si vide), et grise le bouton Récupérer correspondant.
     public void RefreshGarageUI()
     {
         if (slotLabels == null) return;
@@ -129,6 +134,13 @@ public class GarageManager : MonoBehaviour
 
             if (slotButtons != null && i < slotButtons.Length && slotButtons[i] != null)
                 slotButtons[i].interactable = hasVehicle;
+
+            if (slotPhotos != null && i < slotPhotos.Length && slotPhotos[i] != null)
+            {
+                Sprite photo = hasVehicle ? GetPhotoForModel(storedVehicles[i].modelName) : null;
+                slotPhotos[i].sprite = photo;
+                slotPhotos[i].enabled = photo != null;
+            }
         }
     }
 
@@ -164,62 +176,92 @@ public class GarageManager : MonoBehaviour
             return false;
         }
 
-        storedVehicles.Add(new StoredVehicle(car.carModelName));
+        // Ici on sait que le rangement va se faire : le vrai travail (sortie de la voiture,
+        // repositionnement) part dans une coroutine cachée derrière un fondu au noir —
+        // exactement le principe de ValetJobManager.ReturnToStandRoutine(), qui ne pose
+        // jamais ce genre de souci contrairement à l'ancienne version "à l'écran ouvert"
+        // de cette fonction. Le fondu masque la manœuvre ; le Rigidbody est mis en
+        // kinematic pendant la téléportation donc totalement insensible aux collisions
+        // pendant qu'on le pose, puis relâché une fois la position stabilisée.
+        StartCoroutine(StoreVehicleRoutine(car, interaction, safeStandPoint));
+        return true;
+    }
 
-        if (car.isDrivenByPlayer)
+    private IEnumerator StoreVehicleRoutine(CarController car, CarInteraction interaction, Transform safeStandPoint)
+    {
+        if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
         {
-            // Filet de sécurité : si la référence transmise est nulle (composant introuvable
-            // au moment où GarageStoreZone l'a cherchée), on retente une recherche directe
-            // avant d'abandonner. Sans ça, on risquait de détruire la voiture sans jamais
-            // avoir fait sortir le joueur — collisions et rendu restaient désactivés
-            // ("mode conduite"), d'où la chute sous la carte, invisible.
+            UIManager.Instance.transitionPanel.SetActive(true);
+            yield return StartCoroutine(UIManager.Instance.FadeToBlack(0.5f));
+        }
+
+        string modelName = car != null ? car.carModelName : "Véhicule";
+        bool wasDrivenByPlayer = car != null && car.isDrivenByPlayer;
+        GameObject player = null;
+
+        if (wasDrivenByPlayer)
+        {
             CarInteraction safeInteraction = interaction != null ? interaction : car.GetComponentInChildren<CarInteraction>();
 
-            if (safeInteraction == null)
+            if (car != null)
             {
-                if (UIManager.Instance != null)
-                    UIManager.Instance.ShowNotification("<color=red>Erreur : impossible de sortir du véhicule proprement, rangement annulé.</color>");
-                storedVehicles.RemoveAt(storedVehicles.Count - 1); // on annule l'ajout fait juste au-dessus
-                return false;
+                foreach (Collider col in car.GetComponentsInChildren<Collider>())
+                {
+                    if (col != null) col.enabled = false;
+                }
             }
 
-            // On coupe les collisions de la voiture AVANT de repositionner le joueur.
-            // Destroy() est différé à la fin de la frame : sans ça, la voiture reste
-            // physiquement présente pendant un instant au moment même où les collisions
-            // du joueur se réactivent au point de sortie. Si les deux se chevauchent
-            // (selon le gabarit du véhicule), la résolution physique peut les repousser
-            // violemment — souvent vers le bas, à travers le sol.
-            foreach (Collider col in car.GetComponentsInChildren<Collider>())
+            if (safeInteraction != null)
             {
-                if (col != null) col.enabled = false;
+                safeInteraction.ExitCar(); // Sort normalement (écran déjà noir, peu importe où)
             }
 
-            Vector3 targetPos = safeStandPoint != null ? safeStandPoint.position
-                              : (safeInteraction.exitPoint != null ? safeInteraction.exitPoint.position : car.transform.position);
+            player = GameObject.FindGameObjectWithTag("Player");
+        }
 
-            // Recalage au sol par raycast : plutôt que de faire confiance à la hauteur Y
-            // du point configuré (qui peut être légèrement fausse selon le terrain à cet
-            // endroit précis), on retrouve le vrai sol en dessous et on pose le joueur juste
-            // au-dessus. Si rien n'est détecté (pas de sol dans les 20 unités en dessous),
-            // on garde la position d'origine plutôt que d'annuler.
+        yield return new WaitForFixedUpdate();
+        if (car != null) Destroy(car.gameObject);
+
+        if (player != null)
+        {
+            Vector3 targetPos = safeStandPoint != null ? safeStandPoint.position : player.transform.position;
+
             if (Physics.Raycast(targetPos + Vector3.up * 5f, Vector3.down, out RaycastHit groundHit, 20f))
             {
                 targetPos = groundHit.point + Vector3.up * 0.1f;
             }
+            targetPos += Vector3.up * 2f; // Marge de sécurité (même valeur que le Valet)
 
-            // --- LOG TEMPORAIRE DE DIAGNOSTIC : à retirer une fois le bug confirmé réglé ---
-            Debug.Log($"[GARAGE-DEBUG] Rangement de '{car.carModelName}' | safeStandPoint={(safeStandPoint != null ? safeStandPoint.name : "NULL")} | position finale utilisée = {targetPos} | sol détecté = {groundHit.collider?.name ?? "AUCUN"} | position de la voiture au moment du rangement = {car.transform.position}");
+            Rigidbody rb = player.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = true; // Immunisé contre toute collision/dépénétration le temps de se poser
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                rb.position = targetPos;
+            }
+            player.transform.position = targetPos;
 
-            safeInteraction.ExitCarAt(targetPos);
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.WakeUp();
+            }
         }
 
-        Destroy(car.gameObject);
+        storedVehicles.Add(new StoredVehicle(modelName));
+        RefreshGarageUI();
 
         if (UIManager.Instance != null)
-            UIManager.Instance.ShowNotification($"<color=cyan>{car.carModelName} rangée au garage ({storedVehicles.Count}/{maxGarageSlots}).</color>");
+            UIManager.Instance.ShowNotification($"<color=cyan>{modelName} rangée au garage ({storedVehicles.Count}/{maxGarageSlots}).</color>");
 
-        RefreshGarageUI();
-        return true;
+        if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
+        {
+            yield return StartCoroutine(UIManager.Instance.FadeToClear(0.5f));
+        }
     }
 
     // À relier au bouton "Récupérer" de chaque emplacement du garage (voir slotButtons).
@@ -276,6 +318,17 @@ public class GarageManager : MonoBehaviour
         return null;
     }
 
+    private Sprite GetPhotoForModel(string modelName)
+    {
+        if (knownCarPrefabs == null) return null;
+
+        foreach (GarageCarEntry entry in knownCarPrefabs)
+        {
+            if (entry != null && entry.modelName == modelName) return entry.photo;
+        }
+        return null;
+    }
+
     // À relier au bouton "Agrandir le garage" (max 5 places).
     public void PurchaseGarageSlot()
     {
@@ -305,5 +358,195 @@ public class GarageManager : MonoBehaviour
         {
             if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Fonds propres insuffisants.</color>");
         }
+    }
+
+    // ==============================================================
+    // SERVICE DE LIVRAISON (JIMMY) 🚚📞
+    // ==============================================================
+
+    [Header("Service de Livraison (Jimmy) 🚚📞")]
+    [Tooltip("Doit correspondre exactement au nom du contact 'Jimmy' dans CallApp.contactList.")]
+    public string jimmyContactName = "Jimmy";
+    [Tooltip("Temps (en secondes) avant que le véhicule arrive après l'appel — le temps que Jimmy \"conduise\" jusqu'à toi.")]
+    public float deliveryDelay = 45f;
+
+    [Header("Sélection du véhicule à livrer 🖼️")]
+    [Tooltip("Panneau affiché quand Jimmy demande lequel de tes véhicules livrer (seulement s'il y en a plus d'un).")]
+    public GameObject deliverySelectionPanel;
+    [Tooltip("5 cases, dans l'ordre : photo du véhicule pour le choix de livraison 1 à 5.")]
+    public Image[] deliverySlotPhotos;
+    [Tooltip("5 cases, dans l'ordre : texte (nom du véhicule) pour le choix de livraison 1 à 5.")]
+    public TextMeshProUGUI[] deliverySlotLabels;
+    [Tooltip("5 cases, dans l'ordre : bouton \"Choisir\" pour livrer précisément ce véhicule (relié à ChooseVehicleForDelivery).")]
+    public Button[] deliverySlotButtons;
+
+    private bool isDeliveryInProgress = false;
+
+    // Appelée depuis CallApp.MakeCall() quand le joueur appelle Jimmy. Retourne la réplique
+    // à afficher dans le dialogue de l'appel (garage pas débloqué, rien à livrer, déjà en
+    // route...), OU null si un choix de véhicule est nécessaire — dans ce cas le panneau de
+    // sélection s'ouvre directement et CallApp doit sauter l'affichage du répondeur.
+    public string RequestVehicleDelivery()
+    {
+        if (!IsUnlocked())
+            return "T'as même pas de garage dans ta planque, comment tu veux que je te livre quoi que ce soit ?";
+
+        if (isDeliveryInProgress)
+            return "Doucement, je suis déjà en route avec ta caisse !";
+
+        if (storedVehicles.Count == 0)
+            return "T'as rien dans ton garage à te faire livrer, mec.";
+
+        if (storedVehicles.Count == 1)
+        {
+            // Un seul véhicule dispo : pas besoin de choisir, on part direct dessus.
+            return StartDeliveryFor(0);
+        }
+
+        OpenDeliverySelection();
+        return null;
+    }
+
+    public void OpenDeliverySelection()
+    {
+        if (deliverySelectionPanel != null) deliverySelectionPanel.SetActive(true);
+        RefreshDeliverySelectionUI();
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+    }
+
+    public void CloseDeliverySelection()
+    {
+        if (deliverySelectionPanel != null) deliverySelectionPanel.SetActive(false);
+
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Confined;
+    }
+
+    private void RefreshDeliverySelectionUI()
+    {
+        if (deliverySlotLabels == null) return;
+
+        for (int i = 0; i < deliverySlotLabels.Length; i++)
+        {
+            bool hasVehicle = i < storedVehicles.Count;
+
+            if (deliverySlotLabels[i] != null)
+                deliverySlotLabels[i].text = hasVehicle ? storedVehicles[i].modelName : "-- Vide --";
+
+            if (deliverySlotButtons != null && i < deliverySlotButtons.Length && deliverySlotButtons[i] != null)
+                deliverySlotButtons[i].interactable = hasVehicle;
+
+            if (deliverySlotPhotos != null && i < deliverySlotPhotos.Length && deliverySlotPhotos[i] != null)
+            {
+                Sprite photo = hasVehicle ? GetPhotoForModel(storedVehicles[i].modelName) : null;
+                deliverySlotPhotos[i].sprite = photo;
+                deliverySlotPhotos[i].enabled = photo != null;
+            }
+        }
+    }
+
+    // À relier à chaque bouton "Choisir" du panneau de sélection (index 0 à 4).
+    public void ChooseVehicleForDelivery(int slotIndex)
+    {
+        CloseDeliverySelection();
+        string result = StartDeliveryFor(slotIndex);
+
+        if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=cyan>Jimmy : {result}</color>");
+    }
+
+    // Fait le vrai travail commun aux deux chemins (auto si un seul véhicule, ou choisi
+    // manuellement) : retrouve la route la plus proche et lance la coroutine de livraison
+    // pour CE véhicule précis (retiré de la liste tout de suite, pas à l'arrivée, pour éviter
+    // qu'il soit choisi une deuxième fois pendant le trajet de Jimmy).
+    private string StartDeliveryFor(int slotIndex)
+    {
+        if (slotIndex < 0 || slotIndex >= storedVehicles.Count) return "Erreur de sélection.";
+
+        GameObject player = GameObject.FindGameObjectWithTag("Player");
+        if (player == null) return "Je te trouve pas sur la carte, réessaie plus tard.";
+
+        TrafficNode[] allNodes = FindObjectsOfType<TrafficNode>();
+        if (allNodes == null || allNodes.Length == 0)
+            return "Y'a pas de route où te livrer par ici...";
+
+        TrafficNode closest = null;
+        float minDist = Mathf.Infinity;
+        foreach (TrafficNode node in allNodes)
+        {
+            if (node == null) continue;
+            float dist = Vector3.Distance(player.transform.position, node.transform.position);
+            if (dist < minDist) { minDist = dist; closest = node; }
+        }
+
+        if (closest == null) return "Je trouve pas de route pour te rejoindre.";
+
+        StoredVehicle chosen = storedVehicles[slotIndex];
+        storedVehicles.RemoveAt(slotIndex);
+        RefreshGarageUI();
+
+        isDeliveryInProgress = true;
+        StartCoroutine(DeliverVehicleRoutine(closest.transform.position, chosen));
+
+        return $"J'arrive avec ta {chosen.modelName}, donne-moi {Mathf.RoundToInt(deliveryDelay)} secondes !";
+    }
+
+    private IEnumerator DeliverVehicleRoutine(Vector3 roadPosition, StoredVehicle stored)
+    {
+        yield return new WaitForSeconds(deliveryDelay);
+
+        GameObject prefab = FindPrefabForModel(stored.modelName);
+
+        if (prefab == null)
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Erreur : véhicule introuvable pour la livraison !</color>");
+            isDeliveryInProgress = false;
+            yield break;
+        }
+
+        // Recalage au sol par raycast (le joueur a pu bouger depuis l'appel, on livre au
+        // point de route, pas à lui — donc pas besoin de re-suivre sa position ici).
+        Vector3 spawnPos = roadPosition;
+        if (Physics.Raycast(spawnPos + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f))
+        {
+            spawnPos = hit.point + Vector3.up * 0.5f;
+        }
+
+        // Si un véhicule occupe déjà pile ce point de route, on décale légèrement au lieu
+        // de faire apparaître les deux l'un dans l'autre.
+        Collider[] blockers = Physics.OverlapSphere(spawnPos, spawnCheckRadius, vehicleLayerMask);
+        if (blockers.Length > 0)
+        {
+            spawnPos += Vector3.forward * 5f;
+        }
+
+        GameObject spawned = Instantiate(prefab, spawnPos, Quaternion.identity);
+        CarController spawnedCar = spawned.GetComponent<CarController>();
+        if (spawnedCar != null) spawnedCar.isPlayerOwned = true;
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.ShowNotification($"<color=green>Jimmy a livré ta {stored.modelName} !</color>");
+
+        // Flèches de guidage jusqu'au véhicule livré, comme pour un job Valet — la cible est
+        // directement le véhicule apparu, pas besoin d'un point séparé. Le fil est coupé
+        // automatiquement dès que le joueur monte dedans (ou si jamais il disparaît).
+        if (JobPathfinder.Instance != null && spawnedCar != null)
+        {
+            JobPathfinder.Instance.SetTargets(spawned.transform);
+            StartCoroutine(MonitorDeliveredVehicleRoutine(spawnedCar));
+        }
+
+        isDeliveryInProgress = false;
+    }
+
+    private IEnumerator MonitorDeliveredVehicleRoutine(CarController deliveredCar)
+    {
+        while (deliveredCar != null && !deliveredCar.isDrivenByPlayer)
+        {
+            yield return new WaitForSeconds(0.5f);
+        }
+
+        if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
     }
 }
