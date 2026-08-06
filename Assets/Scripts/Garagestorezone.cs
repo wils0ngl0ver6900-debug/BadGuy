@@ -31,7 +31,13 @@ public class GarageStoreZone : MonoBehaviour
         if (car != null && car.isDrivenByPlayer)
         {
             currentCar = car;
-            currentInteraction = car.GetComponent<CarInteraction>();
+            // GetComponentInChildren plutôt que GetComponent : sur certains prefabs,
+            // CarInteraction n'est pas forcément sur EXACTEMENT le même objet que
+            // CarController. Un GetComponent strict qui échoue ici laissait
+            // currentInteraction à null en silence, et donc ExitCarAt() n'était jamais
+            // appelé au moment de garer — la voiture était détruite mais le joueur restait
+            // "en mode conduite" (collisions désactivées, invisible), d'où la chute sous la carte.
+            currentInteraction = car.GetComponentInChildren<CarInteraction>();
             canStore = true;
             if (storePromptUI != null) storePromptUI.SetActive(true);
         }

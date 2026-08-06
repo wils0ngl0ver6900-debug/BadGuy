@@ -166,10 +166,25 @@ public class GarageManager : MonoBehaviour
 
         storedVehicles.Add(new StoredVehicle(car.carModelName));
 
-        if (interaction != null && car.isDrivenByPlayer)
+        if (car.isDrivenByPlayer)
         {
-            if (safeStandPoint != null) interaction.ExitCarAt(safeStandPoint.position);
-            else interaction.ExitCar();
+            // Filet de sécurité : si la référence transmise est nulle (composant introuvable
+            // au moment où GarageStoreZone l'a cherchée), on retente une recherche directe
+            // avant d'abandonner. Sans ça, on risquait de détruire la voiture sans jamais
+            // avoir fait sortir le joueur — collisions et rendu restaient désactivés
+            // ("mode conduite"), d'où la chute sous la carte, invisible.
+            CarInteraction safeInteraction = interaction != null ? interaction : car.GetComponentInChildren<CarInteraction>();
+
+            if (safeInteraction == null)
+            {
+                if (UIManager.Instance != null)
+                    UIManager.Instance.ShowNotification("<color=red>Erreur : impossible de sortir du véhicule proprement, rangement annulé.</color>");
+                storedVehicles.RemoveAt(storedVehicles.Count - 1); // on annule l'ajout fait juste au-dessus
+                return false;
+            }
+
+            if (safeStandPoint != null) safeInteraction.ExitCarAt(safeStandPoint.position);
+            else safeInteraction.ExitCar();
         }
 
         Destroy(car.gameObject);
