@@ -194,8 +194,23 @@ public class GarageManager : MonoBehaviour
                 if (col != null) col.enabled = false;
             }
 
-            if (safeStandPoint != null) safeInteraction.ExitCarAt(safeStandPoint.position);
-            else safeInteraction.ExitCar();
+            Vector3 targetPos = safeStandPoint != null ? safeStandPoint.position
+                              : (safeInteraction.exitPoint != null ? safeInteraction.exitPoint.position : car.transform.position);
+
+            // Recalage au sol par raycast : plutôt que de faire confiance à la hauteur Y
+            // du point configuré (qui peut être légèrement fausse selon le terrain à cet
+            // endroit précis), on retrouve le vrai sol en dessous et on pose le joueur juste
+            // au-dessus. Si rien n'est détecté (pas de sol dans les 20 unités en dessous),
+            // on garde la position d'origine plutôt que d'annuler.
+            if (Physics.Raycast(targetPos + Vector3.up * 5f, Vector3.down, out RaycastHit groundHit, 20f))
+            {
+                targetPos = groundHit.point + Vector3.up * 0.1f;
+            }
+
+            // --- LOG TEMPORAIRE DE DIAGNOSTIC : à retirer une fois le bug confirmé réglé ---
+            Debug.Log($"[GARAGE-DEBUG] Rangement de '{car.carModelName}' | safeStandPoint={(safeStandPoint != null ? safeStandPoint.name : "NULL")} | position finale utilisée = {targetPos} | sol détecté = {groundHit.collider?.name ?? "AUCUN"} | position de la voiture au moment du rangement = {car.transform.position}");
+
+            safeInteraction.ExitCarAt(targetPos);
         }
 
         Destroy(car.gameObject);
