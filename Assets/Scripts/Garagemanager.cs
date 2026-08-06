@@ -1,10 +1,15 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 using System.Collections.Generic;
 
 // Gère le garage de la planque : stockage de 1 à 5 véhicules, débloqué en même temps
 // que garageModule dans SafehouseManager (safehouseLevel >= 2). Le nombre de places
 // démarre à maxGarageSlots (1 par défaut) et peut être agrandi via PurchaseGarageSlot()
-// jusqu'à 5, contre de l'argent propre — même logique que PurchaseUpgrade() côté planque.
+// jusqu'à 5, contre de l'argent propre. Gère aussi son propre panneau UI (liste des
+// véhicules stockés, bouton Récupérer par emplacement) — ouvert via un Interactable
+// (ActionType.Garage) posé quelque part dans la pièce du garage, même principe que
+// pour ouvrir les labos.
 public class GarageManager : MonoBehaviour
 {
     public static GarageManager Instance;
@@ -37,10 +42,19 @@ public class GarageManager : MonoBehaviour
     [Header("État Actuel (ne pas éditer à la main)")]
     public List<StoredVehicle> storedVehicles = new List<StoredVehicle>();
 
-    [Header("Sortie du Garage")]
+    [Header("Sortie du Garage (récupération)")]
     public Transform vehicleSpawnPoint;
     public float spawnCheckRadius = 3f;
     public LayerMask vehicleLayerMask;
+
+    [Header("UI du Garage")]
+    public GameObject garageUIPanel;
+    [Tooltip("5 cases, dans l'ordre : texte affiché pour l'emplacement 1 à 5.")]
+    public TextMeshProUGUI[] slotLabels;
+    [Tooltip("5 cases, dans l'ordre : bouton \"Récupérer\" de l'emplacement 1 à 5 (désactivé automatiquement si l'emplacement est vide ou pas encore débloqué).")]
+    public Button[] slotButtons;
+
+    [HideInInspector] public bool isOpen = false;
 
     private void Awake()
     {
@@ -48,14 +62,85 @@ public class GarageManager : MonoBehaviour
         else Destroy(gameObject);
     }
 
+    private void Start()
+    {
+        if (garageUIPanel != null) garageUIPanel.SetActive(false);
+    }
+
     public bool IsUnlocked()
     {
         return SafehouseManager.Instance != null && SafehouseManager.Instance.safehouseLevel >= 2;
     }
 
+    // ==============================================================
+    // OUVERTURE / FERMETURE DU PANNEAU (même pattern que les labos)
+    // ==============================================================
+
+    public void OpenGarageUI()
+    {
+        if (!IsUnlocked())
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Débloque d'abord le garage dans ta planque !</color>");
+            return;
+        }
+
+        isOpen = true;
+        if (garageUIPanel != null) garageUIPanel.SetActive(true);
+
+        RefreshGarageUI();
+
+        if (UIManager.Instance != null) UIManager.Instance.ToggleHUD(false);
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+    }
+
+    public void CloseGarageUI()
+    {
+        isOpen = false;
+        if (garageUIPanel != null) garageUIPanel.SetActive(false);
+
+        if (UIManager.Instance != null) UIManager.Instance.ToggleHUD(true);
+
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Confined;
+    }
+
+    void Update()
+    {
+        if (isOpen && Input.GetKeyDown(KeyCode.Escape))
+        {
+            CloseGarageUI();
+        }
+    }
+
+    // Met à jour les 5 cases : nom du véhicule si occupé, "-- Vide --" sinon, et grise
+    // le bouton Récupérer correspondant si rien à récupérer à cet emplacement.
+    public void RefreshGarageUI()
+    {
+        if (slotLabels == null) return;
+
+        for (int i = 0; i < slotLabels.Length; i++)
+        {
+            bool hasVehicle = i < storedVehicles.Count;
+
+            if (slotLabels[i] != null)
+                slotLabels[i].text = hasVehicle ? storedVehicles[i].modelName : "-- Vide --";
+
+            if (slotButtons != null && i < slotButtons.Length && slotButtons[i] != null)
+                slotButtons[i].interactable = hasVehicle;
+        }
+    }
+
+    // ==============================================================
+    // STOCKAGE / RÉCUPÉRATION
+    // ==============================================================
+
     // À appeler depuis une zone de dépôt (ex: GarageStoreZone) quand le joueur est au
-    // volant d'une voiture et valide le rangement.
-    public bool TryStoreVehicle(CarController car, CarInteraction interaction)
+    // volant d'une voiture et valide le rangement. "safeStandPoint" est optionnel : si
+    // fourni, le joueur atterrit là plutôt qu'au exitPoint habituel de la voiture (plus
+    // fiable dans le contexte du garage — évite de tomber sous la carte).
+    public bool TryStoreVehicle(CarController car, CarInteraction interaction, Transform safeStandPoint = null)
     {
         if (car == null) return false;
 
@@ -83,7 +168,8 @@ public class GarageManager : MonoBehaviour
 
         if (interaction != null && car.isDrivenByPlayer)
         {
-            interaction.ExitCar();
+            if (safeStandPoint != null) interaction.ExitCarAt(safeStandPoint.position);
+            else interaction.ExitCar();
         }
 
         Destroy(car.gameObject);
@@ -91,10 +177,11 @@ public class GarageManager : MonoBehaviour
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification($"<color=cyan>{car.carModelName} rangée au garage ({storedVehicles.Count}/{maxGarageSlots}).</color>");
 
+        RefreshGarageUI();
         return true;
     }
 
-    // À relier au bouton "Récupérer" de chaque emplacement du garage dans la planque.
+    // À relier au bouton "Récupérer" de chaque emplacement du garage (voir slotButtons).
     public void RetrieveVehicle(int slotIndex)
     {
         if (!IsUnlocked()) return;
@@ -133,6 +220,8 @@ public class GarageManager : MonoBehaviour
         storedVehicles.RemoveAt(slotIndex);
 
         if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=green>{stored.modelName} sortie du garage !</color>");
+
+        RefreshGarageUI();
     }
 
     private GameObject FindPrefabForModel(string modelName)
@@ -163,6 +252,7 @@ public class GarageManager : MonoBehaviour
             if (BankApp.Instance != null) BankApp.Instance.RecordTransaction(-costPerExtraSlot, "Extension Garage");
 
             maxGarageSlots++;
+            RefreshGarageUI();
 
             if (UIManager.Instance != null)
             {

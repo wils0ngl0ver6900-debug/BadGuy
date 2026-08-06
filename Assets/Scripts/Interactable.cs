@@ -4,10 +4,10 @@ using System.Collections;
 public class Interactable : MonoBehaviour
 {
     // --- NOUVEAUTÉ ICI : Ajout de WeedLab à la fin ---
-    // HeroinLab et CocaineLab ajoutés à la fin aussi, pour la même raison : insérer au
-    // milieu décalerait les valeurs numériques de tout ce qui vient après (SellDrugs...)
-    // et casserait le "type" déjà configuré sur tous tes Interactable existants.
-    public enum ActionType { HackATM, Pickpocket, Laundromat, Safehouse, BlackMarket, ShopLegal, ShopIllegal, StashBox, WeedLab, SellDrugs, HeroinLab, CocaineLab }
+    // HeroinLab, CocaineLab et Garage ajoutés à la fin aussi, pour la même raison : insérer
+    // au milieu décalerait les valeurs numériques de tout ce qui vient après et casserait
+    // le "type" déjà configuré sur tous tes Interactable existants.
+    public enum ActionType { HackATM, Pickpocket, Laundromat, Safehouse, BlackMarket, ShopLegal, ShopIllegal, StashBox, WeedLab, SellDrugs, HeroinLab, CocaineLab, Garage }
     public ActionType type;
 
     [Header("Configuration des actions")]
@@ -120,6 +120,9 @@ public class Interactable : MonoBehaviour
                 break;
             case ActionType.CocaineLab:
                 if (CocaineLabManager.Instance != null) CocaineLabManager.Instance.OpenLab();
+                break;
+            case ActionType.Garage:
+                if (GarageManager.Instance != null) GarageManager.Instance.OpenGarageUI();
                 break;
         }
     }

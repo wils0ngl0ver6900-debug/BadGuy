@@ -14,6 +14,7 @@ public class CarInteraction : MonoBehaviour
     private Collider[] playerColliders;
     private MonoBehaviour playerMovementScript;
     private Renderer[] playerRenderers;
+    private Rigidbody playerRb;
 
     private bool playerInCar = false;
     private bool canEnter = false;
@@ -33,6 +34,7 @@ public class CarInteraction : MonoBehaviour
             playerColliders = player.GetComponentsInChildren<Collider>();
             playerMovementScript = player.GetComponent("PlayerController") as MonoBehaviour;
             playerRenderers = player.GetComponentsInChildren<Renderer>();
+            playerRb = player.GetComponent<Rigidbody>();
         }
     }
 
@@ -40,7 +42,20 @@ public class CarInteraction : MonoBehaviour
     {
         if (canEnter && !playerInCar && Input.GetKeyDown(KeyCode.E))
         {
-            EnterCar();
+            // Une voiture "à vendre" (CarForSale) pas encore achetée ne doit pas pouvoir
+            // être prise en main : sinon la touche [E] "monter en voiture" entre en conflit
+            // avec le [E] "acheter" du système Interactable dès qu'on est près de la portière,
+            // et on se retrouve à rouler avec sans avoir payé.
+            CarForSale forSale = carController != null ? carController.GetComponent<CarForSale>() : null;
+            if (forSale != null && !carController.isPlayerOwned)
+            {
+                if (UIManager.Instance != null)
+                    UIManager.Instance.ShowNotification("<color=red>Tu dois d'abord l'acheter !</color>");
+            }
+            else
+            {
+                EnterCar();
+            }
         }
         else if (playerInCar && Input.GetKeyDown(KeyCode.E))
         {
@@ -99,11 +114,31 @@ public class CarInteraction : MonoBehaviour
 
     public void ExitCar()
     {
+        ExitCarAt(exitPoint != null ? exitPoint.position : transform.position);
+    }
+
+    // Variante qui laisse choisir où le joueur atterrit (ex: un point sûr dans le garage
+    // plutôt que le exitPoint habituel de la voiture, pas forcément adapté à ce contexte).
+    public void ExitCarAt(Vector3 worldPosition)
+    {
         playerInCar = false;
         carController.isDrivenByPlayer = false;
         carCamera.SetActive(false);
 
-        player.transform.position = exitPoint.position;
+        // On téléporte via le Rigidbody plutôt que via transform.position directement :
+        // sur un objet à Rigidbody, forcer transform.position désynchronise le moteur physique
+        // d'une frame, ce qui peut faire passer le joueur à travers le sol selon l'endroit —
+        // c'est ce qui causait le "sous la carte" en sortant dans le garage.
+        if (playerRb != null)
+        {
+            playerRb.position = worldPosition;
+            playerRb.linearVelocity = Vector3.zero;
+        }
+        else if (player != null)
+        {
+            player.transform.position = worldPosition;
+        }
+
         if (playerColliders != null)
         {
             foreach (Collider col in playerColliders)

@@ -1,8 +1,8 @@
 using UnityEngine;
 
-// Zone à poser à l'entrée du garage : le joueur roule dedans au volant d'une voiture,
-// un prompt apparaît, [G] range le véhicule dans GarageManager. Même pattern que
-// ValetParkingZone (OnTriggerEnter/Exit + GetComponentInParent) mais sans minigame
+// Zone à poser à l'entrée du garage : le joueur roule dedans au volant d'une voiture
+// ACHETÉE, un prompt apparaît, [G] range le véhicule dans GarageManager. Même pattern
+// que ValetParkingZone (OnTriggerEnter/Exit + GetComponentInParent) mais sans minigame
 // d'alignement, ici on veut juste garer sa propre bagnole.
 public class GarageStoreZone : MonoBehaviour
 {
@@ -11,6 +11,10 @@ public class GarageStoreZone : MonoBehaviour
 
     [Header("Touche pour garer")]
     public KeyCode storeKey = KeyCode.G;
+
+    [Header("Sécurité de sortie du véhicule")]
+    [Tooltip("Point où le joueur atterrit une fois la voiture rangée. Place-le sur le sol du garage, à un endroit clairement dégagé. Si vide, le exitPoint habituel de la voiture est utilisé à la place (pas toujours fiable ici).")]
+    public Transform playerSafeStandPoint;
 
     private CarController currentCar;
     private CarInteraction currentInteraction;
@@ -53,7 +57,7 @@ public class GarageStoreZone : MonoBehaviour
         {
             if (GarageManager.Instance != null)
             {
-                bool success = GarageManager.Instance.TryStoreVehicle(currentCar, currentInteraction);
+                bool success = GarageManager.Instance.TryStoreVehicle(currentCar, currentInteraction, playerSafeStandPoint);
                 if (success)
                 {
                     currentCar = null;
