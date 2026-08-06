@@ -183,6 +183,17 @@ public class GarageManager : MonoBehaviour
                 return false;
             }
 
+            // On coupe les collisions de la voiture AVANT de repositionner le joueur.
+            // Destroy() est différé à la fin de la frame : sans ça, la voiture reste
+            // physiquement présente pendant un instant au moment même où les collisions
+            // du joueur se réactivent au point de sortie. Si les deux se chevauchent
+            // (selon le gabarit du véhicule), la résolution physique peut les repousser
+            // violemment — souvent vers le bas, à travers le sol.
+            foreach (Collider col in car.GetComponentsInChildren<Collider>())
+            {
+                if (col != null) col.enabled = false;
+            }
+
             if (safeStandPoint != null) safeInteraction.ExitCarAt(safeStandPoint.position);
             else safeInteraction.ExitCar();
         }
