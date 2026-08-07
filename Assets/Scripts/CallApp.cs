@@ -292,22 +292,6 @@ public class CallApp : MonoBehaviour
     {
         if (isInCall || callsBlocked) return;
 
-        // Jimmy est un contact spécial : au lieu du répondeur générique, l'appeler tente
-        // une livraison de véhicule (voir GarageManager). Si plusieurs véhicules sont
-        // disponibles, RequestVehicleDelivery() renvoie null et ouvre elle-même le panneau
-        // de choix — dans ce cas on saute entièrement l'UI d'appel classique, le panneau
-        // de sélection prend le relais par-dessus le téléphone.
-        bool isJimmy = GarageManager.Instance != null && contactName == GarageManager.Instance.jimmyContactName;
-        string jimmyResult = isJimmy ? GarageManager.Instance.RequestVehicleDelivery() : null;
-
-        if (isJimmy && jimmyResult == null)
-        {
-            contactsView.SetActive(false);
-            if (appPanel != null) appPanel.SetActive(false);
-            if (PhoneManager.Instance != null && PhoneManager.Instance.isPhoneOpen) PhoneManager.Instance.TogglePhone();
-            return;
-        }
-
         currentCaller = contactName;
         currentCallerPhoto = GetPhotoForContact(contactName);
         isInCall = true;
@@ -326,7 +310,21 @@ public class CallApp : MonoBehaviour
             else activeCallerPhoto.gameObject.SetActive(false);
         }
 
-        string voicemailLine = isJimmy ? jimmyResult : "Je suis occupé pour le moment. Laisse un message.";
+        string voicemailLine = "Je suis occupé pour le moment. Laisse un message.";
+
+        // Jimmy est un contact spécial : sa réplique dépend du garage (voir GarageManager).
+        // Contrairement à avant, on NE TOUCHE PLUS à appPanel/PhoneManager ici — seule la
+        // réplique change, exactement comme pour n'importe quel autre contact. Si un choix
+        // de véhicule est nécessaire, GarageManager ouvre son propre panneau par-dessus,
+        // sans jamais manipuler l'UI du téléphone lui-même.
+        if (GarageManager.Instance != null && contactName == GarageManager.Instance.jimmyContactName)
+        {
+            string result = GarageManager.Instance.RequestVehicleDelivery();
+            // null = un choix de véhicule est nécessaire, GarageManager a ouvert son propre
+            // panneau tout seul. On évite de passer null au dialogue (comportement TMP pas
+            // garanti) et on affiche une réplique neutre à la place.
+            voicemailLine = result ?? "Attends, laisse-moi voir ce que t'as comme caisses...";
+        }
 
         Dialogue voicemail = new Dialogue();
         voicemail.lines = new DialogueLine[1];

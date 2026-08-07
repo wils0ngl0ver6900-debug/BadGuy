@@ -403,6 +403,14 @@ public class GarageManager : MonoBehaviour
             return StartDeliveryFor(0);
         }
 
+        if (deliverySelectionPanel == null)
+        {
+            // Filet de sécurité : sans ce champ configuré, OpenDeliverySelection() n'aurait
+            // rien affiché — le téléphone se fermait sur rien, silencieusement. On prévient
+            // clairement au lieu de laisser croire que rien ne s'est passé.
+            return "Erreur : le panneau de choix du véhicule n'est pas configuré (Delivery Selection Panel vide sur GarageManager).";
+        }
+
         OpenDeliverySelection();
         return null;
     }
