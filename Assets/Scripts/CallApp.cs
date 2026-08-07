@@ -313,17 +313,20 @@ public class CallApp : MonoBehaviour
         string voicemailLine = "Je suis occupé pour le moment. Laisse un message.";
 
         // Jimmy est un contact spécial : sa réplique dépend du garage (voir GarageManager).
-        // Contrairement à avant, on NE TOUCHE PLUS à appPanel/PhoneManager ici — seule la
-        // réplique change, exactement comme pour n'importe quel autre contact. Si un choix
-        // de véhicule est nécessaire, GarageManager ouvre son propre panneau par-dessus,
-        // sans jamais manipuler l'UI du téléphone lui-même.
+        // Si un choix de véhicule est nécessaire, GarageManager ouvre son propre panneau et
+        // renvoie null — dans ce cas on referme proprement l'appel via EndCall() (sa méthode
+        // existante, déjà testée) plutôt que de le laisser actif derrière le panneau de choix
+        // sans moyen de raccrocher, ce qui bloquait isInCall à true et cassait tous les
+        // appels suivants, Jimmy ou pas.
         if (GarageManager.Instance != null && contactName == GarageManager.Instance.jimmyContactName)
         {
             string result = GarageManager.Instance.RequestVehicleDelivery();
-            // null = un choix de véhicule est nécessaire, GarageManager a ouvert son propre
-            // panneau tout seul. On évite de passer null au dialogue (comportement TMP pas
-            // garanti) et on affiche une réplique neutre à la place.
-            voicemailLine = result ?? "Attends, laisse-moi voir ce que t'as comme caisses...";
+            if (result == null)
+            {
+                EndCall();
+                return;
+            }
+            voicemailLine = result;
         }
 
         Dialogue voicemail = new Dialogue();
