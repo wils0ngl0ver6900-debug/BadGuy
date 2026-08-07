@@ -860,6 +860,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
       insertIndex: -1
       addedObject: {fileID: -1865604976620302227}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8651814973181679073}
   m_SourcePrefab: {fileID: 100100000, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}
 --- !u!1 &3477816706679184885 stripped
 GameObject:
@@ -940,6 +943,7 @@ MonoBehaviour:
   baseValue: 2500
   maxHealth: 100
   currentHealth: 100
+  isPlayerOwned: 0
   smokeEffectPrefab: {fileID: 7621480317597576956, guid: b8d6329a1e1790144a2ffd942dd7abd6, type: 3}
   hoodPosition: {fileID: 5110389295405995130}
   tireSmokeParticles:
@@ -972,6 +976,7 @@ MonoBehaviour:
   explosionDamage: 50
   debrisMaterialTemplate: {fileID: 2100000, guid: 6a08578255b03464b94a01129b64913e, type: 2}
   bigExplosionPrefab: {fileID: 2140037346408830436, guid: 8b82fdbc769ef1c4fb9d4bb20e502d80, type: 3}
+  debrisPrefabs: []
 --- !u!114 &-1865604976620302227
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -989,6 +994,35 @@ MonoBehaviour:
   maxDeformation: 0.4
   impactMultiplier: 0.05
   carBodyMeshFilter: {fileID: 0}
+--- !u!114 &8651814973181679073
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3477816706679184885}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 402a28f52e9222249b8f070433f7faec, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarUpgrades
+  paintRenderers: []
+  engineMultipliers:
+  - 1.15
+  - 1.3
+  - 1.5
+  brakeMultipliers:
+  - 1.2
+  - 1.4
+  - 1.7
+  gripMultipliers:
+  - 1.2
+  - 1.5
+  - 1.9
+  armorMultipliers:
+  - 1.25
+  - 1.5
+  - 2
 --- !u!4 &4253789979030341455 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: c8f9b2b07b89e994d9a84be4488ad532, type: 3}

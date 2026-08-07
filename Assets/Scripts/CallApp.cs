@@ -320,10 +320,14 @@ public class CallApp : MonoBehaviour
         // appels suivants, Jimmy ou pas.
         if (GarageManager.Instance != null && contactName == GarageManager.Instance.jimmyContactName)
         {
-            string result = GarageManager.Instance.RequestVehicleDelivery();
+            string result = GarageManager.Instance.CheckDeliveryAvailability();
             if (result == null)
             {
+                // EndCall() ferme le téléphone (et redonne un curseur invisible, comportement
+                // normal de retour au jeu) — on ouvre le panneau de sélection SEULEMENT
+                // après, pas avant, sinon EndCall() écrase le curseur visible juste posé.
                 EndCall();
+                GarageManager.Instance.OpenDeliverySelection();
                 return;
             }
             voicemailLine = result;

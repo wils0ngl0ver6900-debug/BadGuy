@@ -20,6 +20,13 @@ public class GarageStoreZone : MonoBehaviour
     private CarInteraction currentInteraction;
     private bool canStore = false;
 
+    // La voiture a plusieurs colliders (carrosserie, celui de CarForSale, celui du
+    // DoorTrigger pour monter dedans...) : chacun déclenche SON PROPRE OnTriggerEnter en
+    // entrant dans la zone. Sans ce drapeau, CallApp.RequestCallBlock() était appelé une
+    // fois par collider mais relâché une seule fois — le compteur ne redescendait jamais à
+    // zéro, callsBlocked restait bloqué à "true" pour de bon dès la première voiture garée.
+    private bool hasRequestedCallBlock = false;
+
     private void Start()
     {
         if (storePromptUI != null) storePromptUI.SetActive(false);
@@ -43,7 +50,13 @@ public class GarageStoreZone : MonoBehaviour
 
             // Un appel qui sonne pile pendant la manœuvre de rangement fait sursauter le
             // panneau HUD/téléphone au même moment — même précaution que pour les labos.
-            CallApp.RequestCallBlock();
+            // Une seule demande de blocage par entrée dans la zone, peu importe combien de
+            // colliders de la voiture déclenchent cet événement.
+            if (!hasRequestedCallBlock)
+            {
+                CallApp.RequestCallBlock();
+                hasRequestedCallBlock = true;
+            }
         }
     }
 
@@ -57,7 +70,16 @@ public class GarageStoreZone : MonoBehaviour
             canStore = false;
             if (storePromptUI != null) storePromptUI.SetActive(false);
 
+            ReleaseCallBlockIfNeeded();
+        }
+    }
+
+    private void ReleaseCallBlockIfNeeded()
+    {
+        if (hasRequestedCallBlock)
+        {
             CallApp.ReleaseCallBlock();
+            hasRequestedCallBlock = false;
         }
     }
 
@@ -80,7 +102,7 @@ public class GarageStoreZone : MonoBehaviour
                     // La voiture est détruite : OnTriggerExit ne se déclenchera jamais pour
                     // elle, donc on relâche le blocage ici plutôt que de le laisser bloqué
                     // pour de bon.
-                    CallApp.ReleaseCallBlock();
+                    ReleaseCallBlockIfNeeded();
                 }
             }
         }

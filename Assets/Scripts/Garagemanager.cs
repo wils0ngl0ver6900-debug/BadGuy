@@ -30,7 +30,14 @@ public class GarageManager : MonoBehaviour
     public class StoredVehicle
     {
         public string modelName;
-        public StoredVehicle(string modelName) { this.modelName = modelName; }
+        [Tooltip("Améliorations/couleur au moment du rangement — réappliquées à la récupération. Null = véhicule stock.")]
+        public CarUpgrades.UpgradeData upgrades;
+
+        public StoredVehicle(string modelName, CarUpgrades.UpgradeData upgrades = null)
+        {
+            this.modelName = modelName;
+            this.upgrades = upgrades;
+        }
     }
 
     [Header("Catalogue des véhicules stockables 🚗")]
@@ -196,6 +203,11 @@ public class GarageManager : MonoBehaviour
         }
 
         string modelName = car != null ? car.carModelName : "Véhicule";
+        // Capturé AVANT la destruction : une fois Destroy(car.gameObject) passé, le
+        // composant CarUpgrades n'existe plus, donc plus moyen de relire ses données.
+        CarUpgrades.UpgradeData upgradeData = car != null && car.GetComponent<CarUpgrades>() != null
+            ? car.GetComponent<CarUpgrades>().GetData()
+            : null;
         bool wasDrivenByPlayer = car != null && car.isDrivenByPlayer;
         GameObject player = null;
 
@@ -252,7 +264,7 @@ public class GarageManager : MonoBehaviour
             }
         }
 
-        storedVehicles.Add(new StoredVehicle(modelName));
+        storedVehicles.Add(new StoredVehicle(modelName, upgradeData));
         RefreshGarageUI();
 
         if (UIManager.Instance != null)
@@ -299,6 +311,11 @@ public class GarageManager : MonoBehaviour
         // impossible à re-ranger.
         CarController spawnedCar = spawned.GetComponent<CarController>();
         if (spawnedCar != null) spawnedCar.isPlayerOwned = true;
+
+        // Réapplique les améliorations/couleur sauvegardées au rangement, sinon le tuning
+        // serait à refaire à chaque passage au garage.
+        CarUpgrades spawnedUpgrades = spawned.GetComponent<CarUpgrades>();
+        if (spawnedUpgrades != null) spawnedUpgrades.SetData(stored.upgrades);
 
         storedVehicles.RemoveAt(slotIndex);
 
@@ -386,7 +403,12 @@ public class GarageManager : MonoBehaviour
     // à afficher dans le dialogue de l'appel (garage pas débloqué, rien à livrer, déjà en
     // route...), OU null si un choix de véhicule est nécessaire — dans ce cas le panneau de
     // sélection s'ouvre directement et CallApp doit sauter l'affichage du répondeur.
-    public string RequestVehicleDelivery()
+    // Ne fait QUE vérifier si une livraison est possible — n'ouvre plus le panneau de
+    // sélection elle-même. Avant, OpenDeliverySelection() était appelée ici, mais CallApp
+    // fermait l'appel (EndCall) juste après avoir reçu le résultat, et EndCall() remet le
+    // curseur invisible en fermant le téléphone — écrasant ce que le panneau venait de
+    // faire. Il faut ouvrir le panneau APRÈS EndCall(), pas avant : voir CallApp.MakeCall().
+    public string CheckDeliveryAvailability()
     {
         if (!IsUnlocked())
             return "T'as même pas de garage dans ta planque, comment tu veux que je te livre quoi que ce soit ?";
@@ -411,8 +433,7 @@ public class GarageManager : MonoBehaviour
             return "Erreur : le panneau de choix du véhicule n'est pas configuré (Delivery Selection Panel vide sur GarageManager).";
         }
 
-        OpenDeliverySelection();
-        return null;
+        return null; // Un choix est nécessaire ; CallApp appelle OpenDeliverySelection() lui-même après EndCall().
     }
 
     public void OpenDeliverySelection()
@@ -532,6 +553,9 @@ public class GarageManager : MonoBehaviour
         GameObject spawned = Instantiate(prefab, spawnPos, Quaternion.identity);
         CarController spawnedCar = spawned.GetComponent<CarController>();
         if (spawnedCar != null) spawnedCar.isPlayerOwned = true;
+
+        CarUpgrades spawnedUpgrades = spawned.GetComponent<CarUpgrades>();
+        if (spawnedUpgrades != null) spawnedUpgrades.SetData(stored.upgrades);
 
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification($"<color=green>Jimmy a livré ta {stored.modelName} !</color>");
