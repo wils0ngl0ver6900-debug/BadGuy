@@ -37,11 +37,32 @@ public class CarUpgrades : MonoBehaviour
     private float baseMaxSpeed, baseAcceleration, baseBraking, baseDriftGrip, baseMaxHealth;
     private bool baseValuesCaptured = false;
 
+    // Couleur d'origine de chaque renderer, capturée avant toute repeinture. La plupart des
+    // shaders (Standard/HDRP-URP Lit) affichent texture × material.color — si la carrosserie
+    // n'est pas blanche à la base (rouge, bleue...), poser directement "jaune" donnait un
+    // résultat mélangé (orange, vert...) plutôt que le jaune pur voulu. On compense en
+    // divisant la couleur demandée par cette teinte d'origine.
+    private Color[] baseRendererColors;
+
     private void Awake()
     {
         car = GetComponent<CarController>();
+
         if (paintRenderers == null || paintRenderers.Length == 0)
-            paintRenderers = GetComponentsInChildren<Renderer>();
+        {
+            // On exclut volontairement les TrailRenderers (traces de pneus/skidmarks) et
+            // les ParticleSystemRenderers (fumée de dérapage) : GetComponentsInChildren
+            // les attrape tous, et les inclure dans la repeinture changeait la couleur de
+            // la fumée en même temps que la carrosserie.
+            System.Collections.Generic.List<Renderer> valid = new System.Collections.Generic.List<Renderer>();
+            foreach (Renderer r in GetComponentsInChildren<Renderer>())
+            {
+                if (r is TrailRenderer) continue;
+                if (r is ParticleSystemRenderer) continue;
+                valid.Add(r);
+            }
+            paintRenderers = valid.ToArray();
+        }
     }
 
     private void Start()
@@ -63,6 +84,16 @@ public class CarUpgrades : MonoBehaviour
         // dérapage/freinage à main", donc c'est celui-ci que le palier "adhérence" augmente.
         baseDriftGrip = car.driftGrip;
         baseMaxHealth = car.maxHealth;
+
+        if (paintRenderers != null)
+        {
+            baseRendererColors = new Color[paintRenderers.Length];
+            for (int i = 0; i < paintRenderers.Length; i++)
+            {
+                baseRendererColors[i] = paintRenderers[i] != null ? paintRenderers[i].material.color : Color.white;
+            }
+        }
+
         baseValuesCaptured = true;
     }
 
@@ -137,9 +168,27 @@ public class CarUpgrades : MonoBehaviour
 
         if (current.hasCustomColor && paintRenderers != null)
         {
-            foreach (Renderer r in paintRenderers)
+            for (int i = 0; i < paintRenderers.Length; i++)
             {
-                if (r != null) r.material.color = current.customColor;
+                if (paintRenderers[i] == null) continue;
+
+                Color baseColor = (baseRendererColors != null && i < baseRendererColors.Length)
+                    ? baseRendererColors[i]
+                    : Color.white;
+
+                // Compense la teinte d'origine (division par canal) pour que la couleur
+                // choisie ressorte fidèlement, peu importe la couleur de base du véhicule.
+                // Attention : ceci suppose un shader qui multiplie texture × material.color
+                // (vrai pour Standard/HDRP-URP Lit dans la config la plus courante) — si la
+                // carrosserie utilise une texture non-uniforme (dégradé, motifs...) plutôt
+                // qu'une couleur plate, le résultat reste approximatif. Le seul moyen
+                // d'avoir une couleur 100% fidèle dans tous les cas serait un texture de
+                // carrosserie neutre/blanche côté 3D, ce qui dépend de l'asset lui-même.
+                float rCorrected = baseColor.r > 0.02f ? current.customColor.r / baseColor.r : current.customColor.r;
+                float gCorrected = baseColor.g > 0.02f ? current.customColor.g / baseColor.g : current.customColor.g;
+                float bCorrected = baseColor.b > 0.02f ? current.customColor.b / baseColor.b : current.customColor.b;
+
+                paintRenderers[i].material.color = new Color(rCorrected, gCorrected, bCorrected, 1f);
             }
         }
     }

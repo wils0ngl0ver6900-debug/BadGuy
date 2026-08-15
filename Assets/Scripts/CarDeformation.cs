@@ -1,11 +1,11 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class CarDeformation : MonoBehaviour
 {
-    [Header("Paramètres de Déformation")]
-    [Tooltip("La force minimale du choc pour froisser la tôle")]
+    [Header("Paramï¿½tres de Dï¿½formation")]
+    [Tooltip("La force minimale du choc pour froisser la tï¿½le")]
     public float minForceToDamage = 3.0f;
-    [Tooltip("Le rayon d'impact (taille du cratère)")]
+    [Tooltip("Le rayon d'impact (taille du cratï¿½re)")]
     public float damageRadius = 1.0f;
     [Tooltip("Profondeur maximale de la bosse (pour ne pas aplatir la voiture)")]
     public float maxDeformation = 0.5f;
@@ -13,7 +13,7 @@ public class CarDeformation : MonoBehaviour
     public float impactMultiplier = 0.05f;
 
     [Header("Debug")]
-    [Tooltip("Laissé vide, le script trouvera la carrosserie tout seul.")]
+    [Tooltip("Laissï¿½ vide, le script trouvera la carrosserie tout seul.")]
     public MeshFilter carBodyMeshFilter;
 
     private Mesh originalMesh;
@@ -29,10 +29,10 @@ public class CarDeformation : MonoBehaviour
         InitializeMesh();
     }
 
-    // --- RECHERCHE AUTOMATIQUE INTÉLLIGENTE ---
+    // --- RECHERCHE AUTOMATIQUE INTï¿½LLIGENTE ---
     private void AutoFindCarBody()
     {
-        // Si tu as quand même mis un truc à la main, on le garde
+        // Si tu as quand mï¿½me mis un truc ï¿½ la main, on le garde
         if (carBodyMeshFilter != null) return;
 
         // CORRECTIF : On utilise 'transform.root' pour scanner depuis le sommet du Prefab
@@ -52,7 +52,7 @@ public class CarDeformation : MonoBehaviour
                 continue;
             }
 
-            // La carrosserie est généralement l'objet avec le plus de détails (vertices)
+            // La carrosserie est gï¿½nï¿½ralement l'objet avec le plus de dï¿½tails (vertices)
             if (mf.sharedMesh.vertexCount > maxVertices)
             {
                 maxVertices = mf.sharedMesh.vertexCount;
@@ -63,7 +63,7 @@ public class CarDeformation : MonoBehaviour
         if (bestFilter != null)
         {
             carBodyMeshFilter = bestFilter;
-            Debug.Log($"<color=green>[CarDeformation] Carrosserie trouvée auto : {bestFilter.gameObject.name}</color>");
+            Debug.Log($"<color=green>[CarDeformation] Carrosserie trouvï¿½e auto : {bestFilter.gameObject.name}</color>");
         }
     }
 
@@ -71,7 +71,7 @@ public class CarDeformation : MonoBehaviour
     {
         if (carBodyMeshFilter == null)
         {
-            Debug.LogError($"[CarDeformation] ÉCHEC : Aucune carrosserie trouvée sur {gameObject.name}.");
+            Debug.LogError($"[CarDeformation] ï¿½CHEC : Aucune carrosserie trouvï¿½e sur {gameObject.name}.");
             return;
         }
 
@@ -80,7 +80,7 @@ public class CarDeformation : MonoBehaviour
 
         if (!originalMesh.isReadable)
         {
-            Debug.LogError($"[CarDeformation] ERREUR : Le modèle '{originalMesh.name}' n'est pas modifiable ! Cochez 'Read/Write Enabled' dans l'onglet Model du fichier 3D.");
+            Debug.LogError($"[CarDeformation] ERREUR : Le modï¿½le '{originalMesh.name}' n'est pas modifiable ! Cochez 'Read/Write Enabled' dans l'onglet Model du fichier 3D.");
             return;
         }
 
@@ -90,6 +90,19 @@ public class CarDeformation : MonoBehaviour
         System.Array.Copy(originalVertices, displacedVertices, originalVertices.Length);
 
         isInitialized = true;
+    }
+
+    // Remet la carrosserie dans son Ã©tat d'origine (vertices intacts) â€”
+    // appelÃ©e par TuningShopManager.RepairCar() pour que la rÃ©paration soit
+    // aussi visible qu'elle est mÃ©canique.
+    public void ResetDeformation()
+    {
+        if (!isInitialized || deformedMesh == null || originalVertices == null) return;
+
+        System.Array.Copy(originalVertices, displacedVertices, originalVertices.Length);
+        deformedMesh.vertices = displacedVertices;
+        deformedMesh.RecalculateNormals();
+        deformedMesh.RecalculateBounds();
     }
 
     void OnCollisionEnter(Collision collision)

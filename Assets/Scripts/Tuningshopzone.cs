@@ -1,21 +1,28 @@
 using UnityEngine;
 
-// Zone à poser dans un garage de tuning : le joueur roule dedans au volant d'une voiture
-// ACHETÉE, un prompt apparaît, [T] ouvre le menu de modification (TuningShopManager).
-// Même pattern que GarageStoreZone (OnTriggerEnter/Exit + GetComponentInParent), avec le
-// même garde-fou contre les doubles blocages d'appel (une voiture a plusieurs colliders,
-// donc plusieurs OnTriggerEnter pour une seule entrée dans la zone).
+// Zone à poser dans un garage de tuning. Deux comportements bien séparés :
+// - Voiture ACHETÉE : prompt "[T] pour Tuning" comme avant, ouvre le menu complet
+//   (couleur au choix + 4 améliorations mécaniques).
+// - Voiture VOLÉE : AUCUNE touche, AUCUN menu. Dès qu'elle entre dans la zone, elle se
+//   fait repeindre automatiquement (couleur aléatoire) et perd une étoile de recherche
+//   si elle en a — comme un "car wash à planque", pas un vrai atelier de tuning.
+// Même garde-fou contre les doubles blocages d'appel que GarageStoreZone (une voiture a
+// plusieurs colliders, donc plusieurs OnTriggerEnter pour une seule entrée dans la zone).
 public class TuningShopZone : MonoBehaviour
 {
-    [Header("UI de Prompt")]
+    [Header("UI de Prompt (voitures achetées uniquement)")]
     public GameObject tuningPromptUI;
 
-    [Header("Touche pour ouvrir le menu")]
+    [Header("Touche pour ouvrir le menu (voitures achetées uniquement)")]
     public KeyCode openKey = KeyCode.T;
 
     private CarController currentCar;
     private bool canOpen = false;
     private bool hasRequestedCallBlock = false;
+
+    // Une seule repeinture automatique par entrée dans la zone (sinon ça repeindrait/
+    // ferait baisser une étoile en boucle tant que la voiture reste dedans).
+    private bool hasAutoRepaintedThisVisit = false;
 
     private void Start()
     {
@@ -28,13 +35,43 @@ public class TuningShopZone : MonoBehaviour
         if (car != null && car.isDrivenByPlayer)
         {
             currentCar = car;
-            canOpen = true;
-            if (tuningPromptUI != null) tuningPromptUI.SetActive(true);
 
             if (!hasRequestedCallBlock)
             {
                 CallApp.RequestCallBlock();
                 hasRequestedCallBlock = true;
+            }
+
+            // On reporte la décision achetée/volée à la frame suivante : si plusieurs
+            // colliders du même véhicule déclenchent cet événement quasi-simultanément,
+            // on évite de traiter le premier (qui pourrait arriver avant que isPlayerOwned
+            // soit à jour) et de déclencher par erreur le service automatique sur une
+            // voiture achetée qui n'est pas encore reconnue comme telle.
+            StartCoroutine(HandleCarEnteredNextFrame(car));
+        }
+    }
+
+    private System.Collections.IEnumerator HandleCarEnteredNextFrame(CarController car)
+    {
+        yield return null; // attend la fin de la frame en cours
+
+        // La voiture a pu sortir ou changer pendant ce délai d'une frame
+        if (car == null || !car.isDrivenByPlayer || currentCar != car) yield break;
+
+        if (car.isPlayerOwned)
+        {
+            canOpen = true;
+            if (tuningPromptUI != null) tuningPromptUI.SetActive(true);
+        }
+        else
+        {
+            canOpen = false;
+            if (tuningPromptUI != null) tuningPromptUI.SetActive(false);
+
+            if (!hasAutoRepaintedThisVisit && TuningShopManager.Instance != null)
+            {
+                TuningShopManager.Instance.AutoServiceStolenCar(car);
+                hasAutoRepaintedThisVisit = true;
             }
         }
     }
@@ -46,6 +83,7 @@ public class TuningShopZone : MonoBehaviour
         {
             currentCar = null;
             canOpen = false;
+            hasAutoRepaintedThisVisit = false; // ressort et rerentre = ça peut se redéclencher
             if (tuningPromptUI != null) tuningPromptUI.SetActive(false);
 
             ReleaseCallBlockIfNeeded();
@@ -70,13 +108,10 @@ public class TuningShopZone : MonoBehaviour
 
     private void Update()
     {
+        // Uniquement pour les voitures achetées désormais (canOpen ne passe jamais à true
+        // pour une voiture volée, voir OnTriggerEnter).
         if (canOpen && currentCar != null && currentCar.isDrivenByPlayer && Input.GetKeyDown(openKey))
         {
-            // La peinture doit rester accessible même sur une voiture volée (ça fait
-            // perdre une étoile de recherche, voir TuningShopManager.SelectColor) — donc
-            // on n'interdit plus l'ouverture du shop ici. Seules les 4 améliorations
-            // mécaniques restent réservées aux véhicules achetés, vérifié à l'achat de
-            // chacune dans TuningShopManager.
             if (TuningShopManager.Instance != null)
             {
                 TuningShopManager.Instance.OpenShopFor(currentCar);

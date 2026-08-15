@@ -1,11 +1,12 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-// Panneau de tuning : change la couleur et améliore moteur/freins/adhérence/blindage du
-// véhicule actuellement garé dans la zone (voir TuningShopZone). Les améliorations vivent
-// sur le composant CarUpgrades de la voiture elle-même, et persistent à travers le garage
-// grâce à GarageManager.StoredVehicle.upgrades.
+// Panneau de tuning. Deux rÃ©gimes :
+// - Voiture ACHETÃ‰E : menu complet (peinture au choix, rÃ©paration, 4 amÃ©liorations mÃ©ca).
+// - Voiture VOLÃ‰E   : pas de menu â€” TuningShopZone appelle AutoServiceStolenCar() qui
+//   repeint et rÃ©pare automatiquement, sans intervention du joueur.
+// Tous les prix sont configurables dans l'Inspector, section "Prix (argent propre)".
 public class TuningShopManager : MonoBehaviour
 {
     public static TuningShopManager Instance;
@@ -14,21 +15,38 @@ public class TuningShopManager : MonoBehaviour
     public GameObject shopUIPanel;
     public TextMeshProUGUI vehicleNameText;
 
-    [Header("Peinture")]
-    [Tooltip("Couleurs proposées. Relie chaque bouton correspondant à SelectColor(int) avec le même index.")]
+    [Header("Peinture ðŸŽ¨")]
+    [Tooltip("Couleurs proposÃ©es pour les vÃ©hicules achetÃ©s. Relie chaque bouton Ã  SelectColor(int) avec le mÃªme index.")]
     public Color[] availableColors;
 
-    [Header("Prix des Améliorations (par palier, argent propre)")]
+    [Header("Prix (argent propre ðŸ’°)")]
+    [Space(4)]
+    [Tooltip("CoÃ»t du service automatique (repeinture + rÃ©paration) sur une voiture VOLÃ‰E.")]
+    public int stolenCarServiceCost = 500;
+
+    [Space(4)]
+    [Tooltip("CoÃ»t d'une repeinture sur une voiture ACHETÃ‰E (couleur au choix).")]
+    public int paintCostOwned = 1000;
+
+    [Tooltip("CoÃ»t d'une rÃ©paration complÃ¨te sur une voiture ACHETÃ‰E.")]
+    public int repairCostOwned = 2000;
+
+    [Space(4)]
+    [Tooltip("CoÃ»t de l'amÃ©lioration Moteur, par palier (index 0 = palier 1, index 1 = palier 2...).")]
     public int[] engineCosts = { 5000, 12000, 25000 };
+    [Tooltip("CoÃ»t de l'amÃ©lioration Freins, par palier.")]
     public int[] brakeCosts = { 3000, 8000, 15000 };
+    [Tooltip("CoÃ»t de l'amÃ©lioration AdhÃ©rence, par palier.")]
     public int[] gripCosts = { 3000, 8000, 15000 };
+    [Tooltip("CoÃ»t de l'amÃ©lioration Blindage, par palier.")]
     public int[] armorCosts = { 4000, 10000, 20000 };
 
-    [Header("Textes d'état (optionnels)")]
+    [Header("Textes d'Ã©tat (optionnels, mis Ã  jour automatiquement)")]
     public TextMeshProUGUI engineLevelText;
     public TextMeshProUGUI brakeLevelText;
     public TextMeshProUGUI gripLevelText;
     public TextMeshProUGUI armorLevelText;
+    public TextMeshProUGUI carHealthText;
 
     private CarController currentCar;
     private CarUpgrades currentUpgrades;
@@ -44,6 +62,10 @@ public class TuningShopManager : MonoBehaviour
         if (shopUIPanel != null) shopUIPanel.SetActive(false);
     }
 
+    // ============================================================
+    // VOITURE ACHETÃ‰E : ouvre le menu
+    // ============================================================
+
     public void OpenShopFor(CarController car)
     {
         if (car == null) return;
@@ -52,7 +74,7 @@ public class TuningShopManager : MonoBehaviour
         if (currentUpgrades == null)
         {
             if (UIManager.Instance != null)
-                UIManager.Instance.ShowNotification("<color=red>Ce véhicule n'est pas modifiable (CarUpgrades manquant sur le prefab).</color>");
+                UIManager.Instance.ShowNotification("<color=red>CarUpgrades manquant sur ce prefab. Voir le guide d'intÃ©gration.</color>");
             return;
         }
 
@@ -71,6 +93,8 @@ public class TuningShopManager : MonoBehaviour
     public void CloseShop()
     {
         if (shopUIPanel != null) shopUIPanel.SetActive(false);
+        currentCar = null;
+        currentUpgrades = null;
 
         if (UIManager.Instance != null) UIManager.Instance.ToggleHUD(true);
         Cursor.visible = false;
@@ -80,9 +104,7 @@ public class TuningShopManager : MonoBehaviour
     private void Update()
     {
         if (shopUIPanel != null && shopUIPanel.activeSelf && Input.GetKeyDown(KeyCode.Escape))
-        {
             CloseShop();
-        }
     }
 
     private void RefreshUI()
@@ -90,185 +112,194 @@ public class TuningShopManager : MonoBehaviour
         if (currentUpgrades == null) return;
         CarUpgrades.UpgradeData data = currentUpgrades.GetData();
 
-        if (engineLevelText != null) engineLevelText.text = $"Moteur : Niveau {data.engineLevel}/{engineCosts.Length}";
-        if (brakeLevelText != null) brakeLevelText.text = $"Freins : Niveau {data.brakeLevel}/{brakeCosts.Length}";
-        if (gripLevelText != null) gripLevelText.text = $"Adhérence : Niveau {data.gripLevel}/{gripCosts.Length}";
-        if (armorLevelText != null) armorLevelText.text = $"Blindage : Niveau {data.armorLevel}/{armorCosts.Length}";
+        if (engineLevelText != null) engineLevelText.text = $"Moteur Niv.{data.engineLevel}/{engineCosts.Length} â€” {NextCostString(engineCosts, data.engineLevel)}";
+        if (brakeLevelText != null) brakeLevelText.text = $"Freins Niv.{data.brakeLevel}/{brakeCosts.Length} â€” {NextCostString(brakeCosts, data.brakeLevel)}";
+        if (gripLevelText != null) gripLevelText.text = $"AdhÃ©rence Niv.{data.gripLevel}/{gripCosts.Length} â€” {NextCostString(gripCosts, data.gripLevel)}";
+        if (armorLevelText != null) armorLevelText.text = $"Blindage Niv.{data.armorLevel}/{armorCosts.Length} â€” {NextCostString(armorCosts, data.armorLevel)}";
+
+        if (carHealthText != null && currentCar != null)
+            carHealthText.text = $"Ã‰tat : {Mathf.RoundToInt(currentCar.currentHealth)}/{Mathf.RoundToInt(currentCar.maxHealth)} PV";
     }
 
-    // À relier à un bouton par couleur (index dans availableColors). Contrairement aux 4
-    // améliorations mécaniques, la peinture reste accessible même sur un véhicule volé —
-    // et dans ce cas précis, ça fait perdre une étoile de recherche (nouvelle silhouette,
-    // plus dur à identifier), via la même méthode déjà utilisée pour changer de tenue.
+    private string NextCostString(int[] costs, int level)
+    {
+        if (level >= costs.Length) return "MAX";
+        return $"Prochain : {costs[level]}â‚¬";
+    }
+
+    // ============================================================
+    // PEINTURE (voiture achetÃ©e)
+    // ============================================================
+
     public void SelectColor(int colorIndex)
     {
-        if (currentUpgrades == null) return;
+        if (currentUpgrades == null || currentCar == null) return;
         if (colorIndex < 0 || colorIndex >= availableColors.Length) return;
 
-        currentUpgrades.SetColor(availableColors[colorIndex]);
+        if (!TryDebit(paintCostOwned, "Peinture")) return;
 
-        if (currentCar != null && !currentCar.isPlayerOwned && GameManager.Instance != null && GameManager.Instance.wantedLevel > 0)
+        currentUpgrades.SetColor(availableColors[colorIndex]);
+        RefreshUI();
+        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=green>Nouvelle peinture appliquÃ©e !</color>");
+    }
+
+    // ============================================================
+    // RÃ‰PARATION (voiture achetÃ©e)
+    // ============================================================
+
+    public void RepairCar()
+    {
+        if (currentCar == null) return;
+
+        if (currentCar.isEngineDead)
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Moteur dÃ©truit â€” cette voiture ne peut plus Ãªtre rÃ©parÃ©e ici.</color>");
+            return;
+        }
+
+        if (Mathf.Approximately(currentCar.currentHealth, currentCar.maxHealth))
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=yellow>La voiture est dÃ©jÃ  en parfait Ã©tat !</color>");
+            return;
+        }
+
+        if (!TryDebit(repairCostOwned, "RÃ©paration vÃ©hicule")) return;
+
+        currentCar.currentHealth = currentCar.maxHealth;
+        currentCar.GetComponent<CarDeformation>()?.ResetDeformation();
+        RefreshUI();
+        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=green>Voiture rÃ©parÃ©e !</color>");
+    }
+
+    // ============================================================
+    // AMÃ‰LIORATIONS MÃ‰CANIQUES (voiture achetÃ©e uniquement)
+    // ============================================================
+
+    public void BuyEngineUpgrade()
+    {
+        if (!CheckOwned()) return;
+        int level = currentUpgrades.GetData().engineLevel;
+        if (level >= engineCosts.Length) { Notify("Moteur dÃ©jÃ  au maximum.", "yellow"); return; }
+        if (!TryDebit(engineCosts[level], "AmÃ©lioration Moteur")) return;
+        currentUpgrades.UpgradeEngine();
+        RefreshUI();
+        Notify("Moteur amÃ©liorÃ© !", "green");
+    }
+
+    public void BuyBrakeUpgrade()
+    {
+        if (!CheckOwned()) return;
+        int level = currentUpgrades.GetData().brakeLevel;
+        if (level >= brakeCosts.Length) { Notify("Freins dÃ©jÃ  au maximum.", "yellow"); return; }
+        if (!TryDebit(brakeCosts[level], "AmÃ©lioration Freins")) return;
+        currentUpgrades.UpgradeBrakes();
+        RefreshUI();
+        Notify("Freins amÃ©liorÃ©s !", "green");
+    }
+
+    public void BuyGripUpgrade()
+    {
+        if (!CheckOwned()) return;
+        int level = currentUpgrades.GetData().gripLevel;
+        if (level >= gripCosts.Length) { Notify("AdhÃ©rence dÃ©jÃ  au maximum.", "yellow"); return; }
+        if (!TryDebit(gripCosts[level], "AmÃ©lioration AdhÃ©rence")) return;
+        currentUpgrades.UpgradeGrip();
+        RefreshUI();
+        Notify("AdhÃ©rence amÃ©liorÃ©e !", "green");
+    }
+
+    public void BuyArmorUpgrade()
+    {
+        if (!CheckOwned()) return;
+        int level = currentUpgrades.GetData().armorLevel;
+        if (level >= armorCosts.Length) { Notify("Blindage dÃ©jÃ  au maximum.", "yellow"); return; }
+        if (!TryDebit(armorCosts[level], "AmÃ©lioration Blindage")) return;
+        currentUpgrades.UpgradeArmor();
+        RefreshUI();
+        Notify("Blindage amÃ©liorÃ© !", "green");
+    }
+
+    // ============================================================
+    // VOITURE VOLÃ‰E : service automatique (repeinture + rÃ©paration)
+    // ============================================================
+
+    // AppelÃ©e par TuningShopZone quand une voiture VOLÃ‰E entre dans la zone.
+    // Pas de menu, pas de choix â€” tout se fait immÃ©diatement, une seule fois par visite.
+    public void AutoServiceStolenCar(CarController car)
+    {
+        if (car == null) return;
+
+        if (GameManager.Instance != null && GameManager.Instance.cleanMoney < stolenCarServiceCost)
+        {
+            if (UIManager.Instance != null)
+                UIManager.Instance.ShowNotification($"<color=red>Pas assez d'argent propre pour le service ({stolenCarServiceCost}â‚¬).</color>");
+            return;
+        }
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.cleanMoney -= stolenCarServiceCost;
+            if (BankApp.Instance != null)
+                BankApp.Instance.RecordTransaction(-stolenCarServiceCost, "Service voiture volÃ©e");
+            if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
+        }
+
+        // Repeinture alÃ©atoire parmi les couleurs disponibles
+        CarUpgrades upgrades = car.GetComponent<CarUpgrades>();
+        if (upgrades != null && availableColors != null && availableColors.Length > 0)
+        {
+            Color randomColor = availableColors[Random.Range(0, availableColors.Length)];
+            upgrades.SetColor(randomColor);
+        }
+
+        // RÃ©paration complÃ¨te (moteur dÃ©truit = on remet juste la vie, pas l'Ã©tat mort)
+        if (!car.isEngineDead)
+        {
+            car.currentHealth = car.maxHealth;
+            car.GetComponent<CarDeformation>()?.ResetDeformation();
+        }
+
+        if (GameManager.Instance != null && GameManager.Instance.wantedLevel > 0)
         {
             GameManager.Instance.DropOneStarFromDisguise();
         }
         else
         {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=green>Nouvelle peinture appliquée !</color>");
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=green>Voiture repeinte et rÃ©parÃ©e !</color>");
         }
     }
 
-    // --- Les 4 boutons d'amélioration, un par catégorie. Réservés aux véhicules achetés
-    // (contrairement à la peinture ci-dessus) — vérifié individuellement sur chacun plutôt
-    // qu'à l'ouverture du shop, pour que la peinture reste possible sur une caisse volée
-    // sans permettre les vraies améliorations mécaniques dessus. Volontairement écrit à
-    // plat (pas de factorisation générique) pour rester dans le même style que le reste du
-    // projet : simple à lire et à modifier catégorie par catégorie sans y toucher ensemble. ---
+    // ============================================================
+    // HELPERS PRIVÃ‰S
+    // ============================================================
 
-    public void BuyEngineUpgrade()
+    private bool CheckOwned()
     {
-        if (currentUpgrades == null || GameManager.Instance == null) return;
-
-        if (currentCar != null && !currentCar.isPlayerOwned)
+        if (currentUpgrades == null || currentCar == null) return false;
+        if (!currentCar.isPlayerOwned)
         {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Cette voiture n'est pas à toi — seule la peinture est possible dessus.</color>");
-            return;
+            Notify("Cette voiture n'est pas Ã  toi.", "red");
+            return false;
         }
-
-        int level = currentUpgrades.GetData().engineLevel;
-        if (level >= engineCosts.Length)
-        {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=yellow>Moteur déjà au niveau maximum.</color>");
-            return;
-        }
-
-        int cost = engineCosts[level];
-        if (GameManager.Instance.cleanMoney < cost)
-        {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=red>Pas assez d'argent propre ({cost}€ nécessaires).</color>");
-            return;
-        }
-
-        GameManager.Instance.cleanMoney -= cost;
-        if (BankApp.Instance != null) BankApp.Instance.RecordTransaction(-cost, "Amélioration Moteur");
-
-        currentUpgrades.UpgradeEngine();
-        RefreshUI();
-
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.ShowNotification("<color=green>Moteur amélioré !</color>");
-            UIManager.Instance.UpdateHUD();
-        }
+        return true;
     }
 
-    public void BuyBrakeUpgrade()
+    private bool TryDebit(int cost, string label)
     {
-        if (currentUpgrades == null || GameManager.Instance == null) return;
-
-        if (currentCar != null && !currentCar.isPlayerOwned)
-        {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Cette voiture n'est pas à toi — seule la peinture est possible dessus.</color>");
-            return;
-        }
-
-        int level = currentUpgrades.GetData().brakeLevel;
-        if (level >= brakeCosts.Length)
-        {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=yellow>Freins déjà au niveau maximum.</color>");
-            return;
-        }
-
-        int cost = brakeCosts[level];
+        if (GameManager.Instance == null) return false;
         if (GameManager.Instance.cleanMoney < cost)
         {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=red>Pas assez d'argent propre ({cost}€ nécessaires).</color>");
-            return;
+            Notify($"Pas assez d'argent propre ({cost}â‚¬ nÃ©cessaires).", "red");
+            return false;
         }
-
         GameManager.Instance.cleanMoney -= cost;
-        if (BankApp.Instance != null) BankApp.Instance.RecordTransaction(-cost, "Amélioration Freins");
-
-        currentUpgrades.UpgradeBrakes();
-        RefreshUI();
-
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.ShowNotification("<color=green>Freins améliorés !</color>");
-            UIManager.Instance.UpdateHUD();
-        }
+        if (BankApp.Instance != null) BankApp.Instance.RecordTransaction(-cost, label);
+        if (UIManager.Instance != null) UIManager.Instance.UpdateHUD();
+        return true;
     }
 
-    public void BuyGripUpgrade()
+    private void Notify(string msg, string color = "white")
     {
-        if (currentUpgrades == null || GameManager.Instance == null) return;
-
-        if (currentCar != null && !currentCar.isPlayerOwned)
-        {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Cette voiture n'est pas à toi — seule la peinture est possible dessus.</color>");
-            return;
-        }
-
-        int level = currentUpgrades.GetData().gripLevel;
-        if (level >= gripCosts.Length)
-        {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=yellow>Adhérence déjà au niveau maximum.</color>");
-            return;
-        }
-
-        int cost = gripCosts[level];
-        if (GameManager.Instance.cleanMoney < cost)
-        {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=red>Pas assez d'argent propre ({cost}€ nécessaires).</color>");
-            return;
-        }
-
-        GameManager.Instance.cleanMoney -= cost;
-        if (BankApp.Instance != null) BankApp.Instance.RecordTransaction(-cost, "Amélioration Adhérence");
-
-        currentUpgrades.UpgradeGrip();
-        RefreshUI();
-
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.ShowNotification("<color=green>Adhérence améliorée !</color>");
-            UIManager.Instance.UpdateHUD();
-        }
-    }
-
-    public void BuyArmorUpgrade()
-    {
-        if (currentUpgrades == null || GameManager.Instance == null) return;
-
-        if (currentCar != null && !currentCar.isPlayerOwned)
-        {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Cette voiture n'est pas à toi — seule la peinture est possible dessus.</color>");
-            return;
-        }
-
-        int level = currentUpgrades.GetData().armorLevel;
-        if (level >= armorCosts.Length)
-        {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=yellow>Blindage déjà au niveau maximum.</color>");
-            return;
-        }
-
-        int cost = armorCosts[level];
-        if (GameManager.Instance.cleanMoney < cost)
-        {
-            if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=red>Pas assez d'argent propre ({cost}€ nécessaires).</color>");
-            return;
-        }
-
-        GameManager.Instance.cleanMoney -= cost;
-        if (BankApp.Instance != null) BankApp.Instance.RecordTransaction(-cost, "Amélioration Blindage");
-
-        currentUpgrades.UpgradeArmor();
-        RefreshUI();
-
-        if (UIManager.Instance != null)
-        {
-            UIManager.Instance.ShowNotification("<color=green>Blindage amélioré !</color>");
-            UIManager.Instance.UpdateHUD();
-        }
+        if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color={color}>{msg}</color>");
     }
 }
