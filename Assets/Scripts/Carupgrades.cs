@@ -50,15 +50,20 @@ public class CarUpgrades : MonoBehaviour
 
         if (paintRenderers == null || paintRenderers.Length == 0)
         {
-            // On exclut volontairement les TrailRenderers (traces de pneus/skidmarks) et
-            // les ParticleSystemRenderers (fumée de dérapage) : GetComponentsInChildren
-            // les attrape tous, et les inclure dans la repeinture changeait la couleur de
-            // la fumée en même temps que la carrosserie.
+            // On exclut volontairement :
+            // - TrailRenderers (traces de pneus/skidmarks)
+            // - ParticleSystemRenderers (fumée de dérapage)
+            // - Renderers sur objets dont le nom contient "glass", "vitre", "window" ou
+            //   "windshield" (vitres) : l'écraser avec une couleur opaque rendrait la
+            //   carrosserie aveugle, et les vitres ont généralement un shader transparent
+            //   qui réagit très mal à un changement de couleur arbitraire.
             System.Collections.Generic.List<Renderer> valid = new System.Collections.Generic.List<Renderer>();
             foreach (Renderer r in GetComponentsInChildren<Renderer>())
             {
                 if (r is TrailRenderer) continue;
                 if (r is ParticleSystemRenderer) continue;
+                string n = r.gameObject.name.ToLower();
+                if (n.Contains("glass") || n.Contains("vitre") || n.Contains("window") || n.Contains("windshield")) continue;
                 valid.Add(r);
             }
             paintRenderers = valid.ToArray();

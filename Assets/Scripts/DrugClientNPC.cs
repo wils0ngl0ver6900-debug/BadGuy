@@ -13,7 +13,7 @@ public class DrugClientNPC : MonoBehaviour
 
     private NavMeshAgent agent;
     private TargetHealth targetHealth;
-    private Animator anim; // <-- NOUVEAU : On déclare l'Animator
+    private Animator anim;
     private ClientState state = ClientState.Attente;
 
     private Vector3 zoneCenter;
@@ -29,7 +29,7 @@ public class DrugClientNPC : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         targetHealth = GetComponent<TargetHealth>();
-        anim = GetComponentInChildren<Animator>(); // <-- NOUVEAU : On récupère l'Animator
+        anim = GetComponentInChildren<Animator>();
     }
 
     public void Initialize(Vector3 center, float radius, Transform exit, DrugDealZone zone)
@@ -46,13 +46,10 @@ public class DrugClientNPC : MonoBehaviour
         if (targetHealth != null && targetHealth.isDead) return;
         if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
 
-        // --- NOUVEAU : On transmet la vitesse de l'Agent à l'Animator ---
         if (anim != null)
         {
-            // agent.velocity.magnitude renvoie la vitesse actuelle (ex: 0 à l'arrêt, 3.5 en marchant)
             anim.SetFloat("Speed", agent.velocity.magnitude);
         }
-        // ----------------------------------------------------------------
 
         switch (state)
         {
@@ -74,6 +71,56 @@ public class DrugClientNPC : MonoBehaviour
 
             case ClientState.EnCoursDeService:
                 break;
+        }
+    }
+
+    // Réagit à une collision avec une voiture conduite par le joueur :
+    // applique un ragdoll temporaire via TargetHealth (même système que NPCBrain/NPCBasic)
+    // et des dégâts proportionnels à l'impact.
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (targetHealth != null && targetHealth.isDead) return;
+
+        // On s'intéresse uniquement aux voitures conduites par le joueur
+        CarController car = collision.gameObject.GetComponentInParent<CarController>();
+        if (car == null || !car.isDrivenByPlayer) return;
+
+        float impactForce = collision.relativeVelocity.magnitude;
+        if (impactForce < 2f) return; // petit choc ignoré (contact mineur)
+
+        // Calcul du dégât et de la poussée, calibrés sur ceux de CarController.OnCollisionEnter
+        int damage = Mathf.RoundToInt(Mathf.Pow(impactForce, 1.4f));
+        Vector3 pushForce = (collision.relativeVelocity.normalized + Vector3.up * 0.4f) * impactForce * 0.4f;
+
+        if (targetHealth != null)
+        {
+            targetHealth.TakeDamage(damage, collision.gameObject);
+
+            if (!targetHealth.isDead)
+            {
+                // Désactive le NavMeshAgent pendant le ragdoll pour qu'il ne
+                // remette pas le client debout en plein vol.
+                if (agent != null && agent.enabled) agent.enabled = false;
+                targetHealth.TemporaryRagdoll(pushForce);
+                StartCoroutine(ReenableAgentAfterRagdoll());
+            }
+        }
+    }
+
+    private System.Collections.IEnumerator ReenableAgentAfterRagdoll()
+    {
+        // TargetHealth.TempRagdollRoutine dure environ 2s → on attend un peu plus
+        // pour être sûr qu'il est revenu debout avant de réactiver le pathfinding.
+        yield return new WaitForSeconds(3.5f);
+
+        if (this == null || gameObject == null) yield break;
+        if (targetHealth != null && targetHealth.isDead) yield break;
+
+        if (agent != null && !agent.enabled)
+        {
+            agent.enabled = true;
+            if (agent.isOnNavMesh && state != ClientState.Depart)
+                PickNewWanderTarget();
         }
     }
 
