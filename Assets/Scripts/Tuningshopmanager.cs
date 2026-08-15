@@ -47,6 +47,8 @@ public class TuningShopManager : MonoBehaviour
     public TextMeshProUGUI gripLevelText;
     public TextMeshProUGUI armorLevelText;
     public TextMeshProUGUI carHealthText;
+    public TextMeshProUGUI paintCostText;
+    public TextMeshProUGUI repairCostText;
 
     private CarController currentCar;
     private CarUpgrades currentUpgrades;
@@ -119,6 +121,9 @@ public class TuningShopManager : MonoBehaviour
 
         if (carHealthText != null && currentCar != null)
             carHealthText.text = $"État : {Mathf.RoundToInt(currentCar.currentHealth)}/{Mathf.RoundToInt(currentCar.maxHealth)} PV";
+
+        if (paintCostText != null) paintCostText.text = $"Peinture : {paintCostOwned}€";
+        if (repairCostText != null) repairCostText.text = $"Réparation : {repairCostOwned}€";
     }
 
     private string NextCostString(int[] costs, int level)
