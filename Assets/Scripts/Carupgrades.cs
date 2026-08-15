@@ -182,16 +182,20 @@ public class CarUpgrades : MonoBehaviour
                     : Color.white;
 
                 // Compense la teinte d'origine (division par canal) pour que la couleur
-                // choisie ressorte fidèlement, peu importe la couleur de base du véhicule.
-                // Attention : ceci suppose un shader qui multiplie texture × material.color
-                // (vrai pour Standard/HDRP-URP Lit dans la config la plus courante) — si la
-                // carrosserie utilise une texture non-uniforme (dégradé, motifs...) plutôt
-                // qu'une couleur plate, le résultat reste approximatif. Le seul moyen
-                // d'avoir une couleur 100% fidèle dans tous les cas serait un texture de
-                // carrosserie neutre/blanche côté 3D, ce qui dépend de l'asset lui-même.
-                float rCorrected = baseColor.r > 0.02f ? current.customColor.r / baseColor.r : current.customColor.r;
-                float gCorrected = baseColor.g > 0.02f ? current.customColor.g / baseColor.g : current.customColor.g;
-                float bCorrected = baseColor.b > 0.02f ? current.customColor.b / baseColor.b : current.customColor.b;
+                // choisie ressorte fidèlement sur la carrosserie, peu importe la teinte de
+                // base du matériau. Le plafond à 2.5 limite l'AMPLIFICATION du facteur de
+                // correction : sans lui, diviser par une teinte de base proche de zéro
+                // pouvait multiplier des pixels sombres de la texture (vitres, pneus...)
+                // par un facteur énorme et les rendre visiblement plus clairs — les vitres
+                // "se faisaient repeindre" alors qu'elles ne devraient jamais bouger.
+                // Ce plafond réduit nettement l'effet sans l'annuler à 100% : la seule
+                // façon de garantir des vitres parfaitement noires serait de les isoler
+                // dans un matériau séparé côté 3D (l'asset actuel les partage avec la
+                // carrosserie sur le même matériau).
+                const float maxCorrection = 2.5f;
+                float rCorrected = baseColor.r > 0.02f ? Mathf.Min(current.customColor.r / baseColor.r, maxCorrection) : current.customColor.r;
+                float gCorrected = baseColor.g > 0.02f ? Mathf.Min(current.customColor.g / baseColor.g, maxCorrection) : current.customColor.g;
+                float bCorrected = baseColor.b > 0.02f ? Mathf.Min(current.customColor.b / baseColor.b, maxCorrection) : current.customColor.b;
 
                 paintRenderers[i].material.color = new Color(rCorrected, gCorrected, bCorrected, 1f);
             }

@@ -49,6 +49,10 @@ public class CarController : MonoBehaviour
     [HideInInspector] public bool isEngineDead = false;
     private float spawnProtectionTimer = 2f;
     private float lastHumanHitTime = 0f;
+    // Vitesse mémorisée juste avant que la physique ne résolve les collisions de cette
+    // frame — sert de référence "vitesse d'avant impact" dans OnCollisionEnter, pour
+    // pouvoir restituer la vitesse perdue contre un piéton (voir OnCollisionEnter).
+    private Vector3 velocityBeforePhysicsStep;
 
     void Start()
     {
@@ -115,6 +119,10 @@ public class CarController : MonoBehaviour
         ApplyArcadeGrip();
         ApplyDownforce();
         AutoRighting();
+
+        // Capturé en dernier : c'est la vitesse "juste avant" que Unity ne résolve les
+        // collisions du prochain pas de physique.
+        velocityBeforePhysicsStep = rb.linearVelocity;
     }
 
     private void HandleEffects()
@@ -313,7 +321,14 @@ public class CarController : MonoBehaviour
             if (isHuman)
             {
                 int meatDamage = Mathf.RoundToInt(Mathf.Pow(impactForce, 1.4f));
-                Vector3 pushForce = (rb.linearVelocity.normalized + (Vector3.up * 0.4f)) * impactForce * 0.4f;
+
+                // Vitesse de la voiture juste avant l'impact (voir FixedUpdate) : sert de
+                // référence à la fois pour calibrer la distance d'éjection du piéton et
+                // pour restituer à la voiture ce qu'elle a perdu en heurtant un corps —
+                // sans ça, un piéton (masse "infinie" pendant qu'il marche, voir NPCBrain)
+                // stoppe net la voiture comme un mur au moment précis de l'impact.
+                float speedBeforeImpact = velocityBeforePhysicsStep.magnitude;
+                Vector3 pushForce = PedestrianImpact.CalculateEjectionVelocity(speedBeforeImpact, velocityBeforePhysicsStep);
 
                 if (player != null)
                 {
@@ -333,6 +348,13 @@ public class CarController : MonoBehaviour
                             health.TemporaryRagdoll(pushForce);
                         }
                     }
+                }
+
+                // On restitue la majeure partie de la vitesse perdue (garde un peu de
+                // résistance pour que l'impact reste ressenti, sans le coup d'arrêt complet).
+                if (velocityBeforePhysicsStep.sqrMagnitude > 0.01f)
+                {
+                    rb.linearVelocity = Vector3.Lerp(rb.linearVelocity, velocityBeforePhysicsStep, 0.85f);
                 }
             }
         }
