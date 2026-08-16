@@ -125,18 +125,28 @@ public class CarInteraction : MonoBehaviour
         carController.isDrivenByPlayer = false;
         carCamera.SetActive(false);
 
+        // Recalage au sol par raycast : exitPoint suppose une voiture à peu près à plat sur
+        // une surface normale. Après un accident violent (voiture retournée, encastrée...),
+        // sa position réelle peut être n'importe où — sans ce recalage, le joueur pouvait
+        // atterrir sous la carte lors d'une éjection d'urgence (CarExplosionImproved).
+        Vector3 targetPosition = worldPosition;
+        if (Physics.Raycast(targetPosition + Vector3.up * 5f, Vector3.down, out RaycastHit groundHit, 20f))
+        {
+            targetPosition = groundHit.point + Vector3.up * 0.1f;
+        }
+
         // On téléporte via le Rigidbody plutôt que via transform.position directement :
         // sur un objet à Rigidbody, forcer transform.position désynchronise le moteur physique
         // d'une frame, ce qui peut faire passer le joueur à travers le sol selon l'endroit —
         // c'est ce qui causait le "sous la carte" en sortant dans le garage.
         if (playerRb != null)
         {
-            playerRb.position = worldPosition;
+            playerRb.position = targetPosition;
             playerRb.linearVelocity = Vector3.zero;
         }
         else if (player != null)
         {
-            player.transform.position = worldPosition;
+            player.transform.position = targetPosition;
         }
 
         // Remet UNIQUEMENT les os du ragdoll dans un état sûr (kinematic, vitesse nulle)

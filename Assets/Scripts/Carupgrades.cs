@@ -183,21 +183,30 @@ public class CarUpgrades : MonoBehaviour
 
                 // Compense la teinte d'origine (division par canal) pour que la couleur
                 // choisie ressorte fidèlement sur la carrosserie, peu importe la teinte de
-                // base du matériau. Le plafond à 2.5 limite l'AMPLIFICATION du facteur de
-                // correction : sans lui, diviser par une teinte de base proche de zéro
-                // pouvait multiplier des pixels sombres de la texture (vitres, pneus...)
-                // par un facteur énorme et les rendre visiblement plus clairs — les vitres
-                // "se faisaient repeindre" alors qu'elles ne devraient jamais bouger.
-                // Ce plafond réduit nettement l'effet sans l'annuler à 100% : la seule
-                // façon de garantir des vitres parfaitement noires serait de les isoler
-                // dans un matériau séparé côté 3D (l'asset actuel les partage avec la
-                // carrosserie sur le même matériau).
-                const float maxCorrection = 2.5f;
-                float rCorrected = baseColor.r > 0.02f ? Mathf.Min(current.customColor.r / baseColor.r, maxCorrection) : current.customColor.r;
-                float gCorrected = baseColor.g > 0.02f ? Mathf.Min(current.customColor.g / baseColor.g, maxCorrection) : current.customColor.g;
-                float bCorrected = baseColor.b > 0.02f ? Mathf.Min(current.customColor.b / baseColor.b, maxCorrection) : current.customColor.b;
+                // base du matériau.
+                float rFactor = baseColor.r > 0.02f ? current.customColor.r / baseColor.r : current.customColor.r;
+                float gFactor = baseColor.g > 0.02f ? current.customColor.g / baseColor.g : current.customColor.g;
+                float bFactor = baseColor.b > 0.02f ? current.customColor.b / baseColor.b : current.customColor.b;
 
-                paintRenderers[i].material.color = new Color(rCorrected, gCorrected, bCorrected, 1f);
+                // Le plafond limite l'AMPLIFICATION (sans lui, diviser par une teinte de
+                // base proche de zéro peut multiplier des pixels sombres de la texture —
+                // vitres, pneus — par un facteur énorme et les éclaircir à tort). Important :
+                // si un canal dépasse le plafond, on réduit les 3 ENSEMBLE, dans les mêmes
+                // proportions, plutôt que de plafonner chaque canal indépendamment — sinon,
+                // si par exemple G et B se retrouvent écrêtés à la même valeur alors que R
+                // reste plus bas, ça détruit le ratio entre canaux et donc la teinte demandée
+                // (un bleu ciel pouvait ressortir vert/cyan à cause de ça).
+                const float maxCorrection = 2.5f;
+                float maxFactor = Mathf.Max(rFactor, Mathf.Max(gFactor, bFactor));
+                if (maxFactor > maxCorrection)
+                {
+                    float scale = maxCorrection / maxFactor;
+                    rFactor *= scale;
+                    gFactor *= scale;
+                    bFactor *= scale;
+                }
+
+                paintRenderers[i].material.color = new Color(rFactor, gFactor, bFactor, 1f);
             }
         }
     }

@@ -72,8 +72,24 @@ public class CarExplosionImproved : MonoBehaviour
     {
         if (carInteraction != null && car != null && car.isDrivenByPlayer)
         {
+            // On coupe un instant les collisions de la voiture accidentée pendant qu'on
+            // repositionne le joueur (elle n'est détruite qu'après le délai avant explosion,
+            // donc elle reste pleinement solide sinon). Après un crash violent, la voiture
+            // peut être retournée/encastrée — sans ça, le joueur pouvait réapparaître
+            // incrusté dedans et se faire éjecter sous la carte par la résolution physique.
+            Collider[] carColliders = car.GetComponentsInChildren<Collider>();
+            foreach (Collider col in carColliders)
+            {
+                if (col != null) col.enabled = false;
+            }
+
             // On force ta propre fonction de sortie !
             carInteraction.ExitCar();
+
+            foreach (Collider col in carColliders)
+            {
+                if (col != null) col.enabled = true;
+            }
 
             if (UIManager.Instance != null)
             {

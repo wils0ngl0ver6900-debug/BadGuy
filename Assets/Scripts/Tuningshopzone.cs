@@ -115,6 +115,9 @@ public class TuningShopZone : MonoBehaviour
             if (TuningShopManager.Instance != null)
             {
                 TuningShopManager.Instance.OpenShopFor(currentCar);
+                // Le prompt "[T] pour Tuning" n'a plus lieu d'être une fois le menu ouvert —
+                // avant, il restait affiché par-dessus toute la session de tuning.
+                if (tuningPromptUI != null) tuningPromptUI.SetActive(false);
             }
         }
     }

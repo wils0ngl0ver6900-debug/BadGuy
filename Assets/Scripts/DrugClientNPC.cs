@@ -74,55 +74,10 @@ public class DrugClientNPC : MonoBehaviour
         }
     }
 
-    // Réagit à une collision avec une voiture conduite par le joueur :
-    // applique un ragdoll temporaire via TargetHealth (même système que NPCBrain/NPCBasic)
-    // et des dégâts proportionnels à l'impact.
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (targetHealth != null && targetHealth.isDead) return;
-
-        // On s'intéresse uniquement aux voitures conduites par le joueur
-        CarController car = collision.gameObject.GetComponentInParent<CarController>();
-        if (car == null || !car.isDrivenByPlayer) return;
-
-        float impactForce = collision.relativeVelocity.magnitude;
-        if (impactForce < 2f) return; // petit choc ignoré (contact mineur)
-
-        // Calcul du dégât et de la poussée, calibrés sur ceux de CarController.OnCollisionEnter
-        int damage = Mathf.RoundToInt(Mathf.Pow(impactForce, 1.4f));
-        Vector3 pushForce = (collision.relativeVelocity.normalized + Vector3.up * 0.4f) * impactForce * 0.4f;
-
-        if (targetHealth != null)
-        {
-            targetHealth.TakeDamage(damage, collision.gameObject);
-
-            if (!targetHealth.isDead)
-            {
-                // Désactive le NavMeshAgent pendant le ragdoll pour qu'il ne
-                // remette pas le client debout en plein vol.
-                if (agent != null && agent.enabled) agent.enabled = false;
-                targetHealth.TemporaryRagdoll(pushForce);
-                StartCoroutine(ReenableAgentAfterRagdoll());
-            }
-        }
-    }
-
-    private System.Collections.IEnumerator ReenableAgentAfterRagdoll()
-    {
-        // TargetHealth.TempRagdollRoutine dure environ 2s → on attend un peu plus
-        // pour être sûr qu'il est revenu debout avant de réactiver le pathfinding.
-        yield return new WaitForSeconds(3.5f);
-
-        if (this == null || gameObject == null) yield break;
-        if (targetHealth != null && targetHealth.isDead) yield break;
-
-        if (agent != null && !agent.enabled)
-        {
-            agent.enabled = true;
-            if (agent.isOnNavMesh && state != ClientState.Depart)
-                PickNewWanderTarget();
-        }
-    }
+    // Note : la réaction aux collisions avec une voiture est désormais entièrement gérée
+    // par CarController.OnCollisionEnter (détection via TargetHealth, commun à tous les
+    // piétons du jeu) et TargetHealth.TemporaryRagdoll (qui désactive/réactive lui-même le
+    // NavMeshAgent, l'Animator et le collider). Plus besoin de logique spécifique ici.
 
     private void PickNewWanderTarget()
     {

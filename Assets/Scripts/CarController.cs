@@ -299,16 +299,20 @@ public class CarController : MonoBehaviour
         float impactForce = collision.relativeVelocity.magnitude;
         if (impactForce < 2f) return;
 
-        NPCBrain npc = collision.gameObject.GetComponentInParent<NPCBrain>();
         PlayerController player = collision.gameObject.GetComponentInParent<PlayerController>();
+        // TargetHealth est le point commun à TOUS les piétons du jeu (flics, gangs, civils
+        // ET clients drogue) — contrairement à NPCBrain, absent sur DrugClientNPC. Avant,
+        // seuls les NPCBrain passaient par le chemin "isHuman" (formule d'éjection calibrée
+        // + restitution de vitesse de la voiture) ; les clients drogue tombaient dans le
+        // chemin générique "isLightObject" sans ces deux traitements, d'où l'impression
+        // qu'ils encaissaient/pesaient différemment des flics.
+        TargetHealth targetHealth = collision.gameObject.GetComponentInParent<TargetHealth>();
 
         if (player != null && isDrivenByPlayer) return;
 
         bool isLightObject = collision.rigidbody != null && collision.rigidbody.mass < 50f;
 
-        bool isHuman = false;
-        if (player != null) isHuman = true;
-        if (npc != null && npc.locomotion == NPCBrain.Locomotion.Pieton) isHuman = true;
+        bool isHuman = player != null || targetHealth != null;
 
         if (isHuman || isLightObject)
         {
@@ -335,18 +339,14 @@ public class CarController : MonoBehaviour
                     player.TakeDamage(meatDamage);
                     if (player.currentHealth > 0) player.Knockdown(pushForce);
                 }
-                if (npc != null)
+                else if (targetHealth != null)
                 {
-                    TargetHealth health = npc.GetComponent<TargetHealth>();
-                    if (health != null)
-                    {
-                        GameObject attacker = isDrivenByPlayer ? GameObject.FindGameObjectWithTag("Player") : this.gameObject;
-                        health.TakeDamage(meatDamage, attacker);
+                    GameObject attacker = isDrivenByPlayer ? GameObject.FindGameObjectWithTag("Player") : this.gameObject;
+                    targetHealth.TakeDamage(meatDamage, attacker);
 
-                        if (health.currentHealth > 0)
-                        {
-                            health.TemporaryRagdoll(pushForce);
-                        }
+                    if (targetHealth.currentHealth > 0)
+                    {
+                        targetHealth.TemporaryRagdoll(pushForce);
                     }
                 }
 
