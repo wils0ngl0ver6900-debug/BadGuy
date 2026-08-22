@@ -59,6 +59,12 @@ public class CallApp : MonoBehaviour
             contactList.Add(blackKnightContact);
         }
 
+        // GenerateContacts() ne tournait qu'une fois, dans Start() — bien avant que Black
+        // Knight n'existe dans la liste. Sans la rappeler ici, il restait invisible dans
+        // l'UI même si contactList le contenait bien (elle reconstruit tous les boutons
+        // depuis zéro à chaque appel, donc pas de risque de doublon).
+        GenerateContacts();
+
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification("<color=cyan>Nouveau contact ajouté à ton téléphone : Black Knight.</color>");
     }
