@@ -972,6 +972,7 @@ MonoBehaviour:
   maxHealth: 100
   currentHealth: 100
   isPlayerOwned: 0
+  damageImmune: 1
   smokeEffectPrefab: {fileID: 7621480317597576956, guid: b8d6329a1e1790144a2ffd942dd7abd6, type: 3}
   hoodPosition: {fileID: 8279913681390774605}
   tireSmokeParticles:
@@ -982,6 +983,7 @@ MonoBehaviour:
   - {fileID: 789830386004174237}
   isDrivenByPlayer: 0
   isDrivenByAI: 0
+  inputLocked: 0
   moveInput: 0
   turnInput: 0
   isHandbraking: 0
@@ -1065,6 +1067,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CarAI
   currentNode: {fileID: 0}
   waypointThreshold: 5
+  lateralOffset: 0
   frontSensorLength: 7
   rearSensorLength: 3
   sensorFrontOffset: 2.5

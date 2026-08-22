@@ -25,6 +25,14 @@ public class StreetRaceManager : MonoBehaviour
     public GameObject raceCarPrefab;
     public string[] opponentNames = { "Vipère", "Le Fantôme", "Diesel", "Rafale" };
 
+    [Tooltip("Décalage latéral donné à chaque adversaire IA (voir CarAI.lateralOffset) pour éviter qu'ils roulent tous en file indienne parfaite sur le même circuit.")]
+    public float[] opponentLateralOffsets = { -3f, -1f, 1f, 3f };
+
+    [Header("Compte à rebours 🚦")]
+    [Tooltip("Texte affichant 3, 2, 1, GO ! avant le départ. Tout le monde (joueur + IA) est bloqué pendant ce temps.")]
+    public TMPro.TextMeshProUGUI countdownText;
+    public float secondsPerCount = 1f;
+
     [Header("Récompenses (argent sale 💵)")]
     public int firstPlaceReward = 5000;
     public int secondPlaceReward = 2000;
@@ -32,7 +40,9 @@ public class StreetRaceManager : MonoBehaviour
     private List<RaceParticipant> participants = new List<RaceParticipant>();
     private List<RaceParticipant> finishOrder = new List<RaceParticipant>();
     private List<GameObject> spawnedCars = new List<GameObject>();
+    private List<CarAI> aiDrivers = new List<CarAI>();
     private RaceParticipant playerParticipant;
+    private CarController playerCarControllerRef;
     private Vector3 preRacePlayerPosition;
     private bool raceActive = false;
 
@@ -73,6 +83,7 @@ public class StreetRaceManager : MonoBehaviour
         participants.Clear();
         finishOrder.Clear();
         spawnedCars.Clear();
+        aiDrivers.Clear();
 
         // --- Voiture du joueur (position 0 sur la grille) ---
         GameObject playerCar = Instantiate(raceCarPrefab, GridPosition(0), gridStartPoint.rotation);
@@ -83,11 +94,14 @@ public class StreetRaceManager : MonoBehaviour
         CarAI playerCarAI = playerCar.GetComponent<CarAI>();
         if (playerCarAI != null) playerCarAI.enabled = false;
 
-        CarController playerCarController = playerCar.GetComponent<CarController>();
-        if (playerCarController != null)
+        playerCarControllerRef = playerCar.GetComponent<CarController>();
+        if (playerCarControllerRef != null)
         {
-            playerCarController.isPlayerOwned = true;
-            playerCarController.isDrivenByAI = false;
+            playerCarControllerRef.isPlayerOwned = true;
+            playerCarControllerRef.isDrivenByAI = false;
+            // Bloqué dès maintenant : reste vrai pendant tout le compte à rebours, libéré
+            // juste avant "GO !" plus bas.
+            playerCarControllerRef.inputLocked = true;
         }
 
         RaceParticipant playerRP = playerCar.AddComponent<RaceParticipant>();
@@ -120,8 +134,12 @@ public class StreetRaceManager : MonoBehaviour
 
             CarAI aiDriver = aiCar.GetComponent<CarAI>();
             if (aiDriver == null) aiDriver = aiCar.AddComponent<CarAI>();
-            aiDriver.enabled = true;
+            // Désactivé pour l'instant : reste immobile pendant le compte à rebours, comme
+            // le joueur (inputLocked). Réactivé juste avant "GO !" plus bas.
+            aiDriver.enabled = false;
             aiDriver.currentNode = startFinishNode;
+            if (i < opponentLateralOffsets.Length) aiDriver.lateralOffset = opponentLateralOffsets[i];
+            aiDrivers.Add(aiDriver);
 
             string oppName = i < opponentNames.Length ? opponentNames[i] : $"Adversaire {i + 1}";
             RaceParticipant aiRP = aiCar.AddComponent<RaceParticipant>();
@@ -129,10 +147,35 @@ public class StreetRaceManager : MonoBehaviour
             participants.Add(aiRP);
         }
 
+        yield return StartCoroutine(CountdownRoutine());
+
+        // Tout le monde est libéré en même temps, personne n'a d'avance.
+        if (playerCarControllerRef != null) playerCarControllerRef.inputLocked = false;
+        foreach (CarAI aiDriver in aiDrivers)
+        {
+            if (aiDriver != null) aiDriver.enabled = true;
+        }
+
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification($"<color=cyan>Course lancée ! {lapsToWin} tours, en piste !</color>");
 
         StartCoroutine(GuidePlayerRoutine());
+    }
+
+    private IEnumerator CountdownRoutine()
+    {
+        if (countdownText == null) yield break;
+
+        countdownText.gameObject.SetActive(true);
+
+        string[] steps = { "3", "2", "1", "GO !" };
+        foreach (string step in steps)
+        {
+            countdownText.text = step;
+            yield return new WaitForSeconds(secondsPerCount);
+        }
+
+        countdownText.gameObject.SetActive(false);
     }
 
     private Vector3 GridPosition(int index)
@@ -209,6 +252,7 @@ public class StreetRaceManager : MonoBehaviour
     {
         raceActive = false;
 
+        if (countdownText != null) countdownText.gameObject.SetActive(false);
         if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -244,5 +288,7 @@ public class StreetRaceManager : MonoBehaviour
         participants.Clear();
         finishOrder.Clear();
         playerParticipant = null;
+        playerCarControllerRef = null;
+        aiDrivers.Clear();
     }
 }

@@ -31,6 +31,9 @@ public class CarController : MonoBehaviour
     [Tooltip("Vrai seulement si le joueur a payé ce véhicule (via CarForSale). Sert de garde-fou au garage : une voiture volée ne peut pas y être rangée.")]
     public bool isPlayerOwned = false;
 
+    [Tooltip("Coché : ce véhicule ne subit plus aucun dégât (TakeDamage ne fait rien). Utile pour un prefab dédié à une course, sans affecter les autres voitures.")]
+    public bool damageImmune = false;
+
     [Header("Effets Visuels (Dégâts) 💥")]
     public GameObject smokeEffectPrefab;
     public Transform hoodPosition;
@@ -41,6 +44,7 @@ public class CarController : MonoBehaviour
 
     [HideInInspector] public bool isDrivenByPlayer = false;
     [HideInInspector] public bool isDrivenByAI = false;
+    [HideInInspector] public bool inputLocked = false;
     [HideInInspector] public float moveInput;
     [HideInInspector] public float turnInput;
     [HideInInspector] public bool isHandbraking = false;
@@ -93,6 +97,14 @@ public class CarController : MonoBehaviour
             moveInput = 0;
             turnInput = 0;
             isHandbraking = false;
+        }
+        else if (inputLocked)
+        {
+            // Bloque le joueur (ex: compte à rebours avant une course) sans désactiver le
+            // script entier — la caméra/HUD "en voiture" restent actifs normalement.
+            moveInput = 0;
+            turnInput = 0;
+            isHandbraking = true;
         }
         else if (isDrivenByPlayer)
         {
@@ -177,6 +189,7 @@ public class CarController : MonoBehaviour
     {
         float speed = rb.linearVelocity.magnitude;
         float forwardSpeed = Vector3.Dot(transform.forward, rb.linearVelocity);
+        bool grounded = IsGrounded();
 
         if (isEngineDead)
         {
@@ -196,8 +209,12 @@ public class CarController : MonoBehaviour
             {
                 rb.AddForce(-rb.linearVelocity.normalized * brakingForce, ForceMode.Acceleration);
             }
-            else
+            else if (grounded)
             {
+                // Uniquement la propulsion (marche arrière) est coupée en l'air — le
+                // freinage juste au-dessus reste actif peu importe l'altitude, ce qui est
+                // raisonnable (résistance de l'air/freins), contrairement à accélérer comme
+                // un avion après un gros choc qui envoie la voiture en vol.
                 float speedFactor = 1f - (speed / (maxSpeed * 0.5f));
                 rb.AddForce(transform.forward * moveInput * reverseForce * Mathf.Max(speedFactor, 0.3f), ForceMode.Acceleration);
             }
@@ -208,7 +225,7 @@ public class CarController : MonoBehaviour
             {
                 rb.AddForce(-rb.linearVelocity.normalized * brakingForce, ForceMode.Acceleration);
             }
-            else
+            else if (grounded)
             {
                 float speedFactor = 1f - (speed / maxSpeed);
                 rb.AddForce(transform.forward * moveInput * accelerationForce * Mathf.Max(speedFactor, 0.3f), ForceMode.Acceleration);
@@ -218,6 +235,16 @@ public class CarController : MonoBehaviour
         {
             rb.AddForce(-rb.linearVelocity.normalized * (brakingForce * 0.2f), ForceMode.Acceleration);
         }
+    }
+
+    // Rayon court vers le bas depuis le centre de la voiture : suffisant pour distinguer un
+    // vrai décollage (après un choc, une rampe...) d'une conduite normale (léger rebond de
+    // suspension, petite bosse). Ajuste rayLength si la garde au sol de tes modèles diffère
+    // beaucoup d'un véhicule à l'autre.
+    private bool IsGrounded()
+    {
+        float rayLength = 1.5f;
+        return Physics.Raycast(transform.position, Vector3.down, rayLength);
     }
 
     private void ProcessSteering()
@@ -265,7 +292,7 @@ public class CarController : MonoBehaviour
 
     public void TakeDamage(float amount)
     {
-        if (isEngineDead || spawnProtectionTimer > 0f) return;
+        if (damageImmune || isEngineDead || spawnProtectionTimer > 0f) return;
 
         currentHealth = Mathf.Clamp(currentHealth - amount, 0, maxHealth);
 

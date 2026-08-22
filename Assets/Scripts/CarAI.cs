@@ -7,6 +7,9 @@ public class CarAI : MonoBehaviour
     public TrafficNode currentNode;
     public float waypointThreshold = 5f;
 
+    [Tooltip("Décalage latéral (perpendiculaire à la route) appliqué au point visé sur chaque noeud. 0 = comportement normal (inchangé). Utile pour éviter que plusieurs IA suivant le même circuit ne roulent en file indienne parfaite — donne à chacune une valeur différente (ex: -3, -1, +1, +3).")]
+    public float lateralOffset = 0f;
+
     [Header("Détection d'obstacles (Matrice 360)")]
     public float frontSensorLength = 7f;
     public float rearSensorLength = 3f;
@@ -187,6 +190,21 @@ public class CarAI : MonoBehaviour
         else
         {
             targetPos = currentNode.transform.position;
+
+            // Décalage perpendiculaire à la direction du noeud (0 = pas de changement) :
+            // sans ça, plusieurs IA sur le même circuit visent EXACTEMENT le même point à
+            // chaque virage et finissent en file indienne quasi parfaite.
+            if (!Mathf.Approximately(lateralOffset, 0f))
+            {
+                Vector3 dirToNode = (targetPos - transform.position);
+                dirToNode.y = 0f;
+                if (dirToNode.sqrMagnitude > 0.01f)
+                {
+                    Vector3 perpendicular = Vector3.Cross(Vector3.up, dirToNode.normalized);
+                    targetPos += perpendicular * lateralOffset;
+                }
+            }
+
             if (Vector3.Distance(transform.position, targetPos) < waypointThreshold && currentNode.nextNodes.Count > 0)
             {
                 currentNode = currentNode.nextNodes[Random.Range(0, currentNode.nextNodes.Count)];
