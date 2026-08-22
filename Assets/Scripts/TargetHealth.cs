@@ -150,9 +150,12 @@ public class TargetHealth : MonoBehaviour
         foreach (Rigidbody rb in rbs)
         {
             if (rb.gameObject == this.gameObject) continue;
-            rb.isKinematic = true;
+            // Vitesse à zéro AVANT de passer en kinematic, pas après : une fois kinematic,
+            // Unity refuse (avec un warning) qu'on lui fixe une vélocité — ce qui se
+            // répétait des centaines de fois au chargement, un par PNJ de la scène.
             rb.linearVelocity = Vector3.zero;
             rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
         }
     }
 
@@ -281,7 +284,16 @@ public class TargetHealth : MonoBehaviour
 
         if (agent != null)
         {
-            agent.Warp(transform.position);
+            // Le recalage au sol ci-dessus se base sur la physique (raycast), pas sur le
+            // NavMesh bâti — les deux peuvent différer de quelques centimètres selon le
+            // terrain, suffisant pour qu'agent.Warp() échoue avec "not close enough to the
+            // NavMesh". On cherche le point NavMesh valide le plus proche avant de warper.
+            Vector3 warpTarget = transform.position;
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit navHit, 3f, NavMesh.AllAreas))
+            {
+                warpTarget = navHit.position;
+            }
+            agent.Warp(warpTarget);
             agent.enabled = true;
         }
 
