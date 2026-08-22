@@ -246,11 +246,12 @@ public class TargetHealth : MonoBehaviour
 
         if (hips != null)
         {
-            Vector3 newPos = hips.position;
-            if (Physics.Raycast(hips.position + Vector3.up, Vector3.down, out RaycastHit hit, 3f))
-            {
-                newPos.y = hit.point.y;
-            }
+            // On se replace d'abord horizontalement là où les hanches ont fini leur course
+            // (X/Z), la hauteur exacte est corrigée juste en dessous une fois la pose
+            // debout restaurée.
+            Vector3 newPos = transform.position;
+            newPos.x = hips.position.x;
+            newPos.z = hips.position.z;
             transform.position = newPos;
         }
 
@@ -263,6 +264,21 @@ public class TargetHealth : MonoBehaviour
         }
 
         if (mainCollider != null) mainCollider.enabled = true;
+
+        // Recalage au sol : fait ICI, une fois la pose debout restaurée (pas pendant que le
+        // ragdoll est encore affalé), et basé sur le BAS du collider plutôt que sur les
+        // hanches. Avant, transform.position.y était calé sur la hauteur de sol détectée
+        // depuis les hanches — comme les hanches sont bien plus haut que les pieds, le
+        // personnage se retrouvait planté avec le bassin au niveau du sol (à moitié enfoncé
+        // dedans) au lieu des pieds.
+        if (mainCollider != null && Physics.Raycast(transform.position + Vector3.up * 2f, Vector3.down, out RaycastHit groundHit, 10f))
+        {
+            float feetOffset = transform.position.y - mainCollider.bounds.min.y;
+            Vector3 correctedPos = transform.position;
+            correctedPos.y = groundHit.point.y + feetOffset;
+            transform.position = correctedPos;
+        }
+
         if (agent != null)
         {
             agent.Warp(transform.position);

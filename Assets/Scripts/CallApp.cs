@@ -36,6 +36,33 @@ public class CallApp : MonoBehaviour
 
     public List<ContactInfo> contactList = new List<ContactInfo>();
 
+    [Header("Contact Black Knight 🏁 (débloqué par quête)")]
+    [Tooltip("Configuré dans l'Inspector (nom, photo) mais PAS ajouté à Contact List au départ — utilise UnlockBlackKnightContact() pour l'ajouter, à relier depuis la UnityEvent de fin de la quête qui le débloque.")]
+    public ContactInfo blackKnightContact;
+    [Tooltip("Doit correspondre exactement à Black Knight Contact > Contact Name.")]
+    public string blackKnightContactName = "Black Knight";
+    private bool isBlackKnightUnlocked = false;
+
+    [Header("Dialogue d'appel de Black Knight")]
+    [TextArea(2, 4)] public string blackKnightLine1 = "Alors, prêt à faire chauffer le bitume ce soir ?";
+    [TextArea(2, 4)] public string blackKnightLine2 = "Cinq bagnoles, une piste, et de l'argent à la clé pour les deux premiers. Tu marches ?";
+
+    // À relier depuis la UnityEvent onDialogueEnd (ou équivalent) de la quête qui débloque
+    // Black Knight comme contact appelable.
+    public void UnlockBlackKnightContact()
+    {
+        if (isBlackKnightUnlocked) return;
+        isBlackKnightUnlocked = true;
+
+        if (blackKnightContact != null && !contactList.Contains(blackKnightContact))
+        {
+            contactList.Add(blackKnightContact);
+        }
+
+        if (UIManager.Instance != null)
+            UIManager.Instance.ShowNotification("<color=cyan>Nouveau contact ajouté à ton téléphone : Black Knight.</color>");
+    }
+
     [HideInInspector] public bool callsBlocked = false;
 
     // Compteur de "demandes de blocage" actives (un par labo ouvert en même temps, par
@@ -331,6 +358,42 @@ public class CallApp : MonoBehaviour
                 return;
             }
             voicemailLine = result;
+        }
+
+        // Black Knight est un autre contact spécial : au lieu d'un répondeur, il propose la
+        // course avec un vrai choix Oui/Non (voir l'extension ajoutée à DialogueManager).
+        // Oui => la course démarre (StreetRaceManager) ; Non => rien ne se passe. Dans les
+        // deux cas l'appel se termine normalement (EndCall(), déjà géré par DialogueManager
+        // pour tout dialogue marqué comme appel téléphonique).
+        if (contactName == blackKnightContactName)
+        {
+            Dialogue raceInvite = new Dialogue();
+            raceInvite.lines = new DialogueLine[2];
+            raceInvite.lines[0] = new DialogueLine { speakerName = contactName, sentence = blackKnightLine1 };
+            raceInvite.lines[1] = new DialogueLine { speakerName = contactName, sentence = blackKnightLine2 };
+            raceInvite.hasYesNoChoice = true;
+            raceInvite.yesLabel = "Oui";
+            raceInvite.noLabel = "Non";
+
+            raceInvite.onYesChoice = new UnityEngine.Events.UnityEvent();
+            raceInvite.onYesChoice.AddListener(() =>
+            {
+                if (StreetRaceManager.Instance != null) StreetRaceManager.Instance.StartRace();
+            });
+            raceInvite.onNoChoice = new UnityEngine.Events.UnityEvent();
+            raceInvite.onNoChoice.AddListener(() =>
+            {
+                if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=grey>Peut-être une autre fois.</color>");
+            });
+
+            currentCallDialogue = raceInvite;
+
+            timerCoroutine = StartCoroutine(CallTimerRoutine());
+            if (DialogueManager.Instance != null)
+            {
+                DialogueManager.Instance.StartDialogue(currentCallDialogue, true);
+            }
+            return;
         }
 
         Dialogue voicemail = new Dialogue();

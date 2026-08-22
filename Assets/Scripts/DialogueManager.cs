@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections;
@@ -17,20 +17,33 @@ public class DialogueLine
 public class Dialogue
 {
     public DialogueLine[] lines;
-    [Header("Que se passe-t-il à la fin ?")]
     public UnityEvent onDialogueEnd;
+
+    [Header("Choix Oui/Non (optionnel, affiche apres la derniere replique)")]
+    public bool hasYesNoChoice = false;
+    public string yesLabel = "Oui";
+    public string noLabel = "Non";
+    public UnityEvent onYesChoice;
+    public UnityEvent onNoChoice;
 }
 
 public class DialogueManager : MonoBehaviour
 {
     public static DialogueManager Instance;
 
-    [Header("UI Éléments")]
+    [Header("UI ï¿½lï¿½ments")]
     public GameObject dialoguePanel;
     public TextMeshProUGUI nameText;
     public TextMeshProUGUI dialogueText;
     public Image portraitImage;
     public GameObject continuePrompt;
+
+    [Header("Choix Oui/Non")]
+    public GameObject yesNoChoicePanel;
+    public Button yesButton;
+    public Button noButton;
+    public TextMeshProUGUI yesButtonText;
+    public TextMeshProUGUI noButtonText;
 
     private Queue<DialogueLine> linesQueue;
     private Dialogue currentDialogue;
@@ -44,17 +57,22 @@ public class DialogueManager : MonoBehaviour
     {
         if (Instance == null) Instance = this;
         linesQueue = new Queue<DialogueLine>();
+
+        if (yesButton != null) yesButton.onClick.AddListener(OnYesClicked);
+        if (noButton != null) noButton.onClick.AddListener(OnNoClicked);
     }
 
     private void Start()
     {
         if (dialoguePanel != null) dialoguePanel.SetActive(false);
+        if (yesNoChoicePanel != null) yesNoChoicePanel.SetActive(false);
         playerController = FindObjectOfType<PlayerController>();
     }
 
     private void Update()
     {
-        if (dialoguePanel != null && dialoguePanel.activeSelf)
+        if (dialoguePanel != null && dialoguePanel.activeSelf
+            && (yesNoChoicePanel == null || !yesNoChoicePanel.activeSelf))
         {
             if (Input.GetKeyDown(KeyCode.Space) || Input.GetKeyDown(KeyCode.Return) || Input.GetMouseButtonDown(0))
             {
@@ -105,7 +123,14 @@ public class DialogueManager : MonoBehaviour
     {
         if (linesQueue.Count == 0)
         {
-            EndDialogue();
+            if (currentDialogue.hasYesNoChoice)
+            {
+                ShowYesNoChoice();
+            }
+            else
+            {
+                EndDialogue();
+            }
             return;
         }
 
@@ -143,6 +168,29 @@ public class DialogueManager : MonoBehaviour
         if (continuePrompt != null) continuePrompt.SetActive(true);
     }
 
+    private void ShowYesNoChoice()
+    {
+        // Le prompt "appuie pour continuer" n'a plus lieu d'Ãªtre, le choix prend le relais.
+        if (continuePrompt != null) continuePrompt.SetActive(false);
+        if (yesNoChoicePanel != null) yesNoChoicePanel.SetActive(true);
+        if (yesButtonText != null) yesButtonText.text = currentDialogue.yesLabel;
+        if (noButtonText != null) noButtonText.text = currentDialogue.noLabel;
+    }
+
+    private void OnYesClicked()
+    {
+        if (yesNoChoicePanel != null) yesNoChoicePanel.SetActive(false);
+        if (currentDialogue.onYesChoice != null) currentDialogue.onYesChoice.Invoke();
+        EndDialogue();
+    }
+
+    private void OnNoClicked()
+    {
+        if (yesNoChoicePanel != null) yesNoChoicePanel.SetActive(false);
+        if (currentDialogue.onNoChoice != null) currentDialogue.onNoChoice.Invoke();
+        EndDialogue();
+    }
+
     private void EndDialogue()
     {
         StartCoroutine(EndDialogueRoutine());
@@ -152,18 +200,18 @@ public class DialogueManager : MonoBehaviour
     {
         dialoguePanel.SetActive(false);
 
-        // On réaffiche le HUD (et on range le téléphone si besoin)
+        // On rï¿½affiche le HUD (et on range le tï¿½lï¿½phone si besoin)
         if (UIManager.Instance != null)
             UIManager.Instance.ToggleHUD(true);
 
         if (playerController != null && !isCurrentDialogueAPhoneCall)
         {
-            // On libère le joueur (si ce n'était pas un appel)
+            // On libï¿½re le joueur (si ce n'ï¿½tait pas un appel)
             playerController.isDoingQTE = false;
             playerController.enabled = true;
         }
 
-        // Si c'était un appel, on dit à l'application téléphone de raccrocher
+        // Si c'ï¿½tait un appel, on dit ï¿½ l'application tï¿½lï¿½phone de raccrocher
         if (isCurrentDialogueAPhoneCall && CallApp.Instance != null)
         {
             CallApp.Instance.EndCall();

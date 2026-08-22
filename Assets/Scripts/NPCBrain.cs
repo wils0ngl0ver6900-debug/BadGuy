@@ -169,11 +169,53 @@ public class NPCBrain : MonoBehaviour
     {
         ExecuteStateAction();
 
+        if (locomotion == Locomotion.Pieton)
+        {
+            AvoidPushingStationaryObstacle();
+        }
+
         if (animator != null && agent != null && locomotion == Locomotion.Pieton)
         {
             float targetSpeed = agent.velocity.magnitude;
             float currentSpeed = animator.GetFloat("Speed");
             animator.SetFloat("Speed", Mathf.Lerp(currentSpeed, targetSpeed, Time.deltaTime * 10f));
+        }
+    }
+
+    // Vérification additive, ne touche à AUCUNE destination/état existant : le Rigidbody
+    // racine des piétons est kinematic pendant qu'ils marchent (nécessaire pour le
+    // NavMeshAgent), donc physiquement "increvable" — il peut pousser le joueur ou une
+    // voiture à l'arrêt sans jamais être repoussé lui-même. On stoppe juste un instant
+    // l'agent quand l'un des deux est directement devant, le temps que l'évitement/le
+    // joueur libère le passage — dès que ce n'est plus le cas, le déplacement normal
+    // reprend tout seul (aucun état ni destination n'est modifié ici).
+    private void AvoidPushingStationaryObstacle()
+    {
+        if (agent == null || !agent.enabled || !agent.isOnNavMesh) return;
+
+        const float checkDistance = 1.2f;
+        Vector3 checkOrigin = transform.position + Vector3.up * 0.6f;
+
+        if (Physics.Raycast(checkOrigin, transform.forward, out RaycastHit hit, checkDistance))
+        {
+            bool isPlayerAhead = hit.collider.GetComponentInParent<PlayerController>() != null;
+
+            bool isStationaryCarAhead = false;
+            if (!isPlayerAhead)
+            {
+                CarController car = hit.collider.GetComponentInParent<CarController>();
+                // Uniquement les voitures à l'arrêt (pas conduites) : on ne veut pas
+                // interférer avec la fuite/poursuite en véhicule des PNJ eux-mêmes.
+                if (car != null && !car.isDrivenByPlayer && !car.isDrivenByAI)
+                {
+                    isStationaryCarAhead = true;
+                }
+            }
+
+            if (isPlayerAhead || isStationaryCarAhead)
+            {
+                agent.velocity = Vector3.zero;
+            }
         }
     }
 

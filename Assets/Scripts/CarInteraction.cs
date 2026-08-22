@@ -68,7 +68,7 @@ public class CarInteraction : MonoBehaviour
         }
     }
 
-    void EnterCar()
+    public void EnterCar()
     {
         playerInCar = true;
         carController.isDrivenByPlayer = true;

@@ -48,7 +48,12 @@ public class CarController : MonoBehaviour
     private Rigidbody rb;
     [HideInInspector] public bool isEngineDead = false;
     private float spawnProtectionTimer = 2f;
-    private float lastHumanHitTime = 0f;
+    // Anti-répétition PAR CIBLE (pas un seul minuteur global) : sans ça, percuter plusieurs
+    // piétons différents en moins de 0.2s (ex: traverser un petit groupe) sautait le
+    // traitement — dégâts, poussée, restitution de vitesse — pour tous sauf le premier,
+    // et la voiture encaissait alors une collision physique brute non compensée, comme un
+    // mur, sur les suivants.
+    private System.Collections.Generic.Dictionary<GameObject, float> lastHitTimeByTarget = new System.Collections.Generic.Dictionary<GameObject, float>();
     // Vitesse mémorisée juste avant que la physique ne résolve les collisions de cette
     // frame — sert de référence "vitesse d'avant impact" dans OnCollisionEnter, pour
     // pouvoir restituer la vitesse perdue contre un piéton (voir OnCollisionEnter).
@@ -316,8 +321,15 @@ public class CarController : MonoBehaviour
 
         if (isHuman || isLightObject)
         {
-            if (Time.time - lastHumanHitTime < 0.2f) return;
-            lastHumanHitTime = Time.time;
+            // Clé stable pour identifier LA cible touchée (pas juste le collider précis,
+            // qui peut être un os différent à chaque frame sur un même PNJ) : la racine du
+            // PlayerController, ou celle du TargetHealth, ou à défaut l'objet du Rigidbody.
+            GameObject targetKey = player != null ? player.gameObject
+                                  : (targetHealth != null ? targetHealth.gameObject
+                                  : (collision.rigidbody != null ? collision.rigidbody.gameObject : collision.gameObject));
+
+            if (lastHitTimeByTarget.TryGetValue(targetKey, out float lastHit) && Time.time - lastHit < 0.2f) return;
+            lastHitTimeByTarget[targetKey] = Time.time;
 
             float carDamage = Mathf.Clamp(impactForce * 0.05f, 0f, 5f);
             if (carDamage > 1f) TakeDamage(carDamage);
