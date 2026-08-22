@@ -62,6 +62,11 @@ public class StreetRaceManager : MonoBehaviour
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj == null) return;
 
+        StartCoroutine(StartRaceRoutine(playerObj));
+    }
+
+    private IEnumerator StartRaceRoutine(GameObject playerObj)
+    {
         preRacePlayerPosition = playerObj.transform.position;
 
         raceActive = true;
@@ -89,6 +94,15 @@ public class StreetRaceManager : MonoBehaviour
         playerRP.Initialize(startFinishNode.transform, lapsToWin, this, "Toi");
         playerParticipant = playerRP;
         participants.Add(playerRP);
+
+        // On attend UNE frame : Start() d'un objet fraîchement instancié (notamment
+        // CarInteraction, qui y remplit player/playerRenderers/playerColliders) ne tourne
+        // jamais de façon synchrone pendant Instantiate(). Appeler EnterCar() tout de suite
+        // faisait planter CarInteraction sur un NullReferenceException (foreach sur
+        // playerRenderers encore null) — ce qui coupait TOUT LE RESTE de cette méthode (les
+        // 4 IA n'étaient donc jamais créées) et laissait le joueur avec ses collisions
+        // toujours actives à chevaucher la voiture (d'où l'"envol" par résolution physique).
+        yield return null;
 
         // On force le joueur à monter dedans (comme s'il venait de presser [E] dessus).
         CarInteraction playerCarInteraction = playerCar.GetComponentInChildren<CarInteraction>();

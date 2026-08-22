@@ -97,9 +97,12 @@ public class CarInteraction : MonoBehaviour
         }
         if (playerMovementScript != null) playerMovementScript.enabled = false;
 
-        foreach (Renderer rend in playerRenderers)
+        if (playerRenderers != null)
         {
-            if (rend.gameObject.name != "Icone_Joueur") rend.enabled = false;
+            foreach (Renderer rend in playerRenderers)
+            {
+                if (rend != null && rend.gameObject.name != "Icone_Joueur") rend.enabled = false;
+            }
         }
 
         if (MinimapFollow.Instance != null) MinimapFollow.Instance.target = carController.transform;
@@ -176,9 +179,15 @@ public class CarInteraction : MonoBehaviour
         }
         if (playerMovementScript != null) playerMovementScript.enabled = true;
 
-        foreach (Renderer rend in playerRenderers) rend.enabled = true;
+        if (playerRenderers != null)
+        {
+            foreach (Renderer rend in playerRenderers)
+            {
+                if (rend != null) rend.enabled = true;
+            }
+        }
 
-        if (MinimapFollow.Instance != null) MinimapFollow.Instance.target = player.transform;
+        if (MinimapFollow.Instance != null && player != null) MinimapFollow.Instance.target = player.transform;
 
         if (UIManager.Instance != null)
         {
