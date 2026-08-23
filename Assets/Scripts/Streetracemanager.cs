@@ -256,6 +256,15 @@ public class StreetRaceManager : MonoBehaviour
             // entrer pile dans le rayon avance quand même), donc pas de risque qu'elle
             // tourne indéfiniment autour d'un point devenu trop précis à atteindre.
             aiDriver.waypointThreshold = 1f;
+
+            // TROUVÉ dans le prefab : obstacleMask (m_Bits: 0) ne détecte RIEN — tout le
+            // système d'évitement (CheckFrontSensors/CheckRearSensors, steerBias, freinage
+            // d'urgence) tourne dans le vide depuis le début, peu importe la précision de la
+            // trajectoire. On force "Everything" ici plutôt que de dépendre du numéro exact
+            // du Layer des bâtiments (potentiellement différent d'un projet à l'autre) —
+            // sûr : le code exclut déjà le sol plat et les propres colliders de la voiture
+            // (voir CheckFrontSensors), donc pas de faux positifs à craindre.
+            aiDriver.obstacleMask = ~0;
             aiDrivers.Add(aiDriver);
 
             // Le joueur profite du lissage de direction (steeringSmoothing) pour un ressenti
