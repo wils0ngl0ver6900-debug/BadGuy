@@ -285,13 +285,34 @@ public class CarAI : MonoBehaviour
         }
     }
 
-    // Avance au point suivant du RaceCircuit quand on est assez proche du point actuel.
-    // Simple index qui boucle (modulo) — aucune ambiguïté possible, contrairement au graphe
-    // TrafficNode.
+    // Avance au point suivant du RaceCircuit. Deux conditions, l'une OU l'autre suffit :
+    // - proximité classique (comme avant) ;
+    // - OU la voiture a géométriquement DÉPASSÉ le point (projetée sur la direction du
+    //   segment courant->suivant), même sans être entrée dans le rayon exact.
+    // Cette 2e condition est le vrai correctif : sur un virage trop serré pour le rayon de
+    // braquage de la voiture à sa vitesse du moment, elle pouvait tourner autour du point
+    // sans jamais y entrer précisément — un simple "je suis proche" ne suffisait pas, il
+    // fallait détecter "je suis passée devant" même à distance.
     private void AdvanceRaceWaypoint()
     {
         Vector3 currentTarget = raceCircuit.GetPoint(raceWaypointIndex);
-        if (Vector3.Distance(transform.position, currentTarget) < waypointThreshold)
+        Vector3 nextTarget = raceCircuit.GetPoint(raceWaypointIndex + 1);
+
+        float distToCurrent = Vector3.Distance(transform.position, currentTarget);
+        bool closeEnough = distToCurrent < waypointThreshold;
+
+        bool passedByProjection = false;
+        Vector3 segmentDir = nextTarget - currentTarget;
+        if (segmentDir.sqrMagnitude > 0.01f)
+        {
+            Vector3 toCar = transform.position - currentTarget;
+            float projection = Vector3.Dot(toCar, segmentDir.normalized);
+            // "Dépassé" seulement si raisonnablement proche (3x le seuil) — évite de
+            // sauter un point à cause d'un simple raccourci géométrique lointain.
+            passedByProjection = projection > 0f && distToCurrent < waypointThreshold * 3f;
+        }
+
+        if (closeEnough || passedByProjection)
         {
             raceWaypointIndex = (raceWaypointIndex + 1) % raceCircuit.Count;
         }
@@ -382,6 +403,17 @@ public class CarAI : MonoBehaviour
         Vector3 localTarget = transform.InverseTransformPoint(steerTarget);
         float angleToTarget = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
         virtualSteeringWheel = Mathf.Clamp((angleToTarget / 45f) + steerBias, -1f, 1f);
+
+        // Le planificateur de vitesse ci-dessus peut commander une accélération franche si
+        // la vitesse actuelle est sous la cible — correct en ligne droite, mais dangereux
+        // EN PLEIN VIRAGE serré (volant très braqué) : accélérer fort en tournant fait
+        // perdre l'adhérence et peut faire manquer l'apex en boucle. On plafonne l'accéléra-
+        // tion tant que le volant reste fortement tourné, peu importe ce que dit la cible.
+        float steerMagnitude = Mathf.Abs(virtualSteeringWheel);
+        if (steerMagnitude > 0.5f && virtualGasPedal > 0.3f)
+        {
+            virtualGasPedal = 0.3f;
+        }
 
         if (steerBias != 0f && closestFrontDistance < 4f)
         {
