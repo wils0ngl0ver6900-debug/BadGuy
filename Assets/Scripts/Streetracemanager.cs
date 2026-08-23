@@ -52,6 +52,14 @@ public class StreetRaceManager : MonoBehaviour
     [Tooltip("Objets d'UI désactivés pendant la course et réactivés à la fin (hotbar, minimap, étoiles de recherche...). Glisse ici les panels concernés de ta Hierarchy.")]
     public GameObject[] uiToHideDuringRace;
 
+    [Header("Physique IA — valeurs ABSOLUES (pas des multiplicateurs du prefab)")]
+    [Tooltip("Les précédents réglages multipliaient les valeurs du prefab (x2, x4...) — problème : ce prefab a déjà une vitesse de base de 50 et une accélération de 90, donc les multiplicateurs s'empilaient dessus et donnaient des valeurs absurdes (~125 m/s). Ici, valeurs FIXES et directement lisibles, à ajuster librement sans effet de bord.")]
+    public float aiMaxSpeed = 58f;
+    public float aiAccelerationForce = 115f;
+    public float aiBrakingForce = 100f;
+    public float aiLowSpeedSteerAngle = 100f;
+    public float aiHighSpeedSteerAngle = 45f;
+
     [Header("Récompenses (argent sale 💵)")]
     public int firstPlaceReward = 5000;
     public int secondPlaceReward = 2000;
@@ -170,20 +178,7 @@ public class StreetRaceManager : MonoBehaviour
         // au moins un pas (gravité, dépénétration...) et la voiture restait figée en l'air
         // pour tout le compte à rebours une fois le kinematic posé après coup.
         Rigidbody playerRb = playerCar.GetComponent<Rigidbody>();
-        if (playerRb != null)
-        {
-            playerRb.isKinematic = true;
-
-            // Le prefab de course est en détection "Discrete" (par défaut Unity) avec 0 de
-            // traînée — correct à vitesse normale, mais à la vitesse boostée de la course
-            // (x2.5), Discrete peut laisser la voiture s'enfoncer dans un obstacle avant
-            // que la collision ne soit détectée (résolution bien plus violente ensuite), et
-            // sans traînée, rien ne freine naturellement une voiture une fois lancée par un
-            // choc — elle continue de "voler" indéfiniment au lieu de retomber vite.
-            playerRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            playerRb.linearDamping = 0.3f;
-            playerRb.angularDamping = 3f; // arrête le tournoiement bien plus vite après un choc qui fait tourner la voiture
-        }
+        if (playerRb != null) playerRb.isKinematic = true;
 
         // On coupe l'IA sur CETTE instance avant qu'elle ne parte (CarAI.Start() mettrait
         // isDrivenByAI à true sinon) : le joueur doit la conduire lui-même.
@@ -235,13 +230,7 @@ public class StreetRaceManager : MonoBehaviour
             if (raceCarLayer >= 0) SetLayerRecursively(aiCar, raceCarLayer);
 
             Rigidbody aiRb = aiCar.GetComponent<Rigidbody>();
-            if (aiRb != null)
-            {
-                aiRb.isKinematic = true;
-                aiRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-                aiRb.linearDamping = 0.3f;
-                aiRb.angularDamping = 3f;
-            }
+            if (aiRb != null) aiRb.isKinematic = true;
 
             CarAI aiDriver = aiCar.GetComponent<CarAI>();
             if (aiDriver == null) aiDriver = aiCar.AddComponent<CarAI>();
@@ -254,6 +243,11 @@ public class StreetRaceManager : MonoBehaviour
             // Détection plus loin devant : à vitesse plus élevée, la distance par défaut
             // repérait un obstacle trop tard pour réagir à temps.
             aiDriver.frontSensorLength *= 1.6f;
+            // Synchronisé avec aiMaxSpeed (valeurs absolues ci-dessus) — sinon le
+            // planificateur visait toujours ses valeurs par défaut (jusqu'à 65 m/s), au-delà
+            // de ce que la voiture peut désormais physiquement atteindre.
+            aiDriver.raceStraightSpeed = aiMaxSpeed;
+            aiDriver.raceHairpinSpeed = aiMaxSpeed * 0.22f;
             aiDrivers.Add(aiDriver);
 
             // Le joueur profite du lissage de direction (steeringSmoothing) pour un ressenti
@@ -269,11 +263,15 @@ public class StreetRaceManager : MonoBehaviour
                 // course difficile, moins d'accidents, plus compétitives.
                 aiCarController.gripLevel = 1f; // adhérence maximale
                 aiCarController.driftGrip = 1f; // même en glisse/frein à main, ne décroche jamais vraiment
-                aiCarController.brakingForce *= 2f;
-                aiCarController.lowSpeedSteerAngle *= 2f;
-                aiCarController.highSpeedSteerAngle *= 2f;
-                aiCarController.accelerationForce *= 4f;
-                aiCarController.maxSpeed *= 2.5f;
+
+                // Valeurs ABSOLUES (voir Header ci-dessus) plutôt que des multiplicateurs
+                // empilés sur les valeurs déjà tunées du prefab — plus de compounding
+                // imprévisible, réglable directement et clairement dans l'Inspector.
+                aiCarController.brakingForce = aiBrakingForce;
+                aiCarController.lowSpeedSteerAngle = aiLowSpeedSteerAngle;
+                aiCarController.highSpeedSteerAngle = aiHighSpeedSteerAngle;
+                aiCarController.accelerationForce = aiAccelerationForce;
+                aiCarController.maxSpeed = aiMaxSpeed;
 
                 // Même raison que côté joueur : la vitesse/adhérence boostées rendent les
                 // chocs bien plus violents que la normale, sans ce plafond les voitures
@@ -313,10 +311,39 @@ public class StreetRaceManager : MonoBehaviour
         // fiables DANS LA MÊME frame que l'Instantiate — d'où une hauteur encore légèrement
         // fausse malgré le kinematic posé immédiatement. Sans risque ici : tout est encore
         // kinematic, aucune physique ne peut interférer pendant ce recalage.
+        //
+        // C'est AUSSI le bon moment (et pas avant) pour corriger centerOfMass : Start() de
+        // CarController (qui pose rb.centerOfMass = centerOfMassOffset, soit -0.7 sur ce
+        // prefab) ne tourne jamais de façon synchrone pendant Instantiate() — une correction
+        // posée AVANT ce yield aurait été silencieusement écrasée dès que Start() s'exécute
+        // réellement. Après ce yield, Start() a garanti tourné pour les 5 voitures.
         yield return null;
         foreach (GameObject car in spawnedCars)
         {
-            if (car != null) SnapCarToGround(car);
+            if (car == null) continue;
+
+            SnapCarToGround(car);
+
+            Rigidbody carRb = car.GetComponent<Rigidbody>();
+            if (carRb != null)
+            {
+                // Ce prefab a centerOfMassOffset=-0.7 dans son CarController, ce qui place
+                // le centre de masse à Y=-0.7 — sous le bas réel de la carrosserie (le
+                // collider solide commence vers Y=0.01). Un centre de masse aussi loin sous
+                // le châssis démultiplie le bras de levier de n'importe quel choc, donc le
+                // couple de rotation qui en résulte : un impact modéré se traduit alors par
+                // un tonneau/envol spectaculaire. On le recentre à une hauteur réaliste
+                // (basse pour la stabilité, mais DANS la carrosserie, pas dessous).
+                carRb.centerOfMass = new Vector3(0f, 0.4f, 0f);
+
+                // linearDamping/angularDamping ne sont touchés nulle part dans
+                // CarController — à 0/0.05 (valeurs du prefab), rien ne freine
+                // naturellement une voiture une fois lancée par un choc, ni ne stoppe un
+                // tournoiement : elle "vole"/tourne un long moment avant que la seule
+                // gravité ne la ramène.
+                carRb.linearDamping = 0.3f;
+                carRb.angularDamping = 3f;
+            }
         }
 
         yield return StartCoroutine(CountdownRoutine());
@@ -370,21 +397,38 @@ public class StreetRaceManager : MonoBehaviour
         }
     }
 
-    // Recalage précis post-instanciation, basé sur le VRAI bas de la voiture — via les
-    // renderers plutôt qu'un collider (GetComponentInChildren<Collider>() pouvait attraper
-    // le mauvais collider si la voiture en a plusieurs, ex: une zone d'interaction
-    // "CarForSale" plutôt que la carrosserie, faussant complètement la hauteur calculée et
-    // laissant la voiture flotter). GridPosition() donne déjà une hauteur approximative,
-    // ceci l'affine avec les dimensions visuelles réelles une fois l'objet instancié.
+    // Recalage précis post-instanciation, basé sur le VRAI bas du/des collider(s) SOLIDES
+    // (non-trigger) — c'est ce que la physique utilise réellement pour poser la voiture au
+    // sol une fois relâchée du kinematic, donc la référence la plus fiable pour qu'il n'y
+    // ait plus jamais d'écart entre la position calculée ici et celle où elle se
+    // stabiliserait naturellement. Exclut explicitement les colliders "Is Trigger" (zones
+    // d'interaction, souvent bien plus hautes/petites que la carrosserie — le prefab de
+    // course en a justement une, 1x1x1, qui aurait faussé le calcul si attrapée par erreur).
+    // Repli sur les renderers si aucun collider solide n'est trouvé (config inhabituelle).
     private void SnapCarToGround(GameObject car)
     {
-        Renderer[] rends = car.GetComponentsInChildren<Renderer>();
-        if (rends.Length == 0) return;
-
+        Collider[] cols = car.GetComponentsInChildren<Collider>();
         float lowestY = float.MaxValue;
-        foreach (Renderer r in rends)
+        bool found = false;
+
+        foreach (Collider c in cols)
         {
-            if (r.bounds.min.y < lowestY) lowestY = r.bounds.min.y;
+            if (c.isTrigger) continue;
+            if (c.bounds.min.y < lowestY)
+            {
+                lowestY = c.bounds.min.y;
+                found = true;
+            }
+        }
+
+        if (!found)
+        {
+            Renderer[] rends = car.GetComponentsInChildren<Renderer>();
+            if (rends.Length == 0) return;
+            foreach (Renderer r in rends)
+            {
+                if (r.bounds.min.y < lowestY) lowestY = r.bounds.min.y;
+            }
         }
 
         if (Physics.Raycast(car.transform.position + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f))
