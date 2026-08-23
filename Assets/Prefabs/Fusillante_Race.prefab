@@ -1032,10 +1032,10 @@ MonoBehaviour:
   lateralOffset: 0
   raceCircuit: {fileID: 3705307199183169266, guid: 048b8bb130beb5b4b8711458e03768d3, type: 3}
   raceWaypointIndex: 0
-  raceLookAheadNodes: 3
+  raceLookAheadNodes: 5
   raceStraightSpeed: 50
   raceHairpinSpeed: 5
-  raceBrakingDeceleration: 50
+  raceBrakingDeceleration: 80
   raceStuckTimeout: 0.8
   raceReverseDuration: 0.3
   raceRecoveryGracePeriod: 1

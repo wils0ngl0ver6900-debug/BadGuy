@@ -28,8 +28,8 @@ public class StreetRaceManager : MonoBehaviour
     public GameObject raceCarPrefab;
     public string[] opponentNames = { "Vipère", "Le Fantôme", "Diesel", "Rafale" };
 
-    [Tooltip("Décalage latéral donné à chaque adversaire IA (voir CarAI.lateralOffset) pour éviter qu'ils roulent tous en file indienne parfaite. Valeurs volontairement modestes : un décalage trop large pousse les IA hors piste dans les virages serrés (constaté avec -3/-1/1/3).")]
-    public float[] opponentLateralOffsets = { -1.2f, -0.4f, 0.4f, 1.2f };
+    [Tooltip("Décalage latéral donné à chaque adversaire IA (voir CarAI.lateralOffset), pensé à l'origine pour éviter la file indienne. Remis à 0 par défaut : sur une route étroite bordée de bâtiments, ce décalage pousse les voitures extérieures vers les bords — hors piste, dans le décor. Le système de Layer traversable entre voitures de course gère déjà la file indienne autrement, ce décalage n'est plus nécessaire pour ça. Ne le remonte que si ta route est large partout.")]
+    public float[] opponentLateralOffsets = { 0f, 0f, 0f, 0f };
 
     [Tooltip("Couleur attribuée à chaque adversaire (le prefab est jaune de base) — via CarUpgrades.SetColor(), même système que la peinture au garage/tuning. Laisse une entrée vide/noire (0,0,0) pour garder la couleur d'origine du prefab sur cet adversaire.")]
     public Color[] opponentColors = {
@@ -64,6 +64,12 @@ public class StreetRaceManager : MonoBehaviour
     [Header("Collisions entre voitures de course")]
     [Tooltip("Nom d'un Layer Unity dédié (Edit > Project Settings > Tags and Layers, crée un nouveau Layer et note son nom ici) assigné automatiquement aux 5 voitures pendant la course. Si renseigné, elles deviennent traversables entre elles (mais restent solides pour tout le reste : route, décor, autre circulation) — plus de carambolage en chaîne. Laisse vide pour garder les collisions normales entre elles.")]
     public string raceCarLayerName = "";
+
+    [Header("Sécurité hors-piste")]
+    [Tooltip("Distance (m) à partir de laquelle joueur ET IA sont considérés hors piste et téléportés au dernier point du circuit passé. Mesurée par rapport au segment de circuit le plus proche, pas juste le point visé — fonctionne même en cas de grosse dérive.")]
+    public float offTrackDistance = 15f;
+    [Tooltip("Message affiché au joueur quand il est ramené sur la piste.")]
+    public string offTrackMessage = "Hors piste — retour sur la piste !";
 
     private int raceCarLayer = -1;
     private int lastRaceDay = -1;
@@ -245,11 +251,11 @@ public class StreetRaceManager : MonoBehaviour
             // de ce que la voiture peut désormais physiquement atteindre.
             aiDriver.raceStraightSpeed = aiMaxSpeed;
             aiDriver.raceHairpinSpeed = aiMaxSpeed * 0.22f;
-            // Réduit de 5m (défaut) à 3m : l'IA doit s'approcher plus précisément d'un
-            // point avant de passer au suivant, au lieu de "couper large" et viser le
-            // prochain point trop tôt — ce qui la faisait dériver vers l'extérieur du
-            // virage, parfois jusque dans un bâtiment en bord de piste.
-            aiDriver.waypointThreshold = 3f;
+            // Réduit à 1m (5m par défaut) : protégé par l'avancement par projection
+            // géométrique dans AdvanceRaceWaypoint() (une voiture qui dépasse un point sans
+            // entrer pile dans le rayon avance quand même), donc pas de risque qu'elle
+            // tourne indéfiniment autour d'un point devenu trop précis à atteindre.
+            aiDriver.waypointThreshold = 1f;
             aiDrivers.Add(aiDriver);
 
             // Le joueur profite du lissage de direction (steeringSmoothing) pour un ressenti
@@ -356,6 +362,8 @@ public class StreetRaceManager : MonoBehaviour
 
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification($"<color=cyan>Course lancée ! {lapsToWin} tours, en piste !</color>");
+
+        StartCoroutine(OffTrackWatcherRoutine());
     }
 
     private IEnumerator CountdownRoutine()
@@ -454,6 +462,101 @@ public class StreetRaceManager : MonoBehaviour
             pos.y = hit.point.y + clearance + 0.05f;
             car.transform.position = pos;
         }
+    }
+
+    // Surveille joueur ET IA en continu pendant la course : si l'un d'eux s'éloigne de plus
+    // de offTrackDistance du circuit (mesuré au segment le plus proche, pas juste le point
+    // visé — fonctionne même en cas de grosse dérive), il est téléporté au dernier point du
+    // circuit qu'il a dépassé. S'arrête toute seule quand raceActive redevient faux.
+    private IEnumerator OffTrackWatcherRoutine()
+    {
+        while (raceActive)
+        {
+            yield return new WaitForSeconds(1f);
+            if (!raceActive || raceCircuit == null || raceCircuit.Count == 0) yield break;
+
+            if (playerCarControllerRef != null && playerParticipant != null && !playerParticipant.hasFinished)
+            {
+                CheckOffTrack(playerCarControllerRef.transform, playerCarControllerRef.GetComponent<Rigidbody>(), true, null);
+            }
+
+            foreach (CarAI aiDriver in aiDrivers)
+            {
+                if (aiDriver == null || !aiDriver.enabled) continue;
+                CheckOffTrack(aiDriver.transform, aiDriver.GetComponent<Rigidbody>(), false, aiDriver);
+            }
+        }
+    }
+
+    private void CheckOffTrack(Transform carTransform, Rigidbody carRb, bool isPlayer, CarAI aiDriver)
+    {
+        if (carTransform == null) return;
+
+        // Cherche le segment du circuit (entre deux points consécutifs) le plus proche de
+        // la position actuelle, en testant TOUS les segments — pas seulement celui qu'on
+        // est censé suivre. Plus robuste : fonctionne même si on a dérivé vers une autre
+        // partie du circuit (ex: un virage en épingle où deux segments passent proches).
+        float closestDist = float.MaxValue;
+        int closestSegmentIndex = 0;
+
+        for (int i = 0; i < raceCircuit.Count; i++)
+        {
+            Vector3 segStart = raceCircuit.GetPoint(i);
+            Vector3 segEnd = raceCircuit.GetPoint(i + 1);
+            Vector3 closestOnSeg = ClosestPointOnSegment(carTransform.position, segStart, segEnd);
+            float dist = Vector3.Distance(carTransform.position, closestOnSeg);
+            if (dist < closestDist)
+            {
+                closestDist = dist;
+                closestSegmentIndex = i;
+            }
+        }
+
+        if (closestDist <= offTrackDistance) return;
+
+        // Téléporte au DÉBUT du segment le plus proche — le dernier point du circuit le
+        // plus plausible étant donné où le véhicule a dérivé.
+        Vector3 tpPos = raceCircuit.GetPoint(closestSegmentIndex);
+        if (Physics.Raycast(tpPos + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f))
+        {
+            tpPos = hit.point + Vector3.up * 0.5f;
+        }
+
+        if (carRb != null)
+        {
+            carRb.position = tpPos;
+            carRb.linearVelocity = Vector3.zero;
+            carRb.angularVelocity = Vector3.zero;
+        }
+        else
+        {
+            carTransform.position = tpPos;
+        }
+
+        // Réoriente vers le point suivant, pas l'angle qu'il avait en dérivant.
+        Vector3 lookDir = raceCircuit.GetPoint(closestSegmentIndex + 1) - tpPos;
+        lookDir.y = 0f;
+        if (lookDir.sqrMagnitude > 0.01f)
+        {
+            if (carRb != null) carRb.rotation = Quaternion.LookRotation(lookDir.normalized);
+            else carTransform.rotation = Quaternion.LookRotation(lookDir.normalized);
+        }
+
+        if (aiDriver != null) aiDriver.raceWaypointIndex = closestSegmentIndex;
+
+        if (isPlayer && UIManager.Instance != null)
+        {
+            UIManager.Instance.ShowNotification($"<color=cyan>{offTrackMessage}</color>");
+        }
+    }
+
+    private Vector3 ClosestPointOnSegment(Vector3 point, Vector3 segStart, Vector3 segEnd)
+    {
+        Vector3 segDir = segEnd - segStart;
+        float segLenSq = segDir.sqrMagnitude;
+        if (segLenSq < 0.0001f) return segStart;
+        float t = Mathf.Clamp01(Vector3.Dot(point - segStart, segDir) / segLenSq);
+        return segStart + segDir * t;
     }
 
     private Vector3 GridPosition(int index)
