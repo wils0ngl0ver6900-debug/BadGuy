@@ -31,6 +31,7 @@ public class CarAI : MonoBehaviour
     public float raceReverseDuration = 0.4f;
 
     private float raceStuckTimer = 0f;
+    private float raceTotalStuckTime = 0f;
     private bool raceReversing = false;
     private float raceReverseTimer = 0f;
 
@@ -220,6 +221,40 @@ public class CarAI : MonoBehaviour
             // (tous deux basés sur les capteurs) ne se déclenchent — elle restait plantée
             // contre le mur indéfiniment. Ici, seule la vitesse réelle du Rigidbody compte,
             // aucune dépendance aux capteurs.
+            if (rb.linearVelocity.magnitude < 1f)
+            {
+                raceTotalStuckTime += Time.deltaTime;
+            }
+            else
+            {
+                raceTotalStuckTime = 0f;
+            }
+
+            // Sécurité dure : plus d'1 seconde bloqué AU TOTAL (même en comptant les
+            // tentatives de marche arrière qui n'ont pas suffi) -> téléportation directe au
+            // noeud précédent. Garantit qu'aucune IA ne peut rester coincée indéfiniment,
+            // peu importe la cause exacte du blocage.
+            if (raceTotalStuckTime > 1f)
+            {
+                int prevIndex = ((raceWaypointIndex - 1) % raceCircuit.Count + raceCircuit.Count) % raceCircuit.Count;
+                Vector3 tpPos = raceCircuit.GetPoint(prevIndex);
+                if (Physics.Raycast(tpPos + Vector3.up * 5f, Vector3.down, out RaycastHit groundHit, 20f))
+                {
+                    tpPos = groundHit.point + Vector3.up * 0.5f;
+                }
+                rb.position = tpPos;
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+                raceWaypointIndex = prevIndex;
+                raceReversing = false;
+                raceStuckTimer = 0f;
+                raceTotalStuckTime = 0f;
+                virtualGasPedal = 0f;
+                virtualSteeringWheel = 0f;
+                carController.isHandbraking = false;
+                return;
+            }
+
             if (raceReversing)
             {
                 raceReverseTimer += Time.deltaTime;

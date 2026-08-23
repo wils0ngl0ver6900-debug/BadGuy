@@ -7,6 +7,8 @@ public class TimeManager : MonoBehaviour
     [Header("Paramètres du Temps ⏳")]
     public float timeScale = 60f;
     public float startHour = 8f;
+    [Tooltip("Si vrai, le temps (et donc le cycle jour/nuit) ne progresse plus — utilisé pour bloquer l'heure pendant une course.")]
+    public bool isPaused = false;
 
     [Header("Soleil (Jour) ☀️")]
     public Light sunLight;
@@ -27,6 +29,8 @@ public class TimeManager : MonoBehaviour
 
     private void Update()
     {
+        if (isPaused) return;
+
         currentTimeOfDay += Time.deltaTime * timeScale;
 
         if (currentTimeOfDay >= 1440f)

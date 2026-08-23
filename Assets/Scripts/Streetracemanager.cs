@@ -121,6 +121,8 @@ public class StreetRaceManager : MonoBehaviour
             if (uiElement != null) uiElement.SetActive(false);
         }
 
+        if (TimeManager.Instance != null) TimeManager.Instance.isPaused = true;
+
         // Les 5 voitures deviennent traversables entre elles (pas avec le reste du monde)
         // si un Layer dédié est renseigné — évite les carambolages en chaîne.
         raceCarLayer = string.IsNullOrEmpty(raceCarLayerName) ? -1 : LayerMask.NameToLayer(raceCarLayerName);
@@ -209,7 +211,7 @@ public class StreetRaceManager : MonoBehaviour
                 aiCarController.brakingForce *= 2f;
                 aiCarController.lowSpeedSteerAngle *= 2f;
                 aiCarController.highSpeedSteerAngle *= 2f;
-                aiCarController.accelerationForce *= 2f;
+                aiCarController.accelerationForce *= 4f;
                 aiCarController.maxSpeed *= 2f;
             }
 
@@ -219,7 +221,29 @@ public class StreetRaceManager : MonoBehaviour
             participants.Add(aiRP);
         }
 
+        // Kinematic pendant tout le compte à rebours : la voiture est à l'arrêt mais reste
+        // physiquement "active" (freinage appliqué sur une vitesse quasi nulle), ce qui
+        // pouvait légèrement trembler à cause du bruit numérique sur un vecteur proche de
+        // zéro — même mécanisme que le volant qui vibrait en tournant sur place, réglé plus
+        // tôt. Kinematic élimine ça totalement (aucune physique appliquée, immobile garanti).
+        List<Rigidbody> raceRigidbodies = new List<Rigidbody>();
+        foreach (GameObject car in spawnedCars)
+        {
+            if (car == null) continue;
+            Rigidbody carRb = car.GetComponent<Rigidbody>();
+            if (carRb != null)
+            {
+                carRb.isKinematic = true;
+                raceRigidbodies.Add(carRb);
+            }
+        }
+
         yield return StartCoroutine(CountdownRoutine());
+
+        foreach (Rigidbody carRb in raceRigidbodies)
+        {
+            if (carRb != null) carRb.isKinematic = false;
+        }
 
         // Tout le monde est libéré en même temps, personne n'a d'avance.
         if (playerCarControllerRef != null) playerCarControllerRef.inputLocked = false;
@@ -230,8 +254,6 @@ public class StreetRaceManager : MonoBehaviour
 
         if (UIManager.Instance != null)
             UIManager.Instance.ShowNotification($"<color=cyan>Course lancée ! {lapsToWin} tours, en piste !</color>");
-
-        StartCoroutine(GuidePlayerRoutine());
     }
 
     private IEnumerator CountdownRoutine()
@@ -308,37 +330,6 @@ public class StreetRaceManager : MonoBehaviour
         return pos;
     }
 
-    // Guide le joueur avec les flèches du pathfinder tout au long du circuit, en changeant
-    // de cible à chaque fois qu'il se rapproche du noeud suivant. Purement indicatif pour
-    // le joueur — les adversaires IA suivent leur propre logique CarAI indépendamment.
-    private IEnumerator GuidePlayerRoutine()
-    {
-        int index = 0;
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-
-        while (raceActive && playerParticipant != null && !playerParticipant.hasFinished)
-        {
-            Transform next = raceCircuit.waypoints[index % raceCircuit.Count];
-            if (next == null) yield break;
-
-            if (JobPathfinder.Instance != null) JobPathfinder.Instance.SetTargets(next);
-
-            while (raceActive && playerObj != null && playerParticipant != null && !playerParticipant.hasFinished
-                   && Vector3.Distance(playerObj.transform.position, next.position) > 10f)
-            {
-                // Sondé toutes les 0.1s (au lieu de 0.5s) : à haute vitesse, 0.5s laissait
-                // le temps de franchir plusieurs points d'affilée avant la vérification
-                // suivante, donnant l'impression que les flèches "sautent" d'un coup à un
-                // point bien plus loin au lieu de progresser point par point.
-                yield return new WaitForSeconds(0.1f);
-            }
-
-            index++;
-        }
-
-        if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
-    }
-
     // Appelée par chaque RaceParticipant (joueur ou IA) quand il termine son nombre de tours.
     public void NotifyParticipantFinished(RaceParticipant participant)
     {
@@ -348,6 +339,22 @@ public class StreetRaceManager : MonoBehaviour
         if (participant == playerParticipant)
         {
             EndRaceForPlayer();
+        }
+        else if (playerParticipant != null && !playerParticipant.hasFinished)
+        {
+            // Tous les adversaires ont fini AVANT le joueur : la course doit se terminer
+            // quand même (défaite), sinon en restant à l'arrêt le joueur ne pouvait jamais
+            // perdre — la course continuait indéfiniment.
+            int aiFinishedCount = 0;
+            foreach (RaceParticipant p in finishOrder)
+            {
+                if (p != playerParticipant) aiFinishedCount++;
+            }
+            if (aiFinishedCount >= participants.Count - 1)
+            {
+                finishOrder.Add(playerParticipant); // classé dernier
+                EndRaceForPlayer();
+            }
         }
     }
 
@@ -388,6 +395,8 @@ public class StreetRaceManager : MonoBehaviour
             if (uiElement != null) uiElement.SetActive(true);
         }
 
+        if (TimeManager.Instance != null) TimeManager.Instance.isPaused = false;
+
         if (raceCarLayer >= 0)
         {
             Physics.IgnoreLayerCollision(raceCarLayer, raceCarLayer, false);
@@ -396,7 +405,6 @@ public class StreetRaceManager : MonoBehaviour
 
         if (countdownText != null) countdownText.gameObject.SetActive(false);
         if (lapCounterText != null) lapCounterText.gameObject.SetActive(false);
-        if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
 
         // Même principe que GarageManager.StoreVehicleRoutine(), la manœuvre la plus fiable
         // du projet pour ce genre de transition : fondu au noir d'abord (masque tout accroc
