@@ -245,6 +245,11 @@ public class StreetRaceManager : MonoBehaviour
             // de ce que la voiture peut désormais physiquement atteindre.
             aiDriver.raceStraightSpeed = aiMaxSpeed;
             aiDriver.raceHairpinSpeed = aiMaxSpeed * 0.22f;
+            // Réduit de 5m (défaut) à 3m : l'IA doit s'approcher plus précisément d'un
+            // point avant de passer au suivant, au lieu de "couper large" et viser le
+            // prochain point trop tôt — ce qui la faisait dériver vers l'extérieur du
+            // virage, parfois jusque dans un bâtiment en bord de piste.
+            aiDriver.waypointThreshold = 3f;
             aiDrivers.Add(aiDriver);
 
             // Le joueur profite du lissage de direction (steeringSmoothing) pour un ressenti
@@ -400,6 +405,8 @@ public class StreetRaceManager : MonoBehaviour
         float lowestY = float.MaxValue;
         bool found = false;
 
+        // Bounds calculées AVANT de désactiver quoi que ce soit (fiable pendant que les
+        // colliders sont encore actifs).
         foreach (Collider c in cols)
         {
             if (c.isTrigger) continue;
@@ -420,7 +427,27 @@ public class StreetRaceManager : MonoBehaviour
             }
         }
 
-        if (Physics.Raycast(car.transform.position + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f))
+        // LA VRAIE CAUSE DE LA LÉVITATION : le rayon part d'AU-DESSUS de la voiture et vise
+        // le bas. Sans ceci, il traverse d'abord le corps de la voiture ELLE-MÊME (jusqu'à
+        // ~1.86 unité de haut sur ce prefab) et touche son PROPRE TOIT avant même d'avoir pu
+        // atteindre le vrai sol en dessous — peu importe la précision du calcul de hauteur
+        // par ailleurs, hit.point.y était systématiquement le toit de la voiture, pas la
+        // route. On désactive donc ses colliders le temps du rayon, puis on les réactive.
+        bool[] wasEnabled = new bool[cols.Length];
+        for (int i = 0; i < cols.Length; i++)
+        {
+            wasEnabled[i] = cols[i].enabled;
+            cols[i].enabled = false;
+        }
+
+        bool raycastHit = Physics.Raycast(car.transform.position + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f);
+
+        for (int i = 0; i < cols.Length; i++)
+        {
+            cols[i].enabled = wasEnabled[i];
+        }
+
+        if (raycastHit)
         {
             float clearance = car.transform.position.y - lowestY;
             Vector3 pos = car.transform.position;

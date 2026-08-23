@@ -505,8 +505,10 @@ public class CarAI : MonoBehaviour
         // Direction façon "pure pursuit" : vise un point interpolé le long du chemin à une
         // distance qui grandit avec la vitesse (regarde plus loin quand on va plus vite),
         // plutôt qu'un point fixe sur le noeud — la voiture amorce le virage en douceur au
-        // lieu de pivoter sec dessus.
-        float lookAheadDist = Mathf.Clamp(currentSpeed * 0.5f, 4f, 14f);
+        // lieu de pivoter sec dessus. Plafond réduit de 14 à 9 : à haute vitesse, viser
+        // trop loin en avant faisait couper les virages large, jusqu'à toucher des
+        // bâtiments en bord de piste.
+        float lookAheadDist = Mathf.Clamp(currentSpeed * 0.35f, 3f, 9f);
         Vector3 steerTarget = upcoming[count - 1];
         Vector3 from2 = transform.position;
         float remaining = lookAheadDist;
