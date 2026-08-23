@@ -226,7 +226,16 @@ public class CarAI : MonoBehaviour
 
             if (Vector3.Distance(transform.position, currentNode.transform.position) < waypointThreshold && currentNode.nextNodes.Count > 0)
             {
-                currentNode = currentNode.nextNodes[Random.Range(0, currentNode.nextNodes.Count)];
+                // En mode course (lookAheadBlend > 0), le choix reste TOUJOURS déterministe
+                // (index 0) plutôt qu'aléatoire : sur un circuit qui devrait être un chemin
+                // unique, un noeud mal configuré avec plusieurs "Next Node" (ou un
+                // embranchement qui reboucle sur lui-même) pouvait faire tourner une IA en
+                // rond indéfiniment ou lui faire perdre le fil du circuit. Le trafic normal
+                // garde le choix aléatoire (comportement d'origine, utile pour varier les
+                // trajets en ville).
+                currentNode = lookAheadBlend > 0f
+                    ? currentNode.nextNodes[0]
+                    : currentNode.nextNodes[Random.Range(0, currentNode.nextNodes.Count)];
             }
         }
 

@@ -161,8 +161,14 @@ public class StreetRaceManager : MonoBehaviour
             aiDriver.enabled = false;
             aiDriver.currentNode = startFinishNode;
             if (i < opponentLateralOffsets.Length) aiDriver.lateralOffset = opponentLateralOffsets[i];
-            aiDriver.lookAheadBlend = 0.5f; // anticipe le virage suivant, sans effet sur la circulation normale
+            aiDriver.lookAheadBlend = 0.05f; // anticipation plus modeste, moins d'embardées en virage serré
             aiDrivers.Add(aiDriver);
+
+            // Le joueur profite du lissage de direction (steeringSmoothing) pour un ressenti
+            // plus doux, mais ça ralentit la réponse au volant — mauvais pour une IA qui doit
+            // corriger vite dans un virage serré. On la laisse sur une réponse immédiate.
+            CarController aiCarController = aiCar.GetComponent<CarController>();
+            if (aiCarController != null) aiCarController.steeringSmoothing = 0f;
 
             string oppName = i < opponentNames.Length ? opponentNames[i] : $"Adversaire {i + 1}";
             RaceParticipant aiRP = aiCar.AddComponent<RaceParticipant>();
@@ -213,28 +219,6 @@ public class StreetRaceManager : MonoBehaviour
         foreach (Transform child in obj.transform)
         {
             SetLayerRecursively(child.gameObject, layer);
-        }
-    }
-
-    // Recalage au sol + passage par le Rigidbody plutôt qu'un transform.position brut —
-    // ce chemin de repli (CarInteraction introuvable) n'avait ni l'un ni l'autre, ce qui
-    // pouvait laisser le joueur passer sous la carte à la sortie de la course.
-    private void SafeTeleportPlayer(GameObject playerObj, Vector3 targetPos)
-    {
-        if (Physics.Raycast(targetPos + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f))
-        {
-            targetPos = hit.point + Vector3.up * 0.1f;
-        }
-
-        Rigidbody rb = playerObj.GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.position = targetPos;
-            rb.linearVelocity = Vector3.zero;
-        }
-        else
-        {
-            playerObj.transform.position = targetPos;
         }
     }
 
@@ -341,14 +325,23 @@ public class StreetRaceManager : MonoBehaviour
         if (countdownText != null) countdownText.gameObject.SetActive(false);
         if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
 
+        // Même principe que GarageManager.StoreVehicleRoutine(), la manœuvre la plus fiable
+        // du projet pour ce genre de transition : fondu au noir d'abord (masque tout accroc
+        // physique éventuel), puis le joueur est reposé avec sa Rigidbody en kinematic
+        // pendant la téléportation (totalement insensible à toute collision/dépénétration
+        // pendant qu'on le pose), et seulement relâchée une fois stabilisée.
+        if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
+        {
+            UIManager.Instance.transitionPanel.SetActive(true);
+            yield return StartCoroutine(UIManager.Instance.FadeToBlack(0.5f));
+        }
+
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+
         if (playerObj != null)
         {
-            // Coupe les collisions de TOUTES les voitures de course avant de repositionner
-            // le joueur — même si une IA a fini sa course loin du circuit (comportement
-            // erratique), aucune ne peut interférer physiquement pendant la téléportation.
-            // Sans ça, le joueur pouvait réapparaître incrusté dans une voiture encore
-            // solide et se faire éjecter sous la carte par la résolution physique.
+            // Coupe les collisions de TOUTES les voitures de course (l'écran est déjà noir,
+            // peu importe où elles sont) avant de faire sortir/repositionner le joueur.
             foreach (GameObject car in spawnedCars)
             {
                 if (car == null) continue;
@@ -369,26 +362,55 @@ public class StreetRaceManager : MonoBehaviour
             if (currentCar != null)
             {
                 CarInteraction ci = currentCar.GetComponentInChildren<CarInteraction>();
-                if (ci != null) ci.ExitCarAt(preRacePlayerPosition);
-                else SafeTeleportPlayer(playerObj, preRacePlayerPosition);
+                if (ci != null) ci.ExitCar(); // sort normalement (écran déjà noir, sa position exacte importe peu ici)
             }
-            else
-            {
-                SafeTeleportPlayer(playerObj, preRacePlayerPosition);
-            }
+
+            yield return new WaitForFixedUpdate();
         }
 
-        yield return new WaitForSeconds(1f);
-
+        // On détruit les voitures PENDANT que l'écran est noir, pas après.
         foreach (GameObject car in spawnedCars)
         {
             if (car != null) Destroy(car);
         }
+
+        if (playerObj != null)
+        {
+            Vector3 targetPos = preRacePlayerPosition;
+            if (Physics.Raycast(targetPos + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f))
+            {
+                targetPos = hit.point + Vector3.up * 0.1f;
+            }
+
+            Rigidbody rb = playerObj.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                rb.isKinematic = true; // immunisé contre toute collision/dépénétration le temps de se poser
+                rb.linearVelocity = Vector3.zero;
+                rb.position = targetPos;
+            }
+            playerObj.transform.position = targetPos;
+
+            yield return new WaitForFixedUpdate();
+            yield return new WaitForFixedUpdate();
+
+            if (rb != null)
+            {
+                rb.isKinematic = false;
+                rb.WakeUp();
+            }
+        }
+
         spawnedCars.Clear();
         participants.Clear();
         finishOrder.Clear();
         playerParticipant = null;
         playerCarControllerRef = null;
         aiDrivers.Clear();
+
+        if (UIManager.Instance != null && UIManager.Instance.transitionPanel != null)
+        {
+            yield return StartCoroutine(UIManager.Instance.FadeToClear(0.5f));
+        }
     }
 }
