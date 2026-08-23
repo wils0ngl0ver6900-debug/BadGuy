@@ -185,21 +185,10 @@ public class CarController : MonoBehaviour
         }
     }
 
-    private float airborneTimer = 0f;
-    private const float AIRBORNE_GRACE_PERIOD = 0.15f;
-
     private void ProcessEngine()
     {
         float speed = rb.linearVelocity.magnitude;
         float forwardSpeed = Vector3.Dot(transform.forward, rb.linearVelocity);
-
-        // Tolérance avant de couper la propulsion : un simple rayon qui "clignote" vrai/faux
-        // à chaque frame (léger rebond de suspension en virage/freinage) coupait et remettait
-        // la force sans arrêt, ce qui donnait une vibration. On ne considère la voiture
-        // vraiment "en l'air" qu'après un décollage qui dure un minimum de temps.
-        if (IsGrounded()) airborneTimer = 0f;
-        else airborneTimer += Time.fixedDeltaTime;
-        bool grounded = airborneTimer < AIRBORNE_GRACE_PERIOD;
 
         if (isEngineDead)
         {
@@ -219,12 +208,8 @@ public class CarController : MonoBehaviour
             {
                 rb.AddForce(-rb.linearVelocity.normalized * brakingForce, ForceMode.Acceleration);
             }
-            else if (grounded)
+            else
             {
-                // Uniquement la propulsion (marche arrière) est coupée en l'air — le
-                // freinage juste au-dessus reste actif peu importe l'altitude, ce qui est
-                // raisonnable (résistance de l'air/freins), contrairement à accélérer comme
-                // un avion après un gros choc qui envoie la voiture en vol.
                 float speedFactor = 1f - (speed / (maxSpeed * 0.5f));
                 rb.AddForce(transform.forward * moveInput * reverseForce * Mathf.Max(speedFactor, 0.3f), ForceMode.Acceleration);
             }
@@ -235,7 +220,7 @@ public class CarController : MonoBehaviour
             {
                 rb.AddForce(-rb.linearVelocity.normalized * brakingForce, ForceMode.Acceleration);
             }
-            else if (grounded)
+            else
             {
                 float speedFactor = 1f - (speed / maxSpeed);
                 rb.AddForce(transform.forward * moveInput * accelerationForce * Mathf.Max(speedFactor, 0.3f), ForceMode.Acceleration);
@@ -245,16 +230,6 @@ public class CarController : MonoBehaviour
         {
             rb.AddForce(-rb.linearVelocity.normalized * (brakingForce * 0.2f), ForceMode.Acceleration);
         }
-    }
-
-    // Rayon court vers le bas depuis le centre de la voiture : suffisant pour distinguer un
-    // vrai décollage (après un choc, une rampe...) d'une conduite normale (léger rebond de
-    // suspension, petite bosse). Ajuste rayLength si la garde au sol de tes modèles diffère
-    // beaucoup d'un véhicule à l'autre.
-    private bool IsGrounded()
-    {
-        float rayLength = 1.5f;
-        return Physics.Raycast(transform.position, Vector3.down, rayLength);
     }
 
     private void ProcessSteering()
