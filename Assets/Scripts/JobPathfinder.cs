@@ -18,6 +18,13 @@ public class JobPathfinder : MonoBehaviour
 
     public Vector3 arrowRotationOffset = new Vector3(90, 0, 0);
 
+    [Header("Coloration façon Forza (freinage anticipé)")]
+    [Tooltip("Colore progressivement les flèches selon la sévérité du virage À VENIR juste après (vert = ligne droite, orange = courbe modérée, rouge = virage serré) — le freinage se lit avant d'arriver dans la courbe, pas dedans.")]
+    public bool useSeverityColorCoding = true;
+    public Color straightColor = new Color(0.2f, 1f, 0.2f);
+    public Color moderateColor = new Color(1f, 0.6f, 0f);
+    public Color sharpColor = new Color(1f, 0.15f, 0.15f);
+
     private NavMeshPath path;
 
     // NOUVEAU : Double Cible
@@ -105,6 +112,19 @@ public class JobPathfinder : MonoBehaviour
             float segmentLength = Vector3.Distance(startPoint, endPoint);
             Vector3 direction = (endPoint - startPoint).normalized;
 
+            // Sévérité du virage À VENIR juste après ce segment (façon Forza : le freinage
+            // se lit avant d'arriver dans la courbe, pas une fois dedans) — angle entre la
+            // direction de CE segment et celle du suivant.
+            Color segmentColor = straightColor;
+            if (useSeverityColorCoding && i + 2 < path.corners.Length)
+            {
+                Vector3 nextDir = (path.corners[i + 2] - path.corners[i + 1]).normalized;
+                float severity = Mathf.Clamp01(Vector3.Angle(direction, nextDir) / 90f);
+                segmentColor = severity < 0.5f
+                    ? Color.Lerp(straightColor, moderateColor, severity / 0.5f)
+                    : Color.Lerp(moderateColor, sharpColor, (severity - 0.5f) / 0.5f);
+            }
+
             int arrowsInSegment = Mathf.FloorToInt(segmentLength / arrowSpacing);
 
             for (int j = 0; j < arrowsInSegment; j++)
@@ -133,6 +153,12 @@ public class JobPathfinder : MonoBehaviour
                 {
                     Quaternion baseRotation = Quaternion.LookRotation(direction);
                     arrow.transform.rotation = baseRotation * Quaternion.Euler(arrowRotationOffset);
+                }
+
+                if (useSeverityColorCoding)
+                {
+                    Renderer rend = arrow.GetComponentInChildren<Renderer>();
+                    if (rend != null) rend.material.color = segmentColor;
                 }
 
                 currentIndex++;

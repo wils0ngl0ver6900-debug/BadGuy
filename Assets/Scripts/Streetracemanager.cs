@@ -177,6 +177,9 @@ public class StreetRaceManager : MonoBehaviour
             aiDriver.raceCircuit = raceCircuit;
             aiDriver.raceWaypointIndex = 0;
             if (i < opponentLateralOffsets.Length) aiDriver.lateralOffset = opponentLateralOffsets[i];
+            // Détection plus loin devant : à vitesse plus élevée, la distance par défaut
+            // repérait un obstacle trop tard pour réagir à temps.
+            aiDriver.frontSensorLength *= 1.6f;
             aiDrivers.Add(aiDriver);
 
             // Le joueur profite du lissage de direction (steeringSmoothing) pour un ressenti
@@ -189,16 +192,15 @@ public class StreetRaceManager : MonoBehaviour
 
                 // Physique volontairement "trichée" par rapport au joueur : les IA n'ont ni
                 // les mêmes réflexes ni la même précision, donc on compense en leur donnant
-                // plus d'adhérence, de freins, de braquage et d'accélération que la normale
-                // — moins d'embardées, plus compétitives, plus stables une fois des
-                // obstacles ajoutés en bord de piste.
-                aiCarController.gripLevel = 1f; // adhérence maximale, plus d'à-peu-près
-                aiCarController.driftGrip = Mathf.Min(1f, aiCarController.driftGrip * 2.5f);
-                aiCarController.brakingForce *= 1.6f;
-                aiCarController.lowSpeedSteerAngle *= 1.35f;
-                aiCarController.highSpeedSteerAngle *= 1.35f;
-                aiCarController.accelerationForce *= 1.3f;
-                aiCarController.maxSpeed *= 1.15f;
+                // largement plus d'adhérence, de freins, de braquage et d'accélération que
+                // la normale — course difficile, moins d'accidents, plus compétitives.
+                aiCarController.gripLevel = 1f; // adhérence maximale
+                aiCarController.driftGrip = 1f; // même en glisse/frein à main, ne décroche jamais vraiment
+                aiCarController.brakingForce *= 2.2f;
+                aiCarController.lowSpeedSteerAngle *= 1.6f;
+                aiCarController.highSpeedSteerAngle *= 1.6f;
+                aiCarController.accelerationForce *= 1.6f;
+                aiCarController.maxSpeed *= 1.3f;
             }
 
             string oppName = i < opponentNames.Length ? opponentNames[i] : $"Adversaire {i + 1}";
@@ -296,7 +298,11 @@ public class StreetRaceManager : MonoBehaviour
             while (raceActive && playerObj != null && playerParticipant != null && !playerParticipant.hasFinished
                    && Vector3.Distance(playerObj.transform.position, next.position) > 10f)
             {
-                yield return new WaitForSeconds(0.5f);
+                // Sondé toutes les 0.1s (au lieu de 0.5s) : à haute vitesse, 0.5s laissait
+                // le temps de franchir plusieurs points d'affilée avant la vérification
+                // suivante, donnant l'impression que les flèches "sautent" d'un coup à un
+                // point bien plus loin au lieu de progresser point par point.
+                yield return new WaitForSeconds(0.1f);
             }
 
             index++;

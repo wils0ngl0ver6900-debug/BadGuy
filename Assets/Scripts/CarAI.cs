@@ -19,16 +19,16 @@ public class CarAI : MonoBehaviour
     [Tooltip("Nombre de points du circuit regardés à l'avance pour anticiper les virages.")]
     public int raceLookAheadNodes = 5;
     [Tooltip("Vitesse visée en ligne droite (m/s).")]
-    public float raceStraightSpeed = 34f;
+    public float raceStraightSpeed = 40f;
     [Tooltip("Vitesse visée dans une épingle très serrée (m/s).")]
-    public float raceHairpinSpeed = 10f;
+    public float raceHairpinSpeed = 12f;
     [Tooltip("Décélération au freinage utilisée pour calculer QUAND commencer à ralentir (m/s²). Plus haut = freine plus tard/fort, plus bas = freine plus tôt/doux.")]
     public float raceBrakingDeceleration = 10f;
 
     [Tooltip("Si la vitesse reste sous 1 m/s pendant ce temps en essayant d'avancer, déclenche une marche arrière de dégagement — indépendant des capteurs, basé uniquement sur la vitesse réelle.")]
-    public float raceStuckTimeout = 0.8f;
+    public float raceStuckTimeout = 0.35f;
     [Tooltip("Durée de la marche arrière de dégagement.")]
-    public float raceReverseDuration = 0.9f;
+    public float raceReverseDuration = 0.45f;
 
     private float raceStuckTimer = 0f;
     private bool raceReversing = false;
@@ -223,7 +223,7 @@ public class CarAI : MonoBehaviour
             if (raceReversing)
             {
                 raceReverseTimer += Time.deltaTime;
-                virtualGasPedal = -0.7f;
+                virtualGasPedal = -1f; // marche arrière franche, pas à moitié — dégagement rapide
                 carController.isHandbraking = false; // au cas où resté actif d'un virage précédent
 
                 Vector3 toTarget = raceCircuit.GetPoint(raceWaypointIndex) - transform.position;
@@ -456,7 +456,9 @@ public class CarAI : MonoBehaviour
 
         Vector3 localTarget = transform.InverseTransformPoint(steerTarget);
         float angleToTarget = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
-        virtualSteeringWheel = Mathf.Clamp((angleToTarget / 45f) + steerBias, -1f, 1f);
+        // steerBias amplifié en course (x1.6) : à vitesse plus élevée, un évitement mou
+        // arrive trop tard pour être efficace contre un obstacle (immeuble...) détecté.
+        virtualSteeringWheel = Mathf.Clamp((angleToTarget / 45f) + steerBias * 1.6f, -1f, 1f);
 
         // Le planificateur de vitesse ci-dessus peut commander une accélération franche si
         // la vitesse actuelle est sous la cible — correct en ligne droite, mais dangereux
