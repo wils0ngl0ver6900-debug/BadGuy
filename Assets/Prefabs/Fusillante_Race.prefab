@@ -562,7 +562,7 @@ Camera:
   m_Depth: 0
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 14391
+    m_Bits: 276535
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
@@ -963,6 +963,8 @@ MonoBehaviour:
   brakingForce: 65
   lowSpeedSteerAngle: 85
   highSpeedSteerAngle: 35
+  steeringSmoothing: 0.5
+  coastDeceleration: 0.05
   gripLevel: 0.98
   driftGrip: 0.45
   downforce: 90

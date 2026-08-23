@@ -12,6 +12,12 @@ public class CarController : MonoBehaviour
     [Header("Direction Dynamique 🛞")]
     public float lowSpeedSteerAngle = 70f;
     public float highSpeedSteerAngle = 25f;
+    [Tooltip("Contrôle l'inertie du volant. 0.5 = ressenti actuel (déjà lissé contre le jitter). Monte vers 0.7-0.8 pour un volant qui met sensiblement plus de temps à tourner/revenir, façon inertie réaliste plutôt que réponse digitale.")]
+    [Range(0f, 0.9f)] public float steeringSmoothing = 0.5f;
+
+    [Header("Inertie / Roulis libre 🛞💨")]
+    [Tooltip("Freinage naturel quand tu ne touches ni l'accélérateur ni le frein (résistance de l'air/frottements). Valeur d'origine : 0.2 — baisse-la pour que la voiture continue sur sa lancée plus longtemps (essaie 0.03-0.08 pour un ressenti plus réaliste).")]
+    public float coastDeceleration = 0.05f;
 
     [Header("Adhérence (Le secret Pro) 🧲")]
     [Range(0f, 1f)] public float gripLevel = 0.95f;
@@ -228,7 +234,7 @@ public class CarController : MonoBehaviour
         }
         else
         {
-            rb.AddForce(-rb.linearVelocity.normalized * (brakingForce * 0.2f), ForceMode.Acceleration);
+            rb.AddForce(-rb.linearVelocity.normalized * (brakingForce * coastDeceleration), ForceMode.Acceleration);
         }
     }
 
@@ -264,7 +270,11 @@ public class CarController : MonoBehaviour
             // rotation appliquée progresse vers la cible au lieu de la suivre brute chaque
             // frame — atténue le jitter résiduel peu importe sa source exacte (adhérence,
             // arrondi physique...), sans changer la réactivité globale du volant.
-            smoothedTurnAmount = Mathf.Lerp(smoothedTurnAmount, targetTurnAmount, 0.5f);
+            // steeringSmoothing = 0 -> facteur 1 (aucun lissage, comportement d'origine).
+            // steeringSmoothing plus haut -> facteur plus bas -> le volant met plus de
+            // temps à atteindre l'angle voulu, façon inertie plutôt que réponse digitale.
+            float lerpFactor = 1f - steeringSmoothing;
+            smoothedTurnAmount = Mathf.Lerp(smoothedTurnAmount, targetTurnAmount, lerpFactor);
 
             Quaternion turnRotation = Quaternion.Euler(0f, smoothedTurnAmount, 0f);
             rb.MoveRotation(rb.rotation * turnRotation);
