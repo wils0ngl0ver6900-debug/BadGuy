@@ -969,6 +969,8 @@ MonoBehaviour:
   currentHealth: 100
   isPlayerOwned: 0
   damageImmune: 1
+  limitCollisionLaunch: 0
+  maxVerticalSpeedAfterCollision: 6
   smokeEffectPrefab: {fileID: 7621480317597576956, guid: b8d6329a1e1790144a2ffd942dd7abd6, type: 3}
   hoodPosition: {fileID: 8279913681390774605}
   tireSmokeParticles:
@@ -1030,12 +1032,12 @@ MonoBehaviour:
   lateralOffset: 0
   raceCircuit: {fileID: 3705307199183169266, guid: 048b8bb130beb5b4b8711458e03768d3, type: 3}
   raceWaypointIndex: 0
-  raceLookAheadNodes: 5
+  raceLookAheadNodes: 3
   raceStraightSpeed: 50
   raceHairpinSpeed: 5
   raceBrakingDeceleration: 50
   raceStuckTimeout: 0.8
-  raceReverseDuration: 0.9
+  raceReverseDuration: 0.3
   raceRecoveryGracePeriod: 1
   frontSensorLength: 7
   rearSensorLength: 3

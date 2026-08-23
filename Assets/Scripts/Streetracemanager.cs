@@ -53,12 +53,9 @@ public class StreetRaceManager : MonoBehaviour
     public GameObject[] uiToHideDuringRace;
 
     [Header("Physique IA — valeurs ABSOLUES (pas des multiplicateurs du prefab)")]
-    [Tooltip("Les précédents réglages multipliaient les valeurs du prefab (x2, x4...) — problème : ce prefab a déjà une vitesse de base de 50 et une accélération de 90, donc les multiplicateurs s'empilaient dessus et donnaient des valeurs absurdes (~125 m/s). Ici, valeurs FIXES et directement lisibles, à ajuster librement sans effet de bord.")]
-    public float aiMaxSpeed = 58f;
-    public float aiAccelerationForce = 115f;
-    public float aiBrakingForce = 100f;
-    public float aiLowSpeedSteerAngle = 100f;
-    public float aiHighSpeedSteerAngle = 45f;
+    [Tooltip("Grip/freinage/braquage des IA sont désormais IDENTIQUES au prefab (donc à ta voiture) — plus aucune différence physique là-dessus. Seules Vitesse Max et Accélération gardent un léger avantage réglable ici, pour rester compétitives sans rien changer d'autre. Si ça vole encore avec des réglages identiques aux tiens, le souci n'est pas la vitesse/le grip IA.")]
+    public float aiMaxSpeed = 55f;
+    public float aiAccelerationForce = 100f;
 
     [Header("Récompenses (argent sale 💵)")]
     public int firstPlaceReward = 5000;
@@ -258,24 +255,16 @@ public class StreetRaceManager : MonoBehaviour
             {
                 aiCarController.steeringSmoothing = 0f;
 
-                // Physique volontairement "trichée" par rapport au joueur : les IA n'ont ni
-                // les mêmes réflexes ni la même précision, donc on compense largement —
-                // course difficile, moins d'accidents, plus compétitives.
-                aiCarController.gripLevel = 1f; // adhérence maximale
-                aiCarController.driftGrip = 1f; // même en glisse/frein à main, ne décroche jamais vraiment
-
-                // Valeurs ABSOLUES (voir Header ci-dessus) plutôt que des multiplicateurs
-                // empilés sur les valeurs déjà tunées du prefab — plus de compounding
-                // imprévisible, réglable directement et clairement dans l'Inspector.
-                aiCarController.brakingForce = aiBrakingForce;
-                aiCarController.lowSpeedSteerAngle = aiLowSpeedSteerAngle;
-                aiCarController.highSpeedSteerAngle = aiHighSpeedSteerAngle;
+                // Grip, driftGrip, freinage, braquage : plus AUCUN override, l'IA utilise
+                // exactement les valeurs du prefab, identiques au joueur. Seules vitesse
+                // max et accélération gardent un léger avantage (valeurs absolues, voir
+                // Header ci-dessus) pour rester compétitives.
                 aiCarController.accelerationForce = aiAccelerationForce;
                 aiCarController.maxSpeed = aiMaxSpeed;
 
-                // Même raison que côté joueur : la vitesse/adhérence boostées rendent les
-                // chocs bien plus violents que la normale, sans ce plafond les voitures
-                // s'envolaient au moindre impact.
+                // Même raison que côté joueur : même à vitesse rapprochée du joueur, deux
+                // voitures qui se percutent de plein fouet restent un choc franc — sans ce
+                // plafond, ça pouvait quand même envoyer une voiture dans les airs.
                 aiCarController.limitCollisionLaunch = true;
             }
 
