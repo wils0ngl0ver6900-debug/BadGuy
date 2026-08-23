@@ -11,8 +11,8 @@ public class StreetRaceManager : MonoBehaviour
     public static StreetRaceManager Instance;
 
     [Header("Circuit 🏁")]
-    [Tooltip("Premier noeud du circuit — sert aussi de ligne de départ/arrivée. Les noeuds suivants doivent former une boucle FERMÉE avec un seul 'Next Node' chacun (pas de branchement vers le trafic normal de la ville), sinon CarAI choisira un chemin au hasard à chaque intersection.")]
-    public TrafficNode startFinishNode;
+    [Tooltip("Le circuit de course (voir RaceCircuit.cs) — une simple liste ordonnée de points, plus aucun lien avec le graphe TrafficNode du trafic normal. Le premier point de RaceCircuit sert de ligne de départ/arrivée.")]
+    public RaceCircuit raceCircuit;
     public int lapsToWin = 3;
 
     [Header("Grille de départ")]
@@ -87,7 +87,7 @@ public class StreetRaceManager : MonoBehaviour
             return;
         }
 
-        if (startFinishNode == null || raceCarPrefab == null || gridStartPoint == null)
+        if (raceCircuit == null || raceCircuit.Count == 0 || raceCarPrefab == null || gridStartPoint == null)
         {
             if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Erreur : course pas configurée (voir StreetRaceManager dans l'Inspector).</color>");
             return;
@@ -141,7 +141,7 @@ public class StreetRaceManager : MonoBehaviour
         }
 
         RaceParticipant playerRP = playerCar.AddComponent<RaceParticipant>();
-        playerRP.Initialize(startFinishNode.transform, lapsToWin, this, "Toi");
+        playerRP.Initialize(raceCircuit.StartFinish, lapsToWin, this, "Toi");
         playerParticipant = playerRP;
         participants.Add(playerRP);
 
@@ -174,9 +174,9 @@ public class StreetRaceManager : MonoBehaviour
             // Désactivé pour l'instant : reste immobile pendant le compte à rebours, comme
             // le joueur (inputLocked). Réactivé juste avant "GO !" plus bas.
             aiDriver.enabled = false;
-            aiDriver.currentNode = startFinishNode;
+            aiDriver.raceCircuit = raceCircuit;
+            aiDriver.raceWaypointIndex = 0;
             if (i < opponentLateralOffsets.Length) aiDriver.lateralOffset = opponentLateralOffsets[i];
-            aiDriver.lookAheadBlend = 0.25f; // anticipation plus modeste, moins d'embardées en virage serré
             aiDrivers.Add(aiDriver);
 
             // Le joueur profite du lissage de direction (steeringSmoothing) pour un ressenti
@@ -187,7 +187,7 @@ public class StreetRaceManager : MonoBehaviour
 
             string oppName = i < opponentNames.Length ? opponentNames[i] : $"Adversaire {i + 1}";
             RaceParticipant aiRP = aiCar.AddComponent<RaceParticipant>();
-            aiRP.Initialize(startFinishNode.transform, lapsToWin, this, oppName);
+            aiRP.Initialize(raceCircuit.StartFinish, lapsToWin, this, oppName);
             participants.Add(aiRP);
         }
 
@@ -267,23 +267,23 @@ public class StreetRaceManager : MonoBehaviour
     // le joueur — les adversaires IA suivent leur propre logique CarAI indépendamment.
     private IEnumerator GuidePlayerRoutine()
     {
-        TrafficNode current = startFinishNode;
+        int index = 0;
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
 
         while (raceActive && playerParticipant != null && !playerParticipant.hasFinished)
         {
-            if (current.nextNodes == null || current.nextNodes.Count == 0) yield break;
+            Transform next = raceCircuit.waypoints[index % raceCircuit.Count];
+            if (next == null) yield break;
 
-            TrafficNode next = current.nextNodes[0];
-            if (JobPathfinder.Instance != null) JobPathfinder.Instance.SetTargets(next.transform);
+            if (JobPathfinder.Instance != null) JobPathfinder.Instance.SetTargets(next);
 
             while (raceActive && playerObj != null && playerParticipant != null && !playerParticipant.hasFinished
-                   && Vector3.Distance(playerObj.transform.position, next.transform.position) > 10f)
+                   && Vector3.Distance(playerObj.transform.position, next.position) > 10f)
             {
                 yield return new WaitForSeconds(0.5f);
             }
 
-            current = next;
+            index++;
         }
 
         if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();

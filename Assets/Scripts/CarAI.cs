@@ -7,14 +7,16 @@ public class CarAI : MonoBehaviour
     public TrafficNode currentNode;
     public float waypointThreshold = 5f;
 
-    [Tooltip("Décalage latéral (perpendiculaire à la route) appliqué au point visé sur chaque noeud. 0 = comportement normal (inchangé). Utile pour éviter que plusieurs IA suivant le même circuit ne roulent en file indienne parfaite — donne à chacune une valeur différente (ex: -3, -1, +1, +3).")]
+    [Tooltip("Décalage latéral (perpendiculaire à la route) appliqué au point visé. 0 = comportement normal. Utile pour éviter que plusieurs IA suivant le même circuit ne roulent en file indienne parfaite — donne à chacune une valeur différente (ex: -3, -1, +1, +3).")]
     public float lateralOffset = 0f;
 
-    [Tooltip("0 = comportement normal (inchangé), vise uniquement le noeud actuel. Au-dessus de 0 (ex: 0.4), mélange progressivement le point visé vers le PROCHAIN noeud à l'approche du noeud actuel — anticipe le virage suivant au lieu de piler dessus avant de tourner. Pensé pour une course sur circuit, laisse à 0 pour la circulation normale.")]
-    [Range(0f, 1f)] public float lookAheadBlend = 0f;
+    [Header("Mode course — circuit explicite (remplace currentNode en mode course)")]
+    [Tooltip("Si renseigné, l'IA ignore complètement le graphe TrafficNode et suit ce circuit par index, sans ambiguïté possible (voir RaceCircuit.cs).")]
+    public RaceCircuit raceCircuit;
+    [HideInInspector] public int raceWaypointIndex = 0;
 
-    [Header("Mode course — planification anticipée (actif si lookAheadBlend > 0)")]
-    [Tooltip("Nombre de noeuds du circuit regardés à l'avance pour anticiper les virages.")]
+    [Header("Mode course — planification anticipée (actif si Race Circuit est renseigné)")]
+    [Tooltip("Nombre de points du circuit regardés à l'avance pour anticiper les virages.")]
     public int raceLookAheadNodes = 5;
     [Tooltip("Vitesse visée en ligne droite (m/s).")]
     public float raceStraightSpeed = 28f;
@@ -177,7 +179,9 @@ public class CarAI : MonoBehaviour
 
     void Drive()
     {
-        if (chaseTarget == null && currentNode == null)
+        bool raceMode = raceCircuit != null && raceCircuit.Count > 0;
+
+        if (chaseTarget == null && currentNode == null && !raceMode)
         {
             virtualGasPedal = 0f;
             carController.isHandbraking = true;
@@ -194,23 +198,30 @@ public class CarAI : MonoBehaviour
             return;
         }
 
-        Vector3 targetPos;
-        bool raceMode = false;
-
-        if (chaseTarget != null)
+        if (raceMode)
         {
-            targetPos = chaseTarget.position;
+            // Mode course : circuit explicite (RaceCircuit), totalement indépendant du
+            // graphe TrafficNode ci-dessous — élimine tout risque d'embranchement mal
+            // configuré ou de boucle accidentelle qui pouvait coincer une IA au même
+            // endroit indéfiniment.
+            AdvanceRaceWaypoint();
+            ComputeRaceDriving();
         }
         else
         {
-            targetPos = currentNode.transform.position;
-            raceMode = lookAheadBlend > 0f;
+            Vector3 targetPos;
 
-            if (!raceMode)
+            if (chaseTarget != null)
             {
+                targetPos = chaseTarget.position;
+            }
+            else
+            {
+                targetPos = currentNode.transform.position;
+
                 // Décalage perpendiculaire à la direction du noeud (0 = pas de changement) :
-                // sans ça, plusieurs IA sur le même circuit visent EXACTEMENT le même point à
-                // chaque virage et finissent en file indienne quasi parfaite.
+                // sans ça, plusieurs IA suivant le même chemin visent EXACTEMENT le même
+                // point et finissent en file indienne quasi parfaite.
                 if (!Mathf.Approximately(lateralOffset, 0f))
                 {
                     Vector3 dirToNode = (targetPos - transform.position);
@@ -221,50 +232,26 @@ public class CarAI : MonoBehaviour
                         targetPos += perpendicular * lateralOffset;
                     }
                 }
+
+                if (Vector3.Distance(transform.position, currentNode.transform.position) < waypointThreshold && currentNode.nextNodes.Count > 0)
+                {
+                    currentNode = currentNode.nextNodes[Random.Range(0, currentNode.nextNodes.Count)];
+                }
             }
 
-            if (Vector3.Distance(transform.position, currentNode.transform.position) < waypointThreshold && currentNode.nextNodes.Count > 0)
-            {
-                // En mode course (lookAheadBlend > 0), le choix reste TOUJOURS déterministe
-                // (index 0) plutôt qu'aléatoire : sur un circuit qui devrait être un chemin
-                // unique, un noeud mal configuré avec plusieurs "Next Node" (ou un
-                // embranchement qui reboucle sur lui-même) pouvait faire tourner une IA en
-                // rond indéfiniment ou lui faire perdre le fil du circuit. Le trafic normal
-                // garde le choix aléatoire (comportement d'origine, utile pour varier les
-                // trajets en ville).
-                currentNode = raceMode
-                    ? currentNode.nextNodes[0]
-                    : currentNode.nextNodes[Random.Range(0, currentNode.nextNodes.Count)];
-            }
-        }
-
-        if (raceMode)
-        {
-            // Mode course : planification anticipée façon IA de compétition — regarde
-            // plusieurs virages à l'avance et calcule la vitesse de sécurité de chacun,
-            // au lieu de réagir à l'angle du prochain point une fois dessus. Gère
-            // elle-même virtualSteeringWheel ET virtualGasPedal.
-            ComputeRaceDriving();
-        }
-        else
-        {
-            // Calcul de la trajectoire idéale (comportement d'origine : trafic normal
-            // en ville, ou poursuite d'une cible chaseTarget).
+            // Calcul de la trajectoire idéale (comportement d'origine : trafic normal en
+            // ville, ou poursuite d'une cible chaseTarget).
             Vector3 localTarget = transform.InverseTransformPoint(targetPos);
             float angleToTarget = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
             float idealSteer = Mathf.Clamp(angleToTarget / 45f, -1f, 1f);
 
-            // Intégration de l'évitement en douceur (steerBias)
-            // Si un obstacle est sur le côté, l'IA décale son volant (idéal pour doubler)
             virtualSteeringWheel = Mathf.Clamp(idealSteer + steerBias, -1f, 1f);
 
-            // Logique d'accélération et de freinage dans les virages
             float angleAbs = Mathf.Abs(angleToTarget);
             float currentSpeed = rb.linearVelocity.magnitude;
 
             if (steerBias != 0f && closestFrontDistance < 4f)
             {
-                // On lâche l'accélérateur si on est en train de frôler un obstacle
                 virtualGasPedal = 0.2f;
             }
             else if (angleAbs <= 8f)
@@ -280,7 +267,7 @@ public class CarAI : MonoBehaviour
             }
         }
 
-        // Freinage d'urgence absolu devant un mur ou un piéton
+        // Freinage d'urgence absolu devant un mur ou un piéton (s'applique dans tous les cas)
         if (closestFrontDistance < 2.5f || (isHumanInDanger && closestFrontDistance < 5f))
         {
             virtualGasPedal = -1f;
@@ -298,6 +285,18 @@ public class CarAI : MonoBehaviour
         }
     }
 
+    // Avance au point suivant du RaceCircuit quand on est assez proche du point actuel.
+    // Simple index qui boucle (modulo) — aucune ambiguïté possible, contrairement au graphe
+    // TrafficNode.
+    private void AdvanceRaceWaypoint()
+    {
+        Vector3 currentTarget = raceCircuit.GetPoint(raceWaypointIndex);
+        if (Vector3.Distance(transform.position, currentTarget) < waypointThreshold)
+        {
+            raceWaypointIndex = (raceWaypointIndex + 1) % raceCircuit.Count;
+        }
+    }
+
     // --- MODE COURSE : planification anticipée façon IA de compétition ---
     // Regarde plusieurs noeuds à l'avance, calcule une vitesse de sécurité pour chaque
     // virage à venir selon sa sévérité, puis remonte le calcul jusqu'à MAINTENANT pour
@@ -306,13 +305,10 @@ public class CarAI : MonoBehaviour
     private void ComputeRaceDriving()
     {
         Vector3[] upcoming = new Vector3[raceLookAheadNodes];
-        int count = 0;
-        TrafficNode node = currentNode;
-        for (int i = 0; i < raceLookAheadNodes && node != null; i++)
+        int count = Mathf.Min(raceLookAheadNodes, raceCircuit.Count);
+        for (int i = 0; i < count; i++)
         {
-            upcoming[i] = node.transform.position;
-            count++;
-            node = (node.nextNodes != null && node.nextNodes.Count > 0) ? node.nextNodes[0] : null;
+            upcoming[i] = raceCircuit.GetPoint(raceWaypointIndex + i);
         }
 
         if (count == 0)
