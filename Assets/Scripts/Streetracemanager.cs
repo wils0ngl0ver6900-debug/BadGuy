@@ -36,6 +36,10 @@ public class StreetRaceManager : MonoBehaviour
     public TMPro.TextMeshProUGUI countdownText;
     public float secondsPerCount = 1f;
 
+    [Header("Compteur de tours")]
+    [Tooltip("Texte affichant 'Tour X/Y' pendant la course.")]
+    public TMPro.TextMeshProUGUI lapCounterText;
+
     [Header("Récompenses (argent sale 💵)")]
     public int firstPlaceReward = 5000;
     public int secondPlaceReward = 2000;
@@ -59,9 +63,20 @@ public class StreetRaceManager : MonoBehaviour
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+
+        if (lapCounterText != null) lapCounterText.gameObject.SetActive(false);
     }
 
     public bool IsRaceActive() => raceActive;
+
+    private void Update()
+    {
+        if (raceActive && lapCounterText != null && playerParticipant != null)
+        {
+            int lapShown = Mathf.Min(playerParticipant.lapsCompleted + 1, lapsToWin);
+            lapCounterText.text = $"Tour {lapShown}/{lapsToWin}";
+        }
+    }
 
     // Appelée depuis CallApp quand le joueur répond "Oui" à Black Knight.
     public void StartRace()
@@ -161,7 +176,7 @@ public class StreetRaceManager : MonoBehaviour
             aiDriver.enabled = false;
             aiDriver.currentNode = startFinishNode;
             if (i < opponentLateralOffsets.Length) aiDriver.lateralOffset = opponentLateralOffsets[i];
-            aiDriver.lookAheadBlend = 0.05f; // anticipation plus modeste, moins d'embardées en virage serré
+            aiDriver.lookAheadBlend = 0.25f; // anticipation plus modeste, moins d'embardées en virage serré
             aiDrivers.Add(aiDriver);
 
             // Le joueur profite du lissage de direction (steeringSmoothing) pour un ressenti
@@ -205,6 +220,8 @@ public class StreetRaceManager : MonoBehaviour
         }
 
         countdownText.gameObject.SetActive(false);
+
+        if (lapCounterText != null) lapCounterText.gameObject.SetActive(true);
     }
 
     // Grille en quinconce (2 voitures par rangée, décalées vers l'arrière à chaque
@@ -323,6 +340,7 @@ public class StreetRaceManager : MonoBehaviour
         }
 
         if (countdownText != null) countdownText.gameObject.SetActive(false);
+        if (lapCounterText != null) lapCounterText.gameObject.SetActive(false);
         if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
 
         // Même principe que GarageManager.StoreVehicleRoutine(), la manœuvre la plus fiable

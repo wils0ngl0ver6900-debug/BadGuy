@@ -257,17 +257,31 @@ public class CarAI : MonoBehaviour
             // On lâche l'accélérateur si on est en train de frôler un obstacle
             virtualGasPedal = 0.2f;
         }
-        else if (angleAbs > 30f && currentSpeed > 10f)
+        else if (angleAbs <= 8f)
         {
-            virtualGasPedal = -0.6f; // Freinage avant un gros virage
-        }
-        else if (angleAbs > 15f)
-        {
-            virtualGasPedal = 0.4f; // Ralentissement
+            // Ligne droite / virage à peine amorcé : pied au plancher (légèrement réduit
+            // si le volant est déjà pas mal tourné).
+            virtualGasPedal = 1f - (Mathf.Abs(virtualSteeringWheel) * 0.2f);
         }
         else
         {
-            virtualGasPedal = 1f - (Mathf.Abs(virtualSteeringWheel) * 0.2f); // Pied au plancher
+            // Courbe CONTINUE plutôt que des paliers à seuils fixes (15°/30°/60°) : ceux-ci
+            // provoquaient un à-coup net dès qu'on franchissait un seuil (accélération
+            // pleine à 14°, freinage sec à 16°...), ce qui donnait une conduite saccadée
+            // sur TOUT le circuit, pas juste sur les virages les plus serrés. Ici, plus le
+            // virage est prononcé, plus on lâche le pied progressivement et tôt — sans
+            // à-coups, façon conduite humaine.
+            float turnSeverity = Mathf.Clamp01((angleAbs - 8f) / 70f); // 0 = ligne droite, 1 = quasi épingle
+            float targetGasPedal = Mathf.Lerp(1f, -0.9f, turnSeverity);
+
+            // Pas besoin de freiner fort si on est déjà lent — sans ce garde-fou, l'IA
+            // pouvait rester au frein après avoir déjà bien ralenti dans le virage.
+            if (currentSpeed < 8f)
+            {
+                targetGasPedal = Mathf.Max(targetGasPedal, 0.2f);
+            }
+
+            virtualGasPedal = targetGasPedal;
         }
 
         // Freinage d'urgence absolu devant un mur ou un piéton
