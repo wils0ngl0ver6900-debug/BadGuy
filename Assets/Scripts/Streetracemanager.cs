@@ -289,18 +289,26 @@ public class StreetRaceManager : MonoBehaviour
         }
     }
 
-    // Recalage précis post-instanciation, basé sur le VRAI bas du collider de la voiture
-    // (pas un "+0.1" fixe qui ne tient pas compte de l'écart entre le pivot et les roues,
-    // variable selon le modèle) — GridPosition() donne déjà une hauteur approximative, ceci
-    // l'affine avec les dimensions réelles de l'objet une fois instancié.
+    // Recalage précis post-instanciation, basé sur le VRAI bas de la voiture — via les
+    // renderers plutôt qu'un collider (GetComponentInChildren<Collider>() pouvait attraper
+    // le mauvais collider si la voiture en a plusieurs, ex: une zone d'interaction
+    // "CarForSale" plutôt que la carrosserie, faussant complètement la hauteur calculée et
+    // laissant la voiture flotter). GridPosition() donne déjà une hauteur approximative,
+    // ceci l'affine avec les dimensions visuelles réelles une fois l'objet instancié.
     private void SnapCarToGround(GameObject car)
     {
-        Collider col = car.GetComponentInChildren<Collider>();
-        if (col == null) return;
+        Renderer[] rends = car.GetComponentsInChildren<Renderer>();
+        if (rends.Length == 0) return;
+
+        float lowestY = float.MaxValue;
+        foreach (Renderer r in rends)
+        {
+            if (r.bounds.min.y < lowestY) lowestY = r.bounds.min.y;
+        }
 
         if (Physics.Raycast(car.transform.position + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f))
         {
-            float clearance = car.transform.position.y - col.bounds.min.y;
+            float clearance = car.transform.position.y - lowestY;
             Vector3 pos = car.transform.position;
             pos.y = hit.point.y + clearance + 0.05f;
             car.transform.position = pos;

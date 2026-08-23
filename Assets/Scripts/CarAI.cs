@@ -34,6 +34,9 @@ public class CarAI : MonoBehaviour
     private float raceTotalStuckTime = 0f;
     private bool raceReversing = false;
     private float raceReverseTimer = 0f;
+    [Tooltip("Après une téléportation de secours, délai pendant lequel la voiture ne revalide pas immédiatement le passage d'un checkpoint — évite qu'elle ré-avance instantanément vers le même endroit où elle vient d'être bloquée.")]
+    public float raceRecoveryGracePeriod = 1f;
+    private float raceRecoveryGraceTimer = 0f;
 
     [Header("Détection d'obstacles (Matrice 360)")]
     public float frontSensorLength = 7f;
@@ -234,26 +237,64 @@ public class CarAI : MonoBehaviour
             // tentatives de marche arrière qui n'ont pas suffi) -> téléportation directe au
             // noeud précédent. Garantit qu'aucune IA ne peut rester coincée indéfiniment,
             // peu importe la cause exacte du blocage.
+            //
+            // Trois points cruciaux ici (leur absence causait une boucle infinie où la
+            // voiture semblait "flotter" en continu) :
+            // 1. Hauteur précise (bas des renderers, comme SnapCarToGround) au lieu d'un
+            //    "+0.5" fixe qui ne tenait pas compte du vrai pivot de la voiture.
+            // 2. Rotation réorientée vers la cible : sinon la voiture gardait l'angle
+            //    bizarre qu'elle avait au moment du blocage et repartait tout droit dans le
+            //    MÊME obstacle immédiatement après le téléport.
+            // 3. Délai de grâce avant de réévaluer l'avancement de noeud : sans lui, la
+            //    voiture téléportée PILE sur le noeud précédent le validait instantanément
+            //    (distance ~0) et ré-avançait tout de suite vers le noeud où elle venait
+            //    d'être bloquée — retour à la case départ en une frame, boucle infinie.
             if (raceTotalStuckTime > 1f)
             {
+                int targetIndexBeforeReset = raceWaypointIndex; // où elle allait avant le blocage
                 int prevIndex = ((raceWaypointIndex - 1) % raceCircuit.Count + raceCircuit.Count) % raceCircuit.Count;
                 Vector3 tpPos = raceCircuit.GetPoint(prevIndex);
+
+                Renderer[] rends = GetComponentsInChildren<Renderer>();
+                float clearance = 0.3f;
+                if (rends.Length > 0)
+                {
+                    float lowestY = float.MaxValue;
+                    foreach (Renderer r in rends)
+                    {
+                        if (r.bounds.min.y < lowestY) lowestY = r.bounds.min.y;
+                    }
+                    clearance = transform.position.y - lowestY;
+                }
+
                 if (Physics.Raycast(tpPos + Vector3.up * 5f, Vector3.down, out RaycastHit groundHit, 20f))
                 {
-                    tpPos = groundHit.point + Vector3.up * 0.5f;
+                    tpPos = groundHit.point + Vector3.up * (clearance + 0.05f);
                 }
+
                 rb.position = tpPos;
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
+
+                Vector3 lookDir = raceCircuit.GetPoint(targetIndexBeforeReset) - tpPos;
+                lookDir.y = 0f;
+                if (lookDir.sqrMagnitude > 0.01f)
+                {
+                    rb.rotation = Quaternion.LookRotation(lookDir.normalized);
+                }
+
                 raceWaypointIndex = prevIndex;
                 raceReversing = false;
                 raceStuckTimer = 0f;
                 raceTotalStuckTime = 0f;
+                raceRecoveryGraceTimer = raceRecoveryGracePeriod;
                 virtualGasPedal = 0f;
                 virtualSteeringWheel = 0f;
                 carController.isHandbraking = false;
                 return;
             }
+
+            if (raceRecoveryGraceTimer > 0f) raceRecoveryGraceTimer -= Time.deltaTime;
 
             if (raceReversing)
             {
@@ -289,7 +330,10 @@ public class CarAI : MonoBehaviour
 
                 if (!raceReversing)
                 {
-                    AdvanceRaceWaypoint();
+                    // Pendant le délai de grâce après un téléport, on pilote sans réévaluer
+                    // l'avancement de noeud — le temps de vraiment s'éloigner de l'endroit
+                    // où elle était bloquée avant de revalider un passage de checkpoint.
+                    if (raceRecoveryGraceTimer <= 0f) AdvanceRaceWaypoint();
                     ComputeRaceDriving();
                 }
             }
