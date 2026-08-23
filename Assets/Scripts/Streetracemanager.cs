@@ -28,8 +28,8 @@ public class StreetRaceManager : MonoBehaviour
     public GameObject raceCarPrefab;
     public string[] opponentNames = { "Vipère", "Le Fantôme", "Diesel", "Rafale" };
 
-    [Tooltip("Décalage latéral donné à chaque adversaire IA (voir CarAI.lateralOffset) pour éviter qu'ils roulent tous en file indienne parfaite sur le même circuit.")]
-    public float[] opponentLateralOffsets = { -3f, -1f, 1f, 3f };
+    [Tooltip("Décalage latéral donné à chaque adversaire IA (voir CarAI.lateralOffset) pour éviter qu'ils roulent tous en file indienne parfaite. Valeurs volontairement modestes : un décalage trop large pousse les IA hors piste dans les virages serrés (constaté avec -3/-1/1/3).")]
+    public float[] opponentLateralOffsets = { -1.2f, -0.4f, 0.4f, 1.2f };
 
     [Header("Compte à rebours 🚦")]
     [Tooltip("Texte affichant 3, 2, 1, GO ! avant le départ. Tout le monde (joueur + IA) est bloqué pendant ce temps.")]
@@ -145,6 +145,7 @@ public class StreetRaceManager : MonoBehaviour
             aiDriver.enabled = false;
             aiDriver.currentNode = startFinishNode;
             if (i < opponentLateralOffsets.Length) aiDriver.lateralOffset = opponentLateralOffsets[i];
+            aiDriver.lookAheadBlend = 0.5f; // anticipe le virage suivant, sans effet sur la circulation normale
             aiDrivers.Add(aiDriver);
 
             string oppName = i < opponentNames.Length ? opponentNames[i] : $"Adversaire {i + 1}";
@@ -196,9 +197,19 @@ public class StreetRaceManager : MonoBehaviour
         float lateral = (col == 0 ? -1f : 1f) * (gridCarSpacing * 0.5f);
         float depth = -row * gridRowSpacing; // vers l'arrière du point de départ
 
-        return gridStartPoint.position
-             + gridStartPoint.right * lateral
-             + gridStartPoint.forward * depth;
+        Vector3 pos = gridStartPoint.position
+                    + gridStartPoint.right * lateral
+                    + gridStartPoint.forward * depth;
+
+        // Recalage au sol par raycast : sans ça, la hauteur Y venait uniquement de
+        // gridStartPoint, qui peut être légèrement fausse selon l'endroit exact — les
+        // voitures apparaissaient en légère "lévitation" au-dessus de la route.
+        if (Physics.Raycast(pos + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f))
+        {
+            pos.y = hit.point.y + 0.1f;
+        }
+
+        return pos;
     }
 
     // Guide le joueur avec les flèches du pathfinder tout au long du circuit, en changeant
@@ -278,6 +289,20 @@ public class StreetRaceManager : MonoBehaviour
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj != null)
         {
+            // Coupe les collisions de TOUTES les voitures de course avant de repositionner
+            // le joueur — même si une IA a fini sa course loin du circuit (comportement
+            // erratique), aucune ne peut interférer physiquement pendant la téléportation.
+            // Sans ça, le joueur pouvait réapparaître incrusté dans une voiture encore
+            // solide et se faire éjecter sous la carte par la résolution physique.
+            foreach (GameObject car in spawnedCars)
+            {
+                if (car == null) continue;
+                foreach (Collider col in car.GetComponentsInChildren<Collider>())
+                {
+                    if (col != null) col.enabled = false;
+                }
+            }
+
             CarController currentCar = null;
             foreach (GameObject car in spawnedCars)
             {

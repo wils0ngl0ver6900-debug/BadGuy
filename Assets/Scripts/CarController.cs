@@ -232,6 +232,8 @@ public class CarController : MonoBehaviour
         }
     }
 
+    private float lastDirectionMultiplier = 1f;
+
     private void ProcessSteering()
     {
         if (isEngineDead) return;
@@ -241,11 +243,21 @@ public class CarController : MonoBehaviour
 
         if (absoluteSpeed > 0.1f)
         {
-            float directionMultiplier = Mathf.Sign(forwardSpeed);
+            // Le signe de forwardSpeed peut basculer d'une frame à l'autre quand la vitesse
+            // est proche de zéro (bruit numérique) — typiquement en tournant "sur place",
+            // où le freinage/l'adhérence ramènent sans cesse la vitesse près de zéro. On ne
+            // met à jour la direction que si la vitesse est clairement au-dessus de ce bruit
+            // (0.5 plutôt que 0.1), sinon on garde la dernière direction stable — plutôt que
+            // de recalculer un signe qui peut changer sans raison d'une frame à l'autre.
+            if (absoluteSpeed > 0.5f)
+            {
+                lastDirectionMultiplier = Mathf.Sign(forwardSpeed);
+            }
+
             float speedFactor = Mathf.Clamp01(absoluteSpeed / maxSpeed);
             float currentSteerAngle = Mathf.Lerp(lowSpeedSteerAngle, highSpeedSteerAngle, speedFactor);
 
-            float turnAmount = turnInput * currentSteerAngle * directionMultiplier * Time.fixedDeltaTime;
+            float turnAmount = turnInput * currentSteerAngle * lastDirectionMultiplier * Time.fixedDeltaTime;
             Quaternion turnRotation = Quaternion.Euler(0f, turnAmount, 0f);
             rb.MoveRotation(rb.rotation * turnRotation);
         }
