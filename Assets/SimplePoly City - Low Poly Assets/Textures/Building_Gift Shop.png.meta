@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 0ddba491ce4a04c4b8def1195e6300d8
+guid: 64bb9ca6a39543742909b6aa9340329a
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Gift Shop.png
-  uploadId: 171409

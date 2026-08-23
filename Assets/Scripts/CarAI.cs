@@ -19,7 +19,7 @@ public class CarAI : MonoBehaviour
     [Tooltip("Nombre de points du circuit regardés à l'avance pour anticiper les virages.")]
     public int raceLookAheadNodes = 5;
     [Tooltip("Vitesse visée en ligne droite (m/s).")]
-    public float raceStraightSpeed = 55f;
+    public float raceStraightSpeed = 65f;
     [Tooltip("Vitesse visée dans une épingle très serrée (m/s).")]
     public float raceHairpinSpeed = 18f;
     [Tooltip("Décélération au freinage utilisée pour calculer QUAND commencer à ralentir (m/s²). Plus haut = freine plus tard/fort, plus bas = freine plus tôt/doux.")]

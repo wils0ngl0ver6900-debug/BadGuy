@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 952048546b1814f4480519f6d11e8c3c
+guid: d07bda5fb2250064ca832bf55a6c947b
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Factory.png
-  uploadId: 171409

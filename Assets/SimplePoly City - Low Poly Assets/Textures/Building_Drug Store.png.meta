@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: a2ca9c84c117c3e4d9779bfccd3e1b4e
+guid: 1fe0b5d94c5491248a46eca63c907b69
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Drug Store.png
-  uploadId: 171409

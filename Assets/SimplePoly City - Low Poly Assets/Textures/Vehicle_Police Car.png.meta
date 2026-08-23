@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: c0aa9f00c18fd8f40babb473766f37eb
+guid: cb96d8a2aabd0bb4d9641387cc7b7496
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Vehicle_Police Car.png
-  uploadId: 171409

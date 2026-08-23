@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: d4aec383b01f2dc498bf7503531cca39
+guid: cdece21cd4922de4dab0499b3431c8bf
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Natures.png
-  uploadId: 171409

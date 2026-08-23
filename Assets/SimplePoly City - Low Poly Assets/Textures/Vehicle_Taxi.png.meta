@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: d9fe8b9f6a8a040408a6a74b3714c665
+guid: f1738a2ac02e0b9459fe659b6327043b
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Vehicle_Taxi.png
-  uploadId: 171409

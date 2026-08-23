@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: b648d0554709c6c4e9269e311432c5d6
+guid: f58e2db81852fc943ae7b61563d1b829
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Chicken Shop.png
-  uploadId: 171409

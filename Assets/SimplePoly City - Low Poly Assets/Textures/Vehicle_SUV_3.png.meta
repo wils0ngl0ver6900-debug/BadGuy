@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: c7411d1e8e5de194b87905fdd4856618
+guid: 35008069633f5b649b95436344abdd6a
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Vehicle_SUV_3.png
-  uploadId: 171409

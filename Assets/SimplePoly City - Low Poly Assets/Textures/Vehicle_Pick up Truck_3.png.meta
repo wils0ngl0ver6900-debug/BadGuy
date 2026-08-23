@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 3dafb997416bc114c89c714676f7c788
+guid: 3315cfcf2ed89e942a38662e5a08a030
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Vehicle_Pick up Truck_3.png
-  uploadId: 171409

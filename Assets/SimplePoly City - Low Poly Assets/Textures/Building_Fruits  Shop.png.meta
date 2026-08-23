@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 06486f90deb2cc24492333b868a4b0a2
+guid: d62748ca894c0004a8a457ea4b2d571c
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Fruits  Shop.png
-  uploadId: 171409

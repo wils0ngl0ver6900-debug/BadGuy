@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: b3ce51c34fdf8474d9ec1d87f9433000
+guid: 976a6eac45eb8ac4993378936c0fae9b
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Auto Service.png
-  uploadId: 171409

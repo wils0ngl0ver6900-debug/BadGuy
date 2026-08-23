@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 993a27af83ba79149af2300cdf16973a
+guid: c99a626d856a2864fa27d796b6e6d3f0
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_House_01_color01.png
-  uploadId: 171409

@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 36aaf6a30be16934c8ba7886a9be97a5
+guid: af11049ae11e23948b37e3311392d8ef
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Super Market.png
-  uploadId: 171409

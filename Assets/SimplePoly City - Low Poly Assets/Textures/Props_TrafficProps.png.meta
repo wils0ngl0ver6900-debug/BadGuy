@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: b386becb3d87aa64c8d545289379e79e
+guid: 55024934a51d91246931e6948b7595d2
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Props_TrafficProps.png
-  uploadId: 171409

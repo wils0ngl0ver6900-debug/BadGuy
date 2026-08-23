@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 0cf2b5e2d8e8aba41b18787cd9399b4b
+guid: c4002f17df1a7164f9d1dec5e523df4b
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Pizza.png
-  uploadId: 171409

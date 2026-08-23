@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 29d6ba98d5bca734695ddaf5fdf19baf
+guid: 05e24b844c84d7841ae05e9e8dd99102
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Books Shop.png
-  uploadId: 171409

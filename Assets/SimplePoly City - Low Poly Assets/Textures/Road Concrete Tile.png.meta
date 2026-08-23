@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 41a8ddb58ec5ea540a8a4c19d8cda877
+guid: acba4fdc73647c246b7443db45610f07
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Road Concrete Tile.png
-  uploadId: 171409

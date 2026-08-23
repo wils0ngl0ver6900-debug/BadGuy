@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: f1067f42b9db674419e1ca765b447e4f
+guid: 3e2a87be6b2ca6446b80078df4b88d3a
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Gas Station.png
-  uploadId: 171409

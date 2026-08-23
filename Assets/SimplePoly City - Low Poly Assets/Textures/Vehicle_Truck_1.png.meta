@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: e595569ca689c8c4ead585e8746e4fbb
+guid: ca635a7b7be7d99499d05f06efeb800a
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Vehicle_Truck_1.png
-  uploadId: 171409

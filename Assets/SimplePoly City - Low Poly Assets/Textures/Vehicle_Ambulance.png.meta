@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 17940d1c2e08c404aa577caf96bbaec2
+guid: 677f362af6b46524d8097b4410300a94
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Vehicle_Ambulance.png
-  uploadId: 171409

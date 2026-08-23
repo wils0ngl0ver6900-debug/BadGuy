@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 8d5a4d22644d8d048bc069c218d1c411
+guid: bb02122e805065a40aa028826d73c6cf
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Props_BillBoard_small.png
-  uploadId: 171409

@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 2b65a3a19e6eed944b6118802215ede0
+guid: e8e81ed225bd5a04ebc7ea4677d543b2
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Shoes Shop.png
-  uploadId: 171409

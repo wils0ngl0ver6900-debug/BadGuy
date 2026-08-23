@@ -3,7 +3,7 @@ Imported HDRP version: 14.0.4
 Demo Scene Steps:
 
 1) Upgrade built-in materials to HDRP
-   Unity horizontal menu at the top > Window > Rendering > HDRP Wizard > Upgrade from Builtin pipeline > Project Migration Quick - Links > Press one of the "Convert Material to HDRP" buttons
+   Window > Rendering > HDRP Wizard
 
 2) Select the Directional Light object, this should update the lighting if necessary
 

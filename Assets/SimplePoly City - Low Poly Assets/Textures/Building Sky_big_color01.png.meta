@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 276815996ac5b2144bdd94486e724ca4
+guid: 11a9184f0bcf6b24ea233a402a70e81d
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building Sky_big_color01.png
-  uploadId: 171409

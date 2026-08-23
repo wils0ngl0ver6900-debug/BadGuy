@@ -53,6 +53,7 @@ public class StreetRaceManager : MonoBehaviour
     public string raceCarLayerName = "";
 
     private int raceCarLayer = -1;
+    private int lastRaceDay = -1;
 
     private List<RaceParticipant> participants = new List<RaceParticipant>();
     private List<RaceParticipant> finishOrder = new List<RaceParticipant>();
@@ -73,6 +74,13 @@ public class StreetRaceManager : MonoBehaviour
 
     public bool IsRaceActive() => raceActive;
 
+    // À appeler depuis CallApp avant de proposer la course — comme pour les jobs, une
+    // seule course par jour.
+    public bool HasRacedToday()
+    {
+        return TimeManager.Instance != null && lastRaceDay == TimeManager.Instance.currentDay;
+    }
+
     private void Update()
     {
         if (raceActive && lapCounterText != null && playerParticipant != null)
@@ -91,6 +99,14 @@ public class StreetRaceManager : MonoBehaviour
             return;
         }
 
+        // Sécurité (CallApp vérifie déjà HasRacedToday() avant de proposer la course, mais
+        // au cas où StartRace() serait appelée d'ailleurs) : une seule course par jour.
+        if (HasRacedToday())
+        {
+            if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=yellow>Tu as déjà couru aujourd'hui. Reviens demain !</color>");
+            return;
+        }
+
         if (raceCircuit == null || raceCircuit.Count == 0 || raceCarPrefab == null || gridStartPoint == null)
         {
             if (UIManager.Instance != null) UIManager.Instance.ShowNotification("<color=red>Erreur : course pas configurée (voir StreetRaceManager dans l'Inspector).</color>");
@@ -99,6 +115,10 @@ public class StreetRaceManager : MonoBehaviour
 
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
         if (playerObj == null) return;
+
+        // Marqué dès le lancement effectif (pas seulement en cas de victoire) — comme un
+        // job, la tentative "consomme" la course du jour, gagnée ou perdue.
+        if (TimeManager.Instance != null) lastRaceDay = TimeManager.Instance.currentDay;
 
         StartCoroutine(StartRaceRoutine(playerObj));
     }
@@ -136,6 +156,13 @@ public class StreetRaceManager : MonoBehaviour
         SnapCarToGround(playerCar);
         spawnedCars.Add(playerCar);
         if (raceCarLayer >= 0) SetLayerRecursively(playerCar, raceCarLayer);
+
+        // Kinematic POSÉ TOUT DE SUITE, avant même le yield return null plus bas — sinon ce
+        // seul frame d'attente (nécessaire pour Start()) laissait la vraie physique tourner
+        // au moins un pas (gravité, dépénétration...) et la voiture restait figée en l'air
+        // pour tout le compte à rebours une fois le kinematic posé après coup.
+        Rigidbody playerRb = playerCar.GetComponent<Rigidbody>();
+        if (playerRb != null) playerRb.isKinematic = true;
 
         // On coupe l'IA sur CETTE instance avant qu'elle ne parte (CarAI.Start() mettrait
         // isDrivenByAI à true sinon) : le joueur doit la conduire lui-même.
@@ -182,6 +209,9 @@ public class StreetRaceManager : MonoBehaviour
             spawnedCars.Add(aiCar);
             if (raceCarLayer >= 0) SetLayerRecursively(aiCar, raceCarLayer);
 
+            Rigidbody aiRb = aiCar.GetComponent<Rigidbody>();
+            if (aiRb != null) aiRb.isKinematic = true;
+
             CarAI aiDriver = aiCar.GetComponent<CarAI>();
             if (aiDriver == null) aiDriver = aiCar.AddComponent<CarAI>();
             // Désactivé pour l'instant : reste immobile pendant le compte à rebours, comme
@@ -212,7 +242,7 @@ public class StreetRaceManager : MonoBehaviour
                 aiCarController.lowSpeedSteerAngle *= 2f;
                 aiCarController.highSpeedSteerAngle *= 2f;
                 aiCarController.accelerationForce *= 4f;
-                aiCarController.maxSpeed *= 2f;
+                aiCarController.maxSpeed *= 2.5f;
             }
 
             string oppName = i < opponentNames.Length ? opponentNames[i] : $"Adversaire {i + 1}";
@@ -221,21 +251,14 @@ public class StreetRaceManager : MonoBehaviour
             participants.Add(aiRP);
         }
 
-        // Kinematic pendant tout le compte à rebours : la voiture est à l'arrêt mais reste
-        // physiquement "active" (freinage appliqué sur une vitesse quasi nulle), ce qui
-        // pouvait légèrement trembler à cause du bruit numérique sur un vecteur proche de
-        // zéro — même mécanisme que le volant qui vibrait en tournant sur place, réglé plus
-        // tôt. Kinematic élimine ça totalement (aucune physique appliquée, immobile garanti).
+        // Les 5 Rigidbody sont déjà kinematic (posé immédiatement après chaque spawn,
+        // voir plus haut) — on collecte juste les références pour les relâcher au "GO !".
         List<Rigidbody> raceRigidbodies = new List<Rigidbody>();
         foreach (GameObject car in spawnedCars)
         {
             if (car == null) continue;
             Rigidbody carRb = car.GetComponent<Rigidbody>();
-            if (carRb != null)
-            {
-                carRb.isKinematic = true;
-                raceRigidbodies.Add(carRb);
-            }
+            if (carRb != null) raceRigidbodies.Add(carRb);
         }
 
         yield return StartCoroutine(CountdownRoutine());

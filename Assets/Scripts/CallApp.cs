@@ -46,6 +46,8 @@ public class CallApp : MonoBehaviour
     [Header("Dialogue d'appel de Black Knight")]
     [TextArea(2, 4)] public string blackKnightLine1 = "Alors, prêt à faire chauffer le bitume ce soir ?";
     [TextArea(2, 4)] public string blackKnightLine2 = "Cinq bagnoles, une piste, et de l'argent à la clé pour les deux premiers. Tu marches ?";
+    [Tooltip("Message affiché si le joueur a déjà couru aujourd'hui (une course par jour, comme les jobs).")]
+    [TextArea(2, 4)] public string blackKnightAlreadyRacedLine = "T'as déjà eu ta course pour aujourd'hui. Rappelle-moi demain.";
 
     // À relier depuis la UnityEvent onDialogueEnd (ou équivalent) de la quête qui débloque
     // Black Knight comme contact appelable.
@@ -373,6 +375,23 @@ public class CallApp : MonoBehaviour
         // pour tout dialogue marqué comme appel téléphonique).
         if (contactName == blackKnightContactName)
         {
+            // Une course par jour, comme les jobs : s'il a déjà couru aujourd'hui, un
+            // simple message (pas de choix Oui/Non, rien à proposer).
+            if (StreetRaceManager.Instance != null && StreetRaceManager.Instance.HasRacedToday())
+            {
+                Dialogue alreadyRaced = new Dialogue();
+                alreadyRaced.lines = new DialogueLine[1];
+                alreadyRaced.lines[0] = new DialogueLine { speakerName = contactName, sentence = blackKnightAlreadyRacedLine };
+
+                currentCallDialogue = alreadyRaced;
+                timerCoroutine = StartCoroutine(CallTimerRoutine());
+                if (DialogueManager.Instance != null)
+                {
+                    DialogueManager.Instance.StartDialogue(currentCallDialogue, true);
+                }
+                return;
+            }
+
             Dialogue raceInvite = new Dialogue();
             raceInvite.lines = new DialogueLine[2];
             raceInvite.lines[0] = new DialogueLine { speakerName = contactName, sentence = blackKnightLine1 };

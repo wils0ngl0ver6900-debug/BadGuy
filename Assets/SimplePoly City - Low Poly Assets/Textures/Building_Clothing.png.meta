@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: d648d610eb732254ea94ccb95c9248ea
+guid: 592f1e3388376a54d9b73abceee9d554
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Clothing.png
-  uploadId: 171409

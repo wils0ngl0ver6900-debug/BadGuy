@@ -516,13 +516,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8967173089300098133}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.06576902, y: -0.000000014868898, z: 9.800343e-10, w: 0.99783486}
-  m_LocalPosition: {x: -0.5312576, y: 4.08, z: -7.3}
+  m_LocalRotation: {x: -0.008111634, y: -0.000000014900672, z: -1.2087324e-10, w: 0.99996716}
+  m_LocalPosition: {x: -0.29299927, y: 3.079, z: -4.38}
   m_LocalScale: {x: 2, y: 1.8213899, z: 1.1786101}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1482316150721922743}
-  m_LocalEulerAnglesHint: {x: 7.542, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -0.93, y: 0, z: 0}
 --- !u!20 &1791073723484435781
 Camera:
   m_ObjectHideFlags: 0
@@ -899,7 +899,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2295127185568734221}
   serializedVersion: 5
-  m_Mass: 850
+  m_Mass: 1500
   m_LinearDamping: 0
   m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
@@ -1028,21 +1028,22 @@ MonoBehaviour:
   currentNode: {fileID: 0}
   waypointThreshold: 5
   lateralOffset: 0
-  raceCircuit: {fileID: 0}
+  raceCircuit: {fileID: 3705307199183169266, guid: 048b8bb130beb5b4b8711458e03768d3, type: 3}
   raceWaypointIndex: 0
   raceLookAheadNodes: 5
-  raceStraightSpeed: 28
-  raceHairpinSpeed: 7
-  raceBrakingDeceleration: 10
+  raceStraightSpeed: 50
+  raceHairpinSpeed: 5
+  raceBrakingDeceleration: 50
   raceStuckTimeout: 0.8
   raceReverseDuration: 0.9
+  raceRecoveryGracePeriod: 1
   frontSensorLength: 7
   rearSensorLength: 3
   sensorFrontOffset: 2.5
   obstacleMask:
     serializedVersion: 2
     m_Bits: 0
-  steeringReactionTime: 0.15
+  steeringReactionTime: 0.05
   pedalSmoothing: 3
   chaseTarget: {fileID: 0}
 --- !u!1001 &5508637223771503053

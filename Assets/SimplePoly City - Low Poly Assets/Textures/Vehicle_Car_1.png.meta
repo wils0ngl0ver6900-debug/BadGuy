@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: f9deccdd55075124dbb0e6b5f710e0bb
+guid: f0144e6c122f4934bb48f585ebc13249
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Vehicle_Car_1.png
-  uploadId: 171409

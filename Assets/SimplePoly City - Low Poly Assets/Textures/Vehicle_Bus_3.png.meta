@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: f6e5e6c56838a5046bcfcdbf324b0f85
+guid: b670793e90a1249409a3e1b9e0dbf588
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Vehicle_Bus_3.png
-  uploadId: 171409

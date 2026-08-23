@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 939ea9febbadb6e4c906dcd31ca81e78
+guid: b8e7915a7bad7134d93707a9baa94831
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Coffee Shop.png
-  uploadId: 171409

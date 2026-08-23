@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 444693aeef5a3f147a427cade2b02400
+guid: 7a4daa6f12bfe7c49b6fedc833231905
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Road.png
-  uploadId: 171409

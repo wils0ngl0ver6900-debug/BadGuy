@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: dcf28aa94c297d441b5bb2e655c5b1a5
+guid: c3e4cf551d0f98f43bdc8c05a2b9b475
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Building_Bar.png
-  uploadId: 171409

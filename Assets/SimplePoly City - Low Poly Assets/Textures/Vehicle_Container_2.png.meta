@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 26083320078152146942aeac058c39ad
+guid: 3d1111fdc82296848af6c44a40e5b9f6
 TextureImporter:
   fileIDToRecycleName: {}
   serializedVersion: 2
@@ -51,10 +51,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 58899
-  packageName: SimplePoly City - Low Poly Assets
-  packageVersion: 1.2.3
-  assetPath: Assets/SimplePoly City - Low Poly Assets/Textures/Vehicle_Container_2.png
-  uploadId: 171409

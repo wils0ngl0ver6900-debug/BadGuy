@@ -19,7 +19,7 @@ public class TimeManager : MonoBehaviour
     public float moonMaxIntensity = 2000f;
 
     [HideInInspector] public float currentTimeOfDay;
-    private int currentDay = 1;
+    [HideInInspector] public int currentDay = 1;
 
     private void Awake()
     {
