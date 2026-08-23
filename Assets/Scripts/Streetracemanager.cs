@@ -170,7 +170,20 @@ public class StreetRaceManager : MonoBehaviour
         // au moins un pas (gravité, dépénétration...) et la voiture restait figée en l'air
         // pour tout le compte à rebours une fois le kinematic posé après coup.
         Rigidbody playerRb = playerCar.GetComponent<Rigidbody>();
-        if (playerRb != null) playerRb.isKinematic = true;
+        if (playerRb != null)
+        {
+            playerRb.isKinematic = true;
+
+            // Le prefab de course est en détection "Discrete" (par défaut Unity) avec 0 de
+            // traînée — correct à vitesse normale, mais à la vitesse boostée de la course
+            // (x2.5), Discrete peut laisser la voiture s'enfoncer dans un obstacle avant
+            // que la collision ne soit détectée (résolution bien plus violente ensuite), et
+            // sans traînée, rien ne freine naturellement une voiture une fois lancée par un
+            // choc — elle continue de "voler" indéfiniment au lieu de retomber vite.
+            playerRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            playerRb.linearDamping = 0.3f;
+            playerRb.angularDamping = 3f; // arrête le tournoiement bien plus vite après un choc qui fait tourner la voiture
+        }
 
         // On coupe l'IA sur CETTE instance avant qu'elle ne parte (CarAI.Start() mettrait
         // isDrivenByAI à true sinon) : le joueur doit la conduire lui-même.
@@ -222,7 +235,13 @@ public class StreetRaceManager : MonoBehaviour
             if (raceCarLayer >= 0) SetLayerRecursively(aiCar, raceCarLayer);
 
             Rigidbody aiRb = aiCar.GetComponent<Rigidbody>();
-            if (aiRb != null) aiRb.isKinematic = true;
+            if (aiRb != null)
+            {
+                aiRb.isKinematic = true;
+                aiRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+                aiRb.linearDamping = 0.3f;
+                aiRb.angularDamping = 3f;
+            }
 
             CarAI aiDriver = aiCar.GetComponent<CarAI>();
             if (aiDriver == null) aiDriver = aiCar.AddComponent<CarAI>();
