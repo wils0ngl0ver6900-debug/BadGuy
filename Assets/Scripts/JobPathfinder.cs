@@ -50,6 +50,7 @@ public class JobPathfinder : MonoBehaviour
     {
         target1 = primaryTarget;
         target2 = secondaryTarget;
+        pathRecalcTimer = pathRecalcInterval; // recalcule dès la prochaine frame, pas d'attente
     }
 
     public void HidePath()
@@ -59,6 +60,10 @@ public class JobPathfinder : MonoBehaviour
         ClearArrows();
     }
 
+    private float pathRecalcTimer = 0f;
+    [Tooltip("Intervalle entre deux recalculs du chemin (secondes). NavMesh.CalculatePath peut légèrement varier d'une frame à l'autre selon la position exacte du joueur — le recalculer 60x/seconde donnait un effet de clignotement/saut sur les flèches. Un recalcul ~10x/seconde reste fluide sans cet effet.")]
+    public float pathRecalcInterval = 0.1f;
+
     private void Update()
     {
         if ((target1 != null || target2 != null) && playerTransform != null)
@@ -66,7 +71,12 @@ public class JobPathfinder : MonoBehaviour
             scrollOffset += scrollSpeed * Time.deltaTime;
             if (scrollOffset > arrowSpacing) scrollOffset -= arrowSpacing;
 
-            DrawPathWithArrows();
+            pathRecalcTimer += Time.deltaTime;
+            if (pathRecalcTimer >= pathRecalcInterval)
+            {
+                pathRecalcTimer = 0f;
+                DrawPathWithArrows();
+            }
         }
         else
         {

@@ -40,6 +40,10 @@ public class StreetRaceManager : MonoBehaviour
     [Tooltip("Texte affichant 'Tour X/Y' pendant la course.")]
     public TMPro.TextMeshProUGUI lapCounterText;
 
+    [Header("UI à masquer pendant la course")]
+    [Tooltip("Objets d'UI désactivés pendant la course et réactivés à la fin (hotbar, minimap, étoiles de recherche...). Glisse ici les panels concernés de ta Hierarchy.")]
+    public GameObject[] uiToHideDuringRace;
+
     [Header("Récompenses (argent sale 💵)")]
     public int firstPlaceReward = 5000;
     public int secondPlaceReward = 2000;
@@ -112,6 +116,11 @@ public class StreetRaceManager : MonoBehaviour
         // Comme pour les labos/le garage : pas d'appel qui sonne pendant la course.
         CallApp.RequestCallBlock();
 
+        foreach (GameObject uiElement in uiToHideDuringRace)
+        {
+            if (uiElement != null) uiElement.SetActive(false);
+        }
+
         // Les 5 voitures deviennent traversables entre elles (pas avec le reste du monde)
         // si un Layer dédié est renseigné — évite les carambolages en chaîne.
         raceCarLayer = string.IsNullOrEmpty(raceCarLayerName) ? -1 : LayerMask.NameToLayer(raceCarLayerName);
@@ -122,6 +131,7 @@ public class StreetRaceManager : MonoBehaviour
 
         // --- Voiture du joueur (position 0 sur la grille) ---
         GameObject playerCar = Instantiate(raceCarPrefab, GridPosition(0), gridStartPoint.rotation);
+        SnapCarToGround(playerCar);
         spawnedCars.Add(playerCar);
         if (raceCarLayer >= 0) SetLayerRecursively(playerCar, raceCarLayer);
 
@@ -166,6 +176,7 @@ public class StreetRaceManager : MonoBehaviour
         for (int i = 0; i < 4; i++)
         {
             GameObject aiCar = Instantiate(raceCarPrefab, GridPosition(i + 1), gridStartPoint.rotation);
+            SnapCarToGround(aiCar);
             spawnedCars.Add(aiCar);
             if (raceCarLayer >= 0) SetLayerRecursively(aiCar, raceCarLayer);
 
@@ -191,16 +202,15 @@ public class StreetRaceManager : MonoBehaviour
                 aiCarController.steeringSmoothing = 0f;
 
                 // Physique volontairement "trichée" par rapport au joueur : les IA n'ont ni
-                // les mêmes réflexes ni la même précision, donc on compense en leur donnant
-                // largement plus d'adhérence, de freins, de braquage et d'accélération que
-                // la normale — course difficile, moins d'accidents, plus compétitives.
+                // les mêmes réflexes ni la même précision, donc on compense largement —
+                // course difficile, moins d'accidents, plus compétitives.
                 aiCarController.gripLevel = 1f; // adhérence maximale
                 aiCarController.driftGrip = 1f; // même en glisse/frein à main, ne décroche jamais vraiment
-                aiCarController.brakingForce *= 2.2f;
-                aiCarController.lowSpeedSteerAngle *= 1.6f;
-                aiCarController.highSpeedSteerAngle *= 1.6f;
-                aiCarController.accelerationForce *= 1.6f;
-                aiCarController.maxSpeed *= 1.3f;
+                aiCarController.brakingForce *= 2f;
+                aiCarController.lowSpeedSteerAngle *= 2f;
+                aiCarController.highSpeedSteerAngle *= 2f;
+                aiCarController.accelerationForce *= 2f;
+                aiCarController.maxSpeed *= 2f;
             }
 
             string oppName = i < opponentNames.Length ? opponentNames[i] : $"Adversaire {i + 1}";
@@ -254,6 +264,24 @@ public class StreetRaceManager : MonoBehaviour
         foreach (Transform child in obj.transform)
         {
             SetLayerRecursively(child.gameObject, layer);
+        }
+    }
+
+    // Recalage précis post-instanciation, basé sur le VRAI bas du collider de la voiture
+    // (pas un "+0.1" fixe qui ne tient pas compte de l'écart entre le pivot et les roues,
+    // variable selon le modèle) — GridPosition() donne déjà une hauteur approximative, ceci
+    // l'affine avec les dimensions réelles de l'objet une fois instancié.
+    private void SnapCarToGround(GameObject car)
+    {
+        Collider col = car.GetComponentInChildren<Collider>();
+        if (col == null) return;
+
+        if (Physics.Raycast(car.transform.position + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f))
+        {
+            float clearance = car.transform.position.y - col.bounds.min.y;
+            Vector3 pos = car.transform.position;
+            pos.y = hit.point.y + clearance + 0.05f;
+            car.transform.position = pos;
         }
     }
 
@@ -354,6 +382,11 @@ public class StreetRaceManager : MonoBehaviour
         raceActive = false;
 
         CallApp.ReleaseCallBlock();
+
+        foreach (GameObject uiElement in uiToHideDuringRace)
+        {
+            if (uiElement != null) uiElement.SetActive(true);
+        }
 
         if (raceCarLayer >= 0)
         {

@@ -19,16 +19,16 @@ public class CarAI : MonoBehaviour
     [Tooltip("Nombre de points du circuit regardés à l'avance pour anticiper les virages.")]
     public int raceLookAheadNodes = 5;
     [Tooltip("Vitesse visée en ligne droite (m/s).")]
-    public float raceStraightSpeed = 40f;
+    public float raceStraightSpeed = 55f;
     [Tooltip("Vitesse visée dans une épingle très serrée (m/s).")]
-    public float raceHairpinSpeed = 12f;
+    public float raceHairpinSpeed = 18f;
     [Tooltip("Décélération au freinage utilisée pour calculer QUAND commencer à ralentir (m/s²). Plus haut = freine plus tard/fort, plus bas = freine plus tôt/doux.")]
     public float raceBrakingDeceleration = 10f;
 
     [Tooltip("Si la vitesse reste sous 1 m/s pendant ce temps en essayant d'avancer, déclenche une marche arrière de dégagement — indépendant des capteurs, basé uniquement sur la vitesse réelle.")]
-    public float raceStuckTimeout = 0.35f;
+    public float raceStuckTimeout = 0.2f;
     [Tooltip("Durée de la marche arrière de dégagement.")]
-    public float raceReverseDuration = 0.45f;
+    public float raceReverseDuration = 0.4f;
 
     private float raceStuckTimer = 0f;
     private bool raceReversing = false;
