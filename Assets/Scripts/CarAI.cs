@@ -19,9 +19,9 @@ public class CarAI : MonoBehaviour
     [Tooltip("Nombre de points du circuit regardés à l'avance pour anticiper les virages.")]
     public int raceLookAheadNodes = 5;
     [Tooltip("Vitesse visée en ligne droite (m/s).")]
-    public float raceStraightSpeed = 28f;
+    public float raceStraightSpeed = 34f;
     [Tooltip("Vitesse visée dans une épingle très serrée (m/s).")]
-    public float raceHairpinSpeed = 7f;
+    public float raceHairpinSpeed = 10f;
     [Tooltip("Décélération au freinage utilisée pour calculer QUAND commencer à ralentir (m/s²). Plus haut = freine plus tard/fort, plus bas = freine plus tôt/doux.")]
     public float raceBrakingDeceleration = 10f;
 
@@ -406,13 +406,13 @@ public class CarAI : MonoBehaviour
 
         // Le planificateur de vitesse ci-dessus peut commander une accélération franche si
         // la vitesse actuelle est sous la cible — correct en ligne droite, mais dangereux
-        // EN PLEIN VIRAGE serré (volant très braqué) : accélérer fort en tournant fait
-        // perdre l'adhérence et peut faire manquer l'apex en boucle. On plafonne l'accéléra-
-        // tion tant que le volant reste fortement tourné, peu importe ce que dit la cible.
+        // EN PLEIN VIRAGE très serré (volant presque à fond) : accélérer fort en tournant
+        // fait perdre l'adhérence. On plafonne seulement dans ce cas extrême, pas sur un
+        // simple virage modéré (les voitures IA ont un grip renforcé, voir StreetRaceManager).
         float steerMagnitude = Mathf.Abs(virtualSteeringWheel);
-        if (steerMagnitude > 0.5f && virtualGasPedal > 0.3f)
+        if (steerMagnitude > 0.75f && virtualGasPedal > 0.5f)
         {
-            virtualGasPedal = 0.3f;
+            virtualGasPedal = 0.5f;
         }
 
         if (steerBias != 0f && closestFrontDistance < 4f)

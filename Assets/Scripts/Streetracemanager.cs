@@ -183,7 +183,20 @@ public class StreetRaceManager : MonoBehaviour
             // plus doux, mais ça ralentit la réponse au volant — mauvais pour une IA qui doit
             // corriger vite dans un virage serré. On la laisse sur une réponse immédiate.
             CarController aiCarController = aiCar.GetComponent<CarController>();
-            if (aiCarController != null) aiCarController.steeringSmoothing = 0f;
+            if (aiCarController != null)
+            {
+                aiCarController.steeringSmoothing = 0f;
+
+                // Physique volontairement "trichée" par rapport au joueur : les IA n'ont ni
+                // les mêmes réflexes ni la même précision, donc on compense en leur donnant
+                // plus d'adhérence, de freins et de braquage que la normale — moins
+                // d'embardées, plus stables une fois des obstacles ajoutés en bord de piste.
+                aiCarController.gripLevel = Mathf.Min(1f, aiCarController.gripLevel * 1.3f);
+                aiCarController.driftGrip = Mathf.Min(1f, aiCarController.driftGrip * 2f);
+                aiCarController.brakingForce *= 1.4f;
+                aiCarController.lowSpeedSteerAngle *= 1.2f;
+                aiCarController.highSpeedSteerAngle *= 1.2f;
+            }
 
             string oppName = i < opponentNames.Length ? opponentNames[i] : $"Adversaire {i + 1}";
             RaceParticipant aiRP = aiCar.AddComponent<RaceParticipant>();
