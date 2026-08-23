@@ -13,6 +13,16 @@ public class CarAI : MonoBehaviour
     [Tooltip("0 = comportement normal (inchangé), vise uniquement le noeud actuel. Au-dessus de 0 (ex: 0.4), mélange progressivement le point visé vers le PROCHAIN noeud à l'approche du noeud actuel — anticipe le virage suivant au lieu de piler dessus avant de tourner. Pensé pour une course sur circuit, laisse à 0 pour la circulation normale.")]
     [Range(0f, 1f)] public float lookAheadBlend = 0f;
 
+    [Header("Mode course — planification anticipée (actif si lookAheadBlend > 0)")]
+    [Tooltip("Nombre de noeuds du circuit regardés à l'avance pour anticiper les virages.")]
+    public int raceLookAheadNodes = 5;
+    [Tooltip("Vitesse visée en ligne droite (m/s).")]
+    public float raceStraightSpeed = 28f;
+    [Tooltip("Vitesse visée dans une épingle très serrée (m/s).")]
+    public float raceHairpinSpeed = 7f;
+    [Tooltip("Décélération au freinage utilisée pour calculer QUAND commencer à ralentir (m/s²). Plus haut = freine plus tard/fort, plus bas = freine plus tôt/doux.")]
+    public float raceBrakingDeceleration = 10f;
+
     [Header("Détection d'obstacles (Matrice 360)")]
     public float frontSensorLength = 7f;
     public float rearSensorLength = 3f;
@@ -185,6 +195,7 @@ public class CarAI : MonoBehaviour
         }
 
         Vector3 targetPos;
+        bool raceMode = false;
 
         if (chaseTarget != null)
         {
@@ -193,34 +204,22 @@ public class CarAI : MonoBehaviour
         else
         {
             targetPos = currentNode.transform.position;
+            raceMode = lookAheadBlend > 0f;
 
-            // Anticipation du virage suivant (désactivé par défaut, lookAheadBlend=0) :
-            // plus on se rapproche du noeud actuel, plus le point visé se mélange vers le
-            // PROCHAIN noeud — le circuit se prend "au large" au lieu de piler pile sur
-            // chaque point avant de tourner sec. N'affecte jamais la circulation normale.
-            if (lookAheadBlend > 0f && currentNode.nextNodes != null && currentNode.nextNodes.Count > 0)
+            if (!raceMode)
             {
-                float distToNode = Vector3.Distance(transform.position, targetPos);
-                float blendZone = waypointThreshold * 4f;
-                float blendFactor = 1f - Mathf.Clamp01(distToNode / blendZone);
-                if (blendFactor > 0f)
+                // Décalage perpendiculaire à la direction du noeud (0 = pas de changement) :
+                // sans ça, plusieurs IA sur le même circuit visent EXACTEMENT le même point à
+                // chaque virage et finissent en file indienne quasi parfaite.
+                if (!Mathf.Approximately(lateralOffset, 0f))
                 {
-                    Vector3 nextPos = currentNode.nextNodes[0].transform.position;
-                    targetPos = Vector3.Lerp(targetPos, nextPos, blendFactor * lookAheadBlend);
-                }
-            }
-
-            // Décalage perpendiculaire à la direction du noeud (0 = pas de changement) :
-            // sans ça, plusieurs IA sur le même circuit visent EXACTEMENT le même point à
-            // chaque virage et finissent en file indienne quasi parfaite.
-            if (!Mathf.Approximately(lateralOffset, 0f))
-            {
-                Vector3 dirToNode = (targetPos - transform.position);
-                dirToNode.y = 0f;
-                if (dirToNode.sqrMagnitude > 0.01f)
-                {
-                    Vector3 perpendicular = Vector3.Cross(Vector3.up, dirToNode.normalized);
-                    targetPos += perpendicular * lateralOffset;
+                    Vector3 dirToNode = (targetPos - transform.position);
+                    dirToNode.y = 0f;
+                    if (dirToNode.sqrMagnitude > 0.01f)
+                    {
+                        Vector3 perpendicular = Vector3.Cross(Vector3.up, dirToNode.normalized);
+                        targetPos += perpendicular * lateralOffset;
+                    }
                 }
             }
 
@@ -233,55 +232,52 @@ public class CarAI : MonoBehaviour
                 // rond indéfiniment ou lui faire perdre le fil du circuit. Le trafic normal
                 // garde le choix aléatoire (comportement d'origine, utile pour varier les
                 // trajets en ville).
-                currentNode = lookAheadBlend > 0f
+                currentNode = raceMode
                     ? currentNode.nextNodes[0]
                     : currentNode.nextNodes[Random.Range(0, currentNode.nextNodes.Count)];
             }
         }
 
-        // Calcul de la trajectoire idéale
-        Vector3 localTarget = transform.InverseTransformPoint(targetPos);
-        float angleToTarget = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
-        float idealSteer = Mathf.Clamp(angleToTarget / 45f, -1f, 1f);
-
-        // Intégration de l'évitement en douceur (steerBias)
-        // Si un obstacle est sur le côté, l'IA décale son volant (idéal pour doubler)
-        virtualSteeringWheel = Mathf.Clamp(idealSteer + steerBias, -1f, 1f);
-
-        // Logique d'accélération et de freinage dans les virages
-        float angleAbs = Mathf.Abs(angleToTarget);
-        float currentSpeed = rb.linearVelocity.magnitude;
-
-        if (steerBias != 0f && closestFrontDistance < 4f)
+        if (raceMode)
         {
-            // On lâche l'accélérateur si on est en train de frôler un obstacle
-            virtualGasPedal = 0.2f;
-        }
-        else if (angleAbs <= 8f)
-        {
-            // Ligne droite / virage à peine amorcé : pied au plancher (légèrement réduit
-            // si le volant est déjà pas mal tourné).
-            virtualGasPedal = 1f - (Mathf.Abs(virtualSteeringWheel) * 0.2f);
+            // Mode course : planification anticipée façon IA de compétition — regarde
+            // plusieurs virages à l'avance et calcule la vitesse de sécurité de chacun,
+            // au lieu de réagir à l'angle du prochain point une fois dessus. Gère
+            // elle-même virtualSteeringWheel ET virtualGasPedal.
+            ComputeRaceDriving();
         }
         else
         {
-            // Courbe CONTINUE plutôt que des paliers à seuils fixes (15°/30°/60°) : ceux-ci
-            // provoquaient un à-coup net dès qu'on franchissait un seuil (accélération
-            // pleine à 14°, freinage sec à 16°...), ce qui donnait une conduite saccadée
-            // sur TOUT le circuit, pas juste sur les virages les plus serrés. Ici, plus le
-            // virage est prononcé, plus on lâche le pied progressivement et tôt — sans
-            // à-coups, façon conduite humaine.
-            float turnSeverity = Mathf.Clamp01((angleAbs - 8f) / 70f); // 0 = ligne droite, 1 = quasi épingle
-            float targetGasPedal = Mathf.Lerp(1f, -0.9f, turnSeverity);
+            // Calcul de la trajectoire idéale (comportement d'origine : trafic normal
+            // en ville, ou poursuite d'une cible chaseTarget).
+            Vector3 localTarget = transform.InverseTransformPoint(targetPos);
+            float angleToTarget = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
+            float idealSteer = Mathf.Clamp(angleToTarget / 45f, -1f, 1f);
 
-            // Pas besoin de freiner fort si on est déjà lent — sans ce garde-fou, l'IA
-            // pouvait rester au frein après avoir déjà bien ralenti dans le virage.
-            if (currentSpeed < 8f)
+            // Intégration de l'évitement en douceur (steerBias)
+            // Si un obstacle est sur le côté, l'IA décale son volant (idéal pour doubler)
+            virtualSteeringWheel = Mathf.Clamp(idealSteer + steerBias, -1f, 1f);
+
+            // Logique d'accélération et de freinage dans les virages
+            float angleAbs = Mathf.Abs(angleToTarget);
+            float currentSpeed = rb.linearVelocity.magnitude;
+
+            if (steerBias != 0f && closestFrontDistance < 4f)
             {
-                targetGasPedal = Mathf.Max(targetGasPedal, 0.2f);
+                // On lâche l'accélérateur si on est en train de frôler un obstacle
+                virtualGasPedal = 0.2f;
             }
-
-            virtualGasPedal = targetGasPedal;
+            else if (angleAbs <= 8f)
+            {
+                virtualGasPedal = 1f - (Mathf.Abs(virtualSteeringWheel) * 0.2f);
+            }
+            else
+            {
+                float turnSeverity = Mathf.Clamp01((angleAbs - 8f) / 70f);
+                float targetGasPedal = Mathf.Lerp(1f, -0.9f, turnSeverity);
+                if (currentSpeed < 8f) targetGasPedal = Mathf.Max(targetGasPedal, 0.2f);
+                virtualGasPedal = targetGasPedal;
+            }
         }
 
         // Freinage d'urgence absolu devant un mur ou un piéton
@@ -302,7 +298,102 @@ public class CarAI : MonoBehaviour
         }
     }
 
-    // --- LE SYSTÈME DE VISION HAUTE-FIDÉLITÉ ---
+    // --- MODE COURSE : planification anticipée façon IA de compétition ---
+    // Regarde plusieurs noeuds à l'avance, calcule une vitesse de sécurité pour chaque
+    // virage à venir selon sa sévérité, puis remonte le calcul jusqu'à MAINTENANT pour
+    // savoir s'il faut déjà lever le pied — au lieu de réagir seulement une fois sur le
+    // point du virage (ce qui donnait : freinage sec, arrêt, dépassement, redémarrage lent).
+    private void ComputeRaceDriving()
+    {
+        Vector3[] upcoming = new Vector3[raceLookAheadNodes];
+        int count = 0;
+        TrafficNode node = currentNode;
+        for (int i = 0; i < raceLookAheadNodes && node != null; i++)
+        {
+            upcoming[i] = node.transform.position;
+            count++;
+            node = (node.nextNodes != null && node.nextNodes.Count > 0) ? node.nextNodes[0] : null;
+        }
+
+        if (count == 0)
+        {
+            virtualGasPedal = 0f;
+            return;
+        }
+
+        // Sévérité de chaque virage à venir : angle entre la direction d'arrivée et la
+        // direction de sortie à ce point (0 = tout droit, 1 = quasi demi-tour).
+        float[] severity = new float[count];
+        Vector3 incomingDir = upcoming[0] - transform.position;
+        for (int i = 0; i < count; i++)
+        {
+            Vector3 outgoingDir = (i + 1 < count) ? (upcoming[i + 1] - upcoming[i]) : incomingDir;
+            severity[i] = (incomingDir.sqrMagnitude > 0.01f && outgoingDir.sqrMagnitude > 0.01f)
+                ? Mathf.Clamp01(Vector3.Angle(incomingDir, outgoingDir) / 90f)
+                : 0f;
+            incomingDir = outgoingDir;
+        }
+
+        // Vitesse qu'il faudrait avoir MAINTENANT pour pouvoir freiner à temps jusqu'à la
+        // vitesse sûre de chaque virage à venir (cinématique : v0 = racine(v² + 2*a*d)).
+        // Le minimum sur toute la fenêtre d'anticipation fait loi : un virage serré loin
+        // devant impose déjà de lever le pied bien avant d'y être, comme un vrai pilote.
+        float targetSpeed = raceStraightSpeed;
+        Vector3 fromPoint = transform.position;
+        for (int i = 0; i < count; i++)
+        {
+            float dist = Vector3.Distance(fromPoint, upcoming[i]);
+            float safeSpeedHere = Mathf.Lerp(raceStraightSpeed, raceHairpinSpeed, severity[i]);
+            float requiredSpeedNow = Mathf.Sqrt(safeSpeedHere * safeSpeedHere + 2f * raceBrakingDeceleration * dist);
+            targetSpeed = Mathf.Min(targetSpeed, requiredSpeedNow);
+            fromPoint = upcoming[i];
+        }
+
+        float currentSpeed = rb.linearVelocity.magnitude;
+        virtualGasPedal = Mathf.Clamp((targetSpeed - currentSpeed) * 0.4f, -1f, 1f);
+
+        // Direction façon "pure pursuit" : vise un point interpolé le long du chemin à une
+        // distance qui grandit avec la vitesse (regarde plus loin quand on va plus vite),
+        // plutôt qu'un point fixe sur le noeud — la voiture amorce le virage en douceur au
+        // lieu de pivoter sec dessus.
+        float lookAheadDist = Mathf.Clamp(currentSpeed * 0.5f, 4f, 14f);
+        Vector3 steerTarget = upcoming[count - 1];
+        Vector3 from2 = transform.position;
+        float remaining = lookAheadDist;
+        for (int i = 0; i < count; i++)
+        {
+            float segDist = Vector3.Distance(from2, upcoming[i]);
+            if (segDist >= remaining)
+            {
+                steerTarget = Vector3.Lerp(from2, upcoming[i], remaining / Mathf.Max(segDist, 0.01f));
+                break;
+            }
+            remaining -= segDist;
+            from2 = upcoming[i];
+        }
+
+        if (!Mathf.Approximately(lateralOffset, 0f))
+        {
+            Vector3 dirToTarget = steerTarget - transform.position;
+            dirToTarget.y = 0f;
+            if (dirToTarget.sqrMagnitude > 0.01f)
+            {
+                Vector3 perpendicular = Vector3.Cross(Vector3.up, dirToTarget.normalized);
+                steerTarget += perpendicular * lateralOffset;
+            }
+        }
+
+        Vector3 localTarget = transform.InverseTransformPoint(steerTarget);
+        float angleToTarget = Mathf.Atan2(localTarget.x, localTarget.z) * Mathf.Rad2Deg;
+        virtualSteeringWheel = Mathf.Clamp((angleToTarget / 45f) + steerBias, -1f, 1f);
+
+        if (steerBias != 0f && closestFrontDistance < 4f)
+        {
+            virtualGasPedal = Mathf.Min(virtualGasPedal, 0.2f);
+        }
+    }
+
+
     private void ScanEnvironment()
     {
         closestFrontDistance = frontSensorLength;
