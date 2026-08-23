@@ -40,6 +40,10 @@ public class CarController : MonoBehaviour
     [Tooltip("Coché : ce véhicule ne subit plus aucun dégât (TakeDamage ne fait rien). Utile pour un prefab dédié à une course, sans affecter les autres voitures.")]
     public bool damageImmune = false;
 
+    [Tooltip("Coché : plafonne la vitesse verticale après un choc, pour empêcher un envol dans les airs — la glissade/rotation horizontale reste inchangée, seule la composante verticale est bridée. Pensé pour des voitures à vitesse/adhérence boostées (course) où l'énergie d'un choc devient nettement plus violente que la normale.")]
+    public bool limitCollisionLaunch = false;
+    public float maxVerticalSpeedAfterCollision = 6f;
+
     [Header("Effets Visuels (Dégâts) 💥")]
     public GameObject smokeEffectPrefab;
     public Transform hoodPosition;
@@ -423,6 +427,18 @@ public class CarController : MonoBehaviour
                 float damage = impactForce * 1.5f;
                 TakeDamage(damage);
             }
+        }
+
+        // Plafond de vitesse verticale post-choc (optionnel, voir limitCollisionLaunch) :
+        // s'applique en dernier, après toute la logique ci-dessus, peu importe le type de
+        // choc (voiture-voiture, voiture-mur, voiture-piéton). Ne touche qu'à la composante
+        // VERTICALE — la voiture continue de glisser/tourner sur le choc normalement,
+        // seul l'envol dans les airs est bridé.
+        if (limitCollisionLaunch && rb.linearVelocity.y > maxVerticalSpeedAfterCollision)
+        {
+            Vector3 v = rb.linearVelocity;
+            v.y = maxVerticalSpeedAfterCollision;
+            rb.linearVelocity = v;
         }
     }
 }

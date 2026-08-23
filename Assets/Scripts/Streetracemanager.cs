@@ -31,6 +31,14 @@ public class StreetRaceManager : MonoBehaviour
     [Tooltip("Décalage latéral donné à chaque adversaire IA (voir CarAI.lateralOffset) pour éviter qu'ils roulent tous en file indienne parfaite. Valeurs volontairement modestes : un décalage trop large pousse les IA hors piste dans les virages serrés (constaté avec -3/-1/1/3).")]
     public float[] opponentLateralOffsets = { -1.2f, -0.4f, 0.4f, 1.2f };
 
+    [Tooltip("Couleur attribuée à chaque adversaire (le prefab est jaune de base) — via CarUpgrades.SetColor(), même système que la peinture au garage/tuning. Laisse une entrée vide/noire (0,0,0) pour garder la couleur d'origine du prefab sur cet adversaire.")]
+    public Color[] opponentColors = {
+        new Color(0.9f, 0.1f, 0.1f), // rouge
+        new Color(0.1f, 0.4f, 0.9f), // bleu
+        new Color(0.1f, 0.8f, 0.2f), // vert
+        new Color(0.8f, 0.1f, 0.8f)  // violet
+    };
+
     [Header("Compte à rebours 🚦")]
     [Tooltip("Texte affichant 3, 2, 1, GO ! avant le départ. Tout le monde (joueur + IA) est bloqué pendant ce temps.")]
     public TMPro.TextMeshProUGUI countdownText;
@@ -177,6 +185,10 @@ public class StreetRaceManager : MonoBehaviour
             // Bloqué dès maintenant : reste vrai pendant tout le compte à rebours, libéré
             // juste avant "GO !" plus bas.
             playerCarControllerRef.inputLocked = true;
+            // La vitesse/adhérence boostées côté IA rendent les chocs bien plus violents
+            // que la normale (énergie cinétique au carré de la vitesse) — sans ce plafond,
+            // le moindre choc pouvait envoyer une voiture dans les airs.
+            playerCarControllerRef.limitCollisionLaunch = true;
         }
 
         RaceParticipant playerRP = playerCar.AddComponent<RaceParticipant>();
@@ -243,6 +255,22 @@ public class StreetRaceManager : MonoBehaviour
                 aiCarController.highSpeedSteerAngle *= 2f;
                 aiCarController.accelerationForce *= 4f;
                 aiCarController.maxSpeed *= 2.5f;
+
+                // Même raison que côté joueur : la vitesse/adhérence boostées rendent les
+                // chocs bien plus violents que la normale, sans ce plafond les voitures
+                // s'envolaient au moindre impact.
+                aiCarController.limitCollisionLaunch = true;
+            }
+
+            // Couleur distincte par adversaire (le prefab est jaune de base), APRÈS le
+            // boost physique ci-dessus : CarUpgrades capture les valeurs actuelles de
+            // maxSpeed/accelerationForce/etc. comme "base" au premier appel — les capturer
+            // avant le boost aurait annulé ce dernier au premier ApplyAll().
+            if (i < opponentColors.Length && opponentColors[i] != Color.black)
+            {
+                CarUpgrades aiUpgrades = aiCar.GetComponent<CarUpgrades>();
+                if (aiUpgrades == null) aiUpgrades = aiCar.AddComponent<CarUpgrades>();
+                aiUpgrades.SetColor(opponentColors[i]);
             }
 
             string oppName = i < opponentNames.Length ? opponentNames[i] : $"Adversaire {i + 1}";
@@ -259,6 +287,17 @@ public class StreetRaceManager : MonoBehaviour
             if (car == null) continue;
             Rigidbody carRb = car.GetComponent<Rigidbody>();
             if (carRb != null) raceRigidbodies.Add(carRb);
+        }
+
+        // Recalage au sol supplémentaire une frame plus tard : les bounds d'un Renderer
+        // fraîchement instancié (utilisées par SnapCarToGround) ne sont pas toujours
+        // fiables DANS LA MÊME frame que l'Instantiate — d'où une hauteur encore légèrement
+        // fausse malgré le kinematic posé immédiatement. Sans risque ici : tout est encore
+        // kinematic, aucune physique ne peut interférer pendant ce recalage.
+        yield return null;
+        foreach (GameObject car in spawnedCars)
+        {
+            if (car != null) SnapCarToGround(car);
         }
 
         yield return StartCoroutine(CountdownRoutine());
