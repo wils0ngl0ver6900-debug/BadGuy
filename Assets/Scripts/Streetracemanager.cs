@@ -40,6 +40,12 @@ public class StreetRaceManager : MonoBehaviour
     public int firstPlaceReward = 5000;
     public int secondPlaceReward = 2000;
 
+    [Header("Collisions entre voitures de course")]
+    [Tooltip("Nom d'un Layer Unity dédié (Edit > Project Settings > Tags and Layers, crée un nouveau Layer et note son nom ici) assigné automatiquement aux 5 voitures pendant la course. Si renseigné, elles deviennent traversables entre elles (mais restent solides pour tout le reste : route, décor, autre circulation) — plus de carambolage en chaîne. Laisse vide pour garder les collisions normales entre elles.")]
+    public string raceCarLayerName = "";
+
+    private int raceCarLayer = -1;
+
     private List<RaceParticipant> participants = new List<RaceParticipant>();
     private List<RaceParticipant> finishOrder = new List<RaceParticipant>();
     private List<GameObject> spawnedCars = new List<GameObject>();
@@ -91,9 +97,18 @@ public class StreetRaceManager : MonoBehaviour
         // Comme pour les labos/le garage : pas d'appel qui sonne pendant la course.
         CallApp.RequestCallBlock();
 
+        // Les 5 voitures deviennent traversables entre elles (pas avec le reste du monde)
+        // si un Layer dédié est renseigné — évite les carambolages en chaîne.
+        raceCarLayer = string.IsNullOrEmpty(raceCarLayerName) ? -1 : LayerMask.NameToLayer(raceCarLayerName);
+        if (raceCarLayer >= 0)
+        {
+            Physics.IgnoreLayerCollision(raceCarLayer, raceCarLayer, true);
+        }
+
         // --- Voiture du joueur (position 0 sur la grille) ---
         GameObject playerCar = Instantiate(raceCarPrefab, GridPosition(0), gridStartPoint.rotation);
         spawnedCars.Add(playerCar);
+        if (raceCarLayer >= 0) SetLayerRecursively(playerCar, raceCarLayer);
 
         // On coupe l'IA sur CETTE instance avant qu'elle ne parte (CarAI.Start() mettrait
         // isDrivenByAI à true sinon) : le joueur doit la conduire lui-même.
@@ -137,6 +152,7 @@ public class StreetRaceManager : MonoBehaviour
         {
             GameObject aiCar = Instantiate(raceCarPrefab, GridPosition(i + 1), gridStartPoint.rotation);
             spawnedCars.Add(aiCar);
+            if (raceCarLayer >= 0) SetLayerRecursively(aiCar, raceCarLayer);
 
             CarAI aiDriver = aiCar.GetComponent<CarAI>();
             if (aiDriver == null) aiDriver = aiCar.AddComponent<CarAI>();
@@ -189,6 +205,39 @@ public class StreetRaceManager : MonoBehaviour
     // rangée) — bien moins large qu'un alignement des 5 voitures de front, qui pouvait les
     // faire se chevaucher/déborder sur un circuit étroit (constaté en vidéo : les IA se
     // touchaient et au moins une débordait du bord de la route au moment du GO).
+    // Applique le layer à tout l'arbre de l'objet (le collider "achat" et celui de
+    // DoorTrigger sont sur des enfants, pas la racine).
+    private void SetLayerRecursively(GameObject obj, int layer)
+    {
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+        {
+            SetLayerRecursively(child.gameObject, layer);
+        }
+    }
+
+    // Recalage au sol + passage par le Rigidbody plutôt qu'un transform.position brut —
+    // ce chemin de repli (CarInteraction introuvable) n'avait ni l'un ni l'autre, ce qui
+    // pouvait laisser le joueur passer sous la carte à la sortie de la course.
+    private void SafeTeleportPlayer(GameObject playerObj, Vector3 targetPos)
+    {
+        if (Physics.Raycast(targetPos + Vector3.up * 5f, Vector3.down, out RaycastHit hit, 20f))
+        {
+            targetPos = hit.point + Vector3.up * 0.1f;
+        }
+
+        Rigidbody rb = playerObj.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.position = targetPos;
+            rb.linearVelocity = Vector3.zero;
+        }
+        else
+        {
+            playerObj.transform.position = targetPos;
+        }
+    }
+
     private Vector3 GridPosition(int index)
     {
         int row = index / 2;
@@ -283,6 +332,12 @@ public class StreetRaceManager : MonoBehaviour
 
         CallApp.ReleaseCallBlock();
 
+        if (raceCarLayer >= 0)
+        {
+            Physics.IgnoreLayerCollision(raceCarLayer, raceCarLayer, false);
+            raceCarLayer = -1;
+        }
+
         if (countdownText != null) countdownText.gameObject.SetActive(false);
         if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();
 
@@ -315,11 +370,11 @@ public class StreetRaceManager : MonoBehaviour
             {
                 CarInteraction ci = currentCar.GetComponentInChildren<CarInteraction>();
                 if (ci != null) ci.ExitCarAt(preRacePlayerPosition);
-                else playerObj.transform.position = preRacePlayerPosition;
+                else SafeTeleportPlayer(playerObj, preRacePlayerPosition);
             }
             else
             {
-                playerObj.transform.position = preRacePlayerPosition;
+                SafeTeleportPlayer(playerObj, preRacePlayerPosition);
             }
         }
 

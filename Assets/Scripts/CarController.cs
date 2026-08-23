@@ -233,6 +233,7 @@ public class CarController : MonoBehaviour
     }
 
     private float lastDirectionMultiplier = 1f;
+    private float smoothedTurnAmount = 0f;
 
     private void ProcessSteering()
     {
@@ -257,9 +258,20 @@ public class CarController : MonoBehaviour
             float speedFactor = Mathf.Clamp01(absoluteSpeed / maxSpeed);
             float currentSteerAngle = Mathf.Lerp(lowSpeedSteerAngle, highSpeedSteerAngle, speedFactor);
 
-            float turnAmount = turnInput * currentSteerAngle * lastDirectionMultiplier * Time.fixedDeltaTime;
-            Quaternion turnRotation = Quaternion.Euler(0f, turnAmount, 0f);
+            float targetTurnAmount = turnInput * currentSteerAngle * lastDirectionMultiplier * Time.fixedDeltaTime;
+
+            // Lissage de l'amplitude de rotation elle-même (pas juste sa direction) : la
+            // rotation appliquée progresse vers la cible au lieu de la suivre brute chaque
+            // frame — atténue le jitter résiduel peu importe sa source exacte (adhérence,
+            // arrondi physique...), sans changer la réactivité globale du volant.
+            smoothedTurnAmount = Mathf.Lerp(smoothedTurnAmount, targetTurnAmount, 0.5f);
+
+            Quaternion turnRotation = Quaternion.Euler(0f, smoothedTurnAmount, 0f);
             rb.MoveRotation(rb.rotation * turnRotation);
+        }
+        else
+        {
+            smoothedTurnAmount = 0f;
         }
     }
 
