@@ -16,9 +16,12 @@ public class StreetRaceManager : MonoBehaviour
     public int lapsToWin = 3;
 
     [Header("Grille de départ")]
-    [Tooltip("Position/orientation où apparaissent les 5 voitures, décalées les unes des autres le long de son axe droit (X local).")]
+    [Tooltip("Position/orientation où apparaissent les 5 voitures, en quinconce (2 par rangée) le long de son axe droit/avant.")]
     public Transform gridStartPoint;
+    [Tooltip("Écart latéral entre les 2 colonnes de la grille.")]
     public float gridCarSpacing = 4f;
+    [Tooltip("Écart vers l'arrière entre chaque rangée de 2 voitures.")]
+    public float gridRowSpacing = 6f;
 
     [Header("Véhicules de course")]
     [Tooltip("Prefab utilisé pour les 5 voitures (identique pour tout le monde, course équitable). Doit avoir CarController + CarAI + CarInteraction comme n'importe quelle voiture drivable.")]
@@ -84,6 +87,9 @@ public class StreetRaceManager : MonoBehaviour
         finishOrder.Clear();
         spawnedCars.Clear();
         aiDrivers.Clear();
+
+        // Comme pour les labos/le garage : pas d'appel qui sonne pendant la course.
+        CallApp.RequestCallBlock();
 
         // --- Voiture du joueur (position 0 sur la grille) ---
         GameObject playerCar = Instantiate(raceCarPrefab, GridPosition(0), gridStartPoint.rotation);
@@ -178,9 +184,21 @@ public class StreetRaceManager : MonoBehaviour
         countdownText.gameObject.SetActive(false);
     }
 
+    // Grille en quinconce (2 voitures par rangée, décalées vers l'arrière à chaque
+    // rangée) — bien moins large qu'un alignement des 5 voitures de front, qui pouvait les
+    // faire se chevaucher/déborder sur un circuit étroit (constaté en vidéo : les IA se
+    // touchaient et au moins une débordait du bord de la route au moment du GO).
     private Vector3 GridPosition(int index)
     {
-        return gridStartPoint.position + gridStartPoint.right * (index * gridCarSpacing);
+        int row = index / 2;
+        int col = index % 2;
+
+        float lateral = (col == 0 ? -1f : 1f) * (gridCarSpacing * 0.5f);
+        float depth = -row * gridRowSpacing; // vers l'arrière du point de départ
+
+        return gridStartPoint.position
+             + gridStartPoint.right * lateral
+             + gridStartPoint.forward * depth;
     }
 
     // Guide le joueur avec les flèches du pathfinder tout au long du circuit, en changeant
@@ -251,6 +269,8 @@ public class StreetRaceManager : MonoBehaviour
     private IEnumerator CleanupRaceRoutine()
     {
         raceActive = false;
+
+        CallApp.ReleaseCallBlock();
 
         if (countdownText != null) countdownText.gameObject.SetActive(false);
         if (JobPathfinder.Instance != null) JobPathfinder.Instance.HidePath();

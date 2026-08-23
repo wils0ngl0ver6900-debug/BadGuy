@@ -185,11 +185,21 @@ public class CarController : MonoBehaviour
         }
     }
 
+    private float airborneTimer = 0f;
+    private const float AIRBORNE_GRACE_PERIOD = 0.15f;
+
     private void ProcessEngine()
     {
         float speed = rb.linearVelocity.magnitude;
         float forwardSpeed = Vector3.Dot(transform.forward, rb.linearVelocity);
-        bool grounded = IsGrounded();
+
+        // Tolérance avant de couper la propulsion : un simple rayon qui "clignote" vrai/faux
+        // à chaque frame (léger rebond de suspension en virage/freinage) coupait et remettait
+        // la force sans arrêt, ce qui donnait une vibration. On ne considère la voiture
+        // vraiment "en l'air" qu'après un décollage qui dure un minimum de temps.
+        if (IsGrounded()) airborneTimer = 0f;
+        else airborneTimer += Time.fixedDeltaTime;
+        bool grounded = airborneTimer < AIRBORNE_GRACE_PERIOD;
 
         if (isEngineDead)
         {

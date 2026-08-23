@@ -59,7 +59,16 @@ public class CarInteraction : MonoBehaviour
         }
         else if (playerInCar && Input.GetKeyDown(KeyCode.E))
         {
-            ExitCar();
+            // Impossible de descendre en pleine course (comportement normal partout ailleurs).
+            if (StreetRaceManager.Instance != null && StreetRaceManager.Instance.IsRaceActive())
+            {
+                if (UIManager.Instance != null)
+                    UIManager.Instance.ShowNotification("<color=red>Impossible de sortir en pleine course !</color>");
+            }
+            else
+            {
+                ExitCar();
+            }
         }
 
         if (playerInCar && player != null)
