@@ -25,6 +25,15 @@ public class CarAI : MonoBehaviour
     [Tooltip("Décélération au freinage utilisée pour calculer QUAND commencer à ralentir (m/s²). Plus haut = freine plus tard/fort, plus bas = freine plus tôt/doux.")]
     public float raceBrakingDeceleration = 10f;
 
+    [Tooltip("Si la vitesse reste sous 1 m/s pendant ce temps en essayant d'avancer, déclenche une marche arrière de dégagement — indépendant des capteurs, basé uniquement sur la vitesse réelle.")]
+    public float raceStuckTimeout = 0.8f;
+    [Tooltip("Durée de la marche arrière de dégagement.")]
+    public float raceReverseDuration = 0.9f;
+
+    private float raceStuckTimer = 0f;
+    private bool raceReversing = false;
+    private float raceReverseTimer = 0f;
+
     [Header("Détection d'obstacles (Matrice 360)")]
     public float frontSensorLength = 7f;
     public float rearSensorLength = 3f;
@@ -204,8 +213,51 @@ public class CarAI : MonoBehaviour
             // graphe TrafficNode ci-dessous — élimine tout risque d'embranchement mal
             // configuré ou de boucle accidentelle qui pouvait coincer une IA au même
             // endroit indéfiniment.
-            AdvanceRaceWaypoint();
-            ComputeRaceDriving();
+            //
+            // Dégagement après choc INDÉPENDANT des capteurs (Obstacle Mask) : si le Layer
+            // d'un nouvel obstacle (immeuble...) n'est pas inclus dedans, l'IA le percute
+            // sans jamais le "voir", et ni le freinage d'urgence ni la récupération normale
+            // (tous deux basés sur les capteurs) ne se déclenchent — elle restait plantée
+            // contre le mur indéfiniment. Ici, seule la vitesse réelle du Rigidbody compte,
+            // aucune dépendance aux capteurs.
+            if (raceReversing)
+            {
+                raceReverseTimer += Time.deltaTime;
+                virtualGasPedal = -0.7f;
+                carController.isHandbraking = false; // au cas où resté actif d'un virage précédent
+
+                Vector3 toTarget = raceCircuit.GetPoint(raceWaypointIndex) - transform.position;
+                Vector3 local = transform.InverseTransformPoint(transform.position + toTarget);
+                virtualSteeringWheel = local.x > 0f ? -1f : 1f; // s'écarte de l'obstacle en reculant
+
+                if (raceReverseTimer > raceReverseDuration)
+                {
+                    raceReversing = false;
+                    raceStuckTimer = 0f;
+                }
+            }
+            else
+            {
+                if (rb.linearVelocity.magnitude < 1f)
+                {
+                    raceStuckTimer += Time.deltaTime;
+                    if (raceStuckTimer > raceStuckTimeout)
+                    {
+                        raceReversing = true;
+                        raceReverseTimer = 0f;
+                    }
+                }
+                else
+                {
+                    raceStuckTimer = 0f;
+                }
+
+                if (!raceReversing)
+                {
+                    AdvanceRaceWaypoint();
+                    ComputeRaceDriving();
+                }
+            }
         }
         else
         {
@@ -281,7 +333,9 @@ public class CarAI : MonoBehaviour
         }
         else
         {
-            carController.isHandbraking = false;
+            // En mode course, ComputeRaceDriving() a déjà décidé du frein à main (rallye en
+            // virage serré) — ne pas l'écraser ici juste parce que ce n'est pas une urgence.
+            if (!raceMode) carController.isHandbraking = false;
         }
     }
 
@@ -414,6 +468,11 @@ public class CarAI : MonoBehaviour
         {
             virtualGasPedal = 0.5f;
         }
+
+        // Frein à main façon rallye : volant presque à fond ET encore nettement trop de
+        // vitesse par rapport à la cible du virage — un coup de frein à main aide à faire
+        // pivoter la voiture court plutôt que de juste glisser tout droit vers l'extérieur.
+        carController.isHandbraking = steerMagnitude > 0.8f && currentSpeed > targetSpeed + 3f;
 
         if (steerBias != 0f && closestFrontDistance < 4f)
         {

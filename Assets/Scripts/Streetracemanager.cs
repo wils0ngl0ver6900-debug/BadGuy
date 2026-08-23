@@ -189,13 +189,16 @@ public class StreetRaceManager : MonoBehaviour
 
                 // Physique volontairement "trichée" par rapport au joueur : les IA n'ont ni
                 // les mêmes réflexes ni la même précision, donc on compense en leur donnant
-                // plus d'adhérence, de freins et de braquage que la normale — moins
-                // d'embardées, plus stables une fois des obstacles ajoutés en bord de piste.
-                aiCarController.gripLevel = Mathf.Min(1f, aiCarController.gripLevel * 1.3f);
-                aiCarController.driftGrip = Mathf.Min(1f, aiCarController.driftGrip * 2f);
-                aiCarController.brakingForce *= 1.4f;
-                aiCarController.lowSpeedSteerAngle *= 1.2f;
-                aiCarController.highSpeedSteerAngle *= 1.2f;
+                // plus d'adhérence, de freins, de braquage et d'accélération que la normale
+                // — moins d'embardées, plus compétitives, plus stables une fois des
+                // obstacles ajoutés en bord de piste.
+                aiCarController.gripLevel = 1f; // adhérence maximale, plus d'à-peu-près
+                aiCarController.driftGrip = Mathf.Min(1f, aiCarController.driftGrip * 2.5f);
+                aiCarController.brakingForce *= 1.6f;
+                aiCarController.lowSpeedSteerAngle *= 1.35f;
+                aiCarController.highSpeedSteerAngle *= 1.35f;
+                aiCarController.accelerationForce *= 1.3f;
+                aiCarController.maxSpeed *= 1.15f;
             }
 
             string oppName = i < opponentNames.Length ? opponentNames[i] : $"Adversaire {i + 1}";

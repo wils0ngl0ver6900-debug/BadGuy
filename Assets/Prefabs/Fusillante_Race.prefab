@@ -516,13 +516,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8967173089300098133}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.10733867, y: -0.00000001481507, z: 0.0000000015994703, w: 0.9942225}
-  m_LocalPosition: {x: -0.5312576, y: 6.055, z: -9.08}
+  m_LocalRotation: {x: 0.06576902, y: -0.000000014868898, z: 9.800343e-10, w: 0.99783486}
+  m_LocalPosition: {x: -0.5312576, y: 4.08, z: -7.3}
   m_LocalScale: {x: 2, y: 1.8213899, z: 1.1786101}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1482316150721922743}
-  m_LocalEulerAnglesHint: {x: 12.324, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 7.542, y: 0, z: 0}
 --- !u!20 &1791073723484435781
 Camera:
   m_ObjectHideFlags: 0
@@ -1034,6 +1034,8 @@ MonoBehaviour:
   raceStraightSpeed: 28
   raceHairpinSpeed: 7
   raceBrakingDeceleration: 10
+  raceStuckTimeout: 0.8
+  raceReverseDuration: 0.9
   frontSensorLength: 7
   rearSensorLength: 3
   sensorFrontOffset: 2.5
