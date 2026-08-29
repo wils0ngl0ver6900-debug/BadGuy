@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 using System;
+using System.Collections.Generic;
 
 // Mini-jeu "tape le code affiché" — même mécanique que le piratage d'alarme du job casino
 // (ValetJobManager.StartHackMiniGame), extraite en composant AUTONOME et réutilisable.
@@ -43,7 +44,7 @@ public class CodeEntryMinigame : MonoBehaviour
         int max = (int)Mathf.Pow(10, codeDigits) - 1;
         targetCode = UnityEngine.Random.Range(min, max).ToString();
 
-        if (codePanel != null) codePanel.SetActive(true);
+        if (codePanel != null) ActivateWithParents(codePanel);
         if (codeText != null) codeText.text = $"CODE : {targetCode}";
 
         if (codeInputField != null)
@@ -82,7 +83,7 @@ public class CodeEntryMinigame : MonoBehaviour
     private void EndMinigame(bool success)
     {
         isActive = false;
-        if (codePanel != null) codePanel.SetActive(false);
+        if (codePanel != null) DeactivateWithParents(codePanel);
         if (codeInputField != null) codeInputField.text = "";
 
         Cursor.visible = false;
@@ -90,5 +91,35 @@ public class CodeEntryMinigame : MonoBehaviour
 
         if (success) onSuccess?.Invoke();
         else onFail?.Invoke();
+    }
+
+    // Même logique que LockpickMinigame : le panel réutilise l'UI du casino (Valet_HackPanel),
+    // imbriquée sous Valet_MainPanel — activer seulement le panel lui-même ne suffit pas si
+    // l'un de ses parents est désactivé.
+    private readonly List<GameObject> activatedParents = new List<GameObject>();
+
+    private void ActivateWithParents(GameObject target)
+    {
+        activatedParents.Clear();
+        Transform t = target.transform;
+        while (t != null)
+        {
+            if (!t.gameObject.activeSelf)
+            {
+                t.gameObject.SetActive(true);
+                activatedParents.Add(t.gameObject);
+            }
+            t = t.parent;
+        }
+    }
+
+    private void DeactivateWithParents(GameObject target)
+    {
+        target.SetActive(false);
+        foreach (GameObject go in activatedParents)
+        {
+            if (go != target && go != null) go.SetActive(false);
+        }
+        activatedParents.Clear();
     }
 }

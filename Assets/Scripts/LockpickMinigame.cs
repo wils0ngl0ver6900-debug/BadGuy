@@ -1,6 +1,7 @@
 using UnityEngine;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using TMPro;
 
 // Mini-jeu de crochetage façon Fallout — même mécanique que celle déjà utilisée pour la
@@ -47,7 +48,7 @@ public class LockpickMinigame : MonoBehaviour
         isLockRotated = false;
         pinShakeTimer = 0f;
 
-        if (lockpickPanel != null) lockpickPanel.SetActive(true);
+        if (lockpickPanel != null) ActivateWithParents(lockpickPanel);
         Cursor.lockState = CursorLockMode.Locked;
 
         pinAngle = 0f;
@@ -173,10 +174,42 @@ public class LockpickMinigame : MonoBehaviour
         isWinning = false;
         isLockRotated = false;
 
-        if (lockpickPanel != null) lockpickPanel.SetActive(false);
+        if (lockpickPanel != null) DeactivateWithParents(lockpickPanel);
         Cursor.lockState = CursorLockMode.Confined;
 
         if (success) onSuccess?.Invoke();
         else onFail?.Invoke();
+    }
+
+    // Le panel de crochetage réutilise l'UI du job casino (Valet_LockpickPanel), imbriquée
+    // sous Valet_MainPanel — activer seulement le panel lui-même ne suffit pas si l'un de
+    // ses parents est désactivé (un enfant ne peut jamais s'afficher si un de ses parents
+    // ne l'est pas, peu importe son propre état). On remonte donc toute la chaîne, et on
+    // note qui était déjà actif pour ne restaurer QUE ce qu'on a nous-mêmes activé.
+    private readonly List<GameObject> activatedParents = new List<GameObject>();
+
+    private void ActivateWithParents(GameObject target)
+    {
+        activatedParents.Clear();
+        Transform t = target.transform;
+        while (t != null)
+        {
+            if (!t.gameObject.activeSelf)
+            {
+                t.gameObject.SetActive(true);
+                activatedParents.Add(t.gameObject);
+            }
+            t = t.parent;
+        }
+    }
+
+    private void DeactivateWithParents(GameObject target)
+    {
+        target.SetActive(false);
+        foreach (GameObject go in activatedParents)
+        {
+            if (go != target && go != null) go.SetActive(false);
+        }
+        activatedParents.Clear();
     }
 }

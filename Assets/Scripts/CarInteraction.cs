@@ -291,14 +291,15 @@ public class CarInteraction : MonoBehaviour
             CarBreakInMethod m = config.methods[i];
             bool hasTool = PlayerHasTool(m.requiredTool);
             bool onCooldown = m.useCooldownInstead && m.requiredTool != null && IsOnCooldown(m.requiredTool);
+            int effectiveFailChance = GetEffectiveFailureChance(m);
 
             spawnedPromptLines[i].gameObject.SetActive(true);
             if (!hasTool)
-                spawnedPromptLines[i].text = $"<color=#777777>[{KeyLabel(m.triggerKey)}] {m.methodName} (outil requis)</color>";
+                spawnedPromptLines[i].text = $"<color=#777777>{KeyBadge(m.triggerKey)} {m.methodName} (outil requis)</color>";
             else if (onCooldown)
-                spawnedPromptLines[i].text = $"<color=#777777>[{KeyLabel(m.triggerKey)}] {m.methodName} (en recharge)</color>";
+                spawnedPromptLines[i].text = $"<color=#777777>{KeyBadge(m.triggerKey)} {m.methodName} (en recharge)</color>";
             else
-                spawnedPromptLines[i].text = $"[{KeyLabel(m.triggerKey)}] {m.methodName}";
+                spawnedPromptLines[i].text = $"{KeyBadge(m.triggerKey)} {m.methodName} <color=#ff8888>({effectiveFailChance}% échec)</color>";
 
             if (hasTool && !onCooldown && Input.GetKeyDown(m.triggerKey))
             {
@@ -316,6 +317,33 @@ public class CarInteraction : MonoBehaviour
     {
         string s = key.ToString();
         return s.StartsWith("Alpha") ? s.Substring(5) : s;
+    }
+
+    // Effet "touche clavier" avec la balise <mark> de TextMeshPro (encart derrière le
+    // chiffre) — pas besoin de sprite dédié. Si tu as/trouves de vraies icônes de touches,
+    // ce sera à remplacer par un composant Image séparé par ligne, plus de travail mais
+    // rendu plus proche de l'image de référence (glyphes façon manette).
+    private string KeyBadge(KeyCode key)
+    {
+        return $"<mark=#ffffff33 padding=\"10,10,4,4\"><b>{KeyLabel(key)}</b></mark>";
+    }
+
+    // Plus la voiture est rapide (et/ou chère, si Vehicle Value est renseigné sur son
+    // CarController) plus le bonus de difficulté grimpe, jusqu'à Max Difficulty Bonus
+    // Percent de CETTE méthode. Les deux facteurs ne s'additionnent pas brut : c'est le
+    // plus élevé des deux qui domine, pour éviter qu'une voiture rapide ET chère devienne
+    // absurdement difficile par simple cumul.
+    private int GetEffectiveFailureChance(CarBreakInMethod method)
+    {
+        int bonus = 0;
+        if (carController != null)
+        {
+            float speedFactor = Mathf.Clamp01((carController.maxSpeed - 30f) / 60f);
+            float valueFactor = carController.vehicleValue > 0 ? Mathf.Clamp01(carController.vehicleValue / 100000f) : 0f;
+            float combined = Mathf.Max(speedFactor, valueFactor);
+            bonus = Mathf.RoundToInt(combined * method.maxDifficultyBonusPercent);
+        }
+        return Mathf.Clamp(method.failureChancePercent + bonus, 0, 95);
     }
 
     private void TryStartBreakInMethod(CarBreakInMethod method)
@@ -400,7 +428,7 @@ public class CarInteraction : MonoBehaviour
             yield break;
         }
 
-        if (Random.Range(0, 100) < method.failureChancePercent)
+        if (Random.Range(0, 100) < GetEffectiveFailureChance(method))
         {
             if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"<color=yellow>{method.methodName} n'a pas fonctionné sur ce modèle...</color>");
             yield break;

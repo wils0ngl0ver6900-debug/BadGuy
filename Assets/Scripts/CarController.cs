@@ -9,6 +9,9 @@ public class CarController : MonoBehaviour
     public float reverseForce = 25f;
     public float brakingForce = 40f;
 
+    [Tooltip("Valeur du véhicule (optionnel, 0 = non renseigné). Utilisé par le système d'effraction (CarInteraction) pour rendre les voitures chères/rapides plus difficiles à crocheter — laisse à 0 si tu ne veux pas t'en servir, seule la vitesse max comptera alors.")]
+    public int vehicleValue = 0;
+
     [Header("Direction Dynamique 🛞")]
     public float lowSpeedSteerAngle = 70f;
     public float highSpeedSteerAngle = 25f;

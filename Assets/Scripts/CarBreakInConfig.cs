@@ -49,8 +49,10 @@ public class CarBreakInMethod
     [Header("Risque")]
     [Tooltip("Risque (%) de déclencher l'alarme MÊME en cas de réussite (ignoré si Always Triggers Alarm est coché).")]
     [Range(0, 100)] public int alarmChancePercent = 35;
-    [Tooltip("Risque (%) d'échec pur, indépendant du mini-jeu (ce modèle résiste à cet outil cette fois).")]
+    [Tooltip("Risque (%) d'échec pur, indépendant du mini-jeu (ce modèle résiste à cet outil cette fois). Valeur DE BASE, avant bonus de difficulté ci-dessous.")]
     [Range(0, 100)] public int failureChancePercent = 10;
+    [Tooltip("Bonus de difficulté MAXIMUM (en points de %) ajouté à Failure Chance Percent pour la voiture la plus rapide/chère du jeu — s'additionne progressivement selon CarController.maxSpeed (et CarController.vehicleValue si renseigné). 0 = cette méthode ignore complètement la vitesse/valeur du véhicule.")]
+    [Range(0, 60)] public int maxDifficultyBonusPercent = 25;
 }
 
 // Configuration PARTAGÉE des méthodes d'effraction — définie UNE SEULE FOIS dans la scène
