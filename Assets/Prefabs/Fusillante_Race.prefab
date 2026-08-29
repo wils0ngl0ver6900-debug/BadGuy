@@ -141,6 +141,7 @@ MonoBehaviour:
   carCamera: {fileID: 8967173089300098133}
   exitPoint: {fileID: 3711556530807123453}
   driverPrefab: {fileID: 0}
+  isBreakInUnlocked: 0
 --- !u!1 &6033457066461398898
 GameObject:
   m_ObjectHideFlags: 0
@@ -517,7 +518,7 @@ Transform:
   m_GameObject: {fileID: 8967173089300098133}
   serializedVersion: 2
   m_LocalRotation: {x: -0.008111634, y: -0.000000014900672, z: -1.2087324e-10, w: 0.99996716}
-  m_LocalPosition: {x: -0.29299927, y: 3.079, z: -4.38}
+  m_LocalPosition: {x: 0, y: 2.25, z: -2.805}
   m_LocalScale: {x: 2, y: 1.8213899, z: 1.1786101}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -569,7 +570,7 @@ Camera:
   m_TargetEye: 3
   m_HDR: 0
   m_AllowMSAA: 0
-  m_AllowDynamicResolution: 0
+  m_AllowDynamicResolution: 1
   m_ForceIntoRT: 0
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
@@ -610,7 +611,7 @@ MonoBehaviour:
   taaSharpenMode: 2
   taaRingingReduction: 0
   taaHistorySharpening: 0.35
-  taaAntiFlicker: 0.5
+  taaAntiFlicker: 0.803
   taaMotionVectorRejection: 0
   taaAntiHistoryRinging: 0
   taaBaseBlendFactor: 0.875
@@ -627,7 +628,7 @@ MonoBehaviour:
   flipYMode: 0
   xrRendering: 1
   fullscreenPassthrough: 0
-  allowDynamicResolution: 0
+  allowDynamicResolution: 1
   customRenderingSettings: 0
   invertFaceCulling: 0
   probeLayerMask:
@@ -955,6 +956,7 @@ MonoBehaviour:
   accelerationForce: 90
   reverseForce: 30
   brakingForce: 65
+  vehicleValue: 0
   lowSpeedSteerAngle: 85
   highSpeedSteerAngle: 35
   steeringSmoothing: 0.5

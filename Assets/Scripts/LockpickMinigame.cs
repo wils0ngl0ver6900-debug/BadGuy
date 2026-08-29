@@ -1,20 +1,20 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 
-// Mini-jeu de crochetage façon Fallout — même mécanique que celle déjà utilisée pour la
-// boîte à gants du job casino (ValetJobManager), mais extraite en composant AUTONOME et
-// réutilisable ailleurs (ici : CarBreakIn). Pointe les MÊMES objets d'UI que ceux déjà
-// configurés sur ValetJobManager si tu veux le look identique — les deux scripts ne
-// tournent jamais en même temps (impossible de faire le casino et un vol de voiture
-// simultanément), donc aucun conflit à se les partager.
+// Mini-jeu de crochetage faÃ§on Fallout â€” mÃªme mÃ©canique que celle dÃ©jÃ  utilisÃ©e pour la
+// boÃ®te Ã  gants du job casino (ValetJobManager), mais extraite en composant AUTONOME et
+// rÃ©utilisable ailleurs (ici : CarBreakIn). Pointe les MÃŠMES objets d'UI que ceux dÃ©jÃ 
+// configurÃ©s sur ValetJobManager si tu veux le look identique â€” les deux scripts ne
+// tournent jamais en mÃªme temps (impossible de faire le casino et un vol de voiture
+// simultanÃ©ment), donc aucun conflit Ã  se les partager.
 public class LockpickMinigame : MonoBehaviour
 {
     public static LockpickMinigame Instance;
 
-    [Header("UI (les mêmes objets que ValetJobManager pour un look identique)")]
+    [Header("UI (les mÃªmes objets que ValetJobManager pour un look identique)")]
     public GameObject lockpickPanel;
     public RectTransform lockTransform;
     public RectTransform pinTransform;
@@ -23,16 +23,18 @@ public class LockpickMinigame : MonoBehaviour
     public float lockShakeIntensity = 5f;
     public float pinMoveSpeed = 3f;
 
-    [Header("Retour visuel (couleur) — plus clair que la rotation seule")]
-    [Tooltip("Couleur du verrou quand tu es dans la bonne zone en maintenant le clic (ça tourne pour de vrai).")]
+    [Header("Retour visuel (couleur) â€” plus clair que la rotation seule")]
+    [Tooltip("Couleur du verrou quand tu es dans la bonne zone en maintenant le clic (Ã§a tourne pour de vrai).")]
     public Color lockGoodColor = new Color(0.4f, 1f, 0.4f);
-    [Tooltip("Couleur du verrou quand tu forces au mauvais endroit en maintenant le clic (ça résiste/tremble).")]
+    [Tooltip("Couleur du verrou quand tu forces au mauvais endroit en maintenant le clic (Ã§a rÃ©siste/tremble).")]
     public Color lockBadColor = new Color(1f, 0.35f, 0.35f);
     private Color lockNeutralColor = Color.white;
     private UnityEngine.UI.Image lockImage;
+    private Color pinNeutralColor = Color.white;
+    private UnityEngine.UI.Image pinImage;
 
-    [Header("Casse si forcé trop longtemps au mauvais endroit")]
-    [Tooltip("Si tu maintiens le clic au mauvais endroit (ça tremble) plus longtemps que ça, échec immédiat — l'outil casse net plutôt que de juste perdre du temps.")]
+    [Header("Casse si forcÃ© trop longtemps au mauvais endroit")]
+    [Tooltip("Si tu maintiens le clic au mauvais endroit (Ã§a tremble) plus longtemps que Ã§a, Ã©chec immÃ©diat â€” l'outil casse net plutÃ´t que de juste perdre du temps.")]
     public float maxForceWrongDuration = 3f;
     private float forceWrongTimer = 0f;
 
@@ -51,10 +53,15 @@ public class LockpickMinigame : MonoBehaviour
             lockImage = lockTransform.GetComponent<UnityEngine.UI.Image>();
             if (lockImage != null) lockNeutralColor = lockImage.color;
         }
+        if (pinTransform != null)
+        {
+            pinImage = pinTransform.GetComponent<UnityEngine.UI.Image>();
+            if (pinImage != null) pinNeutralColor = pinImage.color;
+        }
     }
 
-    // tolerance : plus la valeur est BASSE, plus la serrure est difficile (fenêtre de
-    // tolérance plus étroite autour de l'angle cible caché).
+    // tolerance : plus la valeur est BASSE, plus la serrure est difficile (fenÃªtre de
+    // tolÃ©rance plus Ã©troite autour de l'angle cible cachÃ©).
     public void StartMinigame(float timeToComplete, float tolerance, Action success, Action fail)
     {
         onSuccess = success;
@@ -119,36 +126,49 @@ public class LockpickMinigame : MonoBehaviour
         if (Input.GetMouseButton(0) || Input.GetKey(KeyCode.Space))
         {
             isLockRotated = true;
-            lockAngle = Mathf.Lerp(lockAngle, maxAllowedLockAngle, Time.deltaTime * 5f);
 
-            if (Mathf.Abs(lockAngle - maxAllowedLockAngle) < 1f && maxAllowedLockAngle < 85f)
+            // Rotation quasi immÃ©diate (au lieu d'un lerp doux) : l'angle atteint doit
+            // reflÃ©ter la distance Ã  la bonne position DE FAÃ‡ON LISIBLE â€” proche = tourne
+            // presque Ã  90Â°, loin = tourne Ã  peine. Un lerp lent noyait ce signal.
+            lockAngle = Mathf.MoveTowards(lockAngle, maxAllowedLockAngle, Time.deltaTime * 220f);
+
+            // Tremblement PROPORTIONNEL Ã  l'Ã©cart (pas juste allumÃ©/Ã©teint au plafond) :
+            // trÃ¨s loin = tremble fort, un peu loin = tremble lÃ©ger, pile dessus = stable.
+            float wrongness = Mathf.Clamp01((distanceFromTarget - lockTolerance) / 90f);
+            if (wrongness > 0.02f)
             {
-                pinShakeTimer += Time.deltaTime * 30f;
-                float shakeOffset = Mathf.Sin(pinShakeTimer) * 2f;
+                pinShakeTimer += Time.deltaTime * (15f + wrongness * 25f);
+                float shakeOffset = Mathf.Sin(pinShakeTimer) * (1f + wrongness * 6f);
                 if (pinTransform != null) pinTransform.localRotation = Quaternion.Euler(0, 0, pinAngle + shakeOffset);
-                currentTimer -= Time.deltaTime * 1.5f;
 
-                // Retour visuel net : le verrou passe au rouge tant que tu forces au mauvais
-                // endroit — plus clair à lire que la seule vitesse de rotation.
-                if (lockImage != null) lockImage.color = lockBadColor;
-
-                // Forcé trop longtemps au mauvais endroit -> ça casse, échec immédiat au
-                // lieu de juste continuer à perdre du temps.
-                forceWrongTimer += Time.deltaTime;
-                if (forceWrongTimer >= maxForceWrongDuration)
+                // Ne pÃ©nalise le temps et ne compte vers la casse que si vraiment trÃ¨s loin
+                // (tremblement franc), pas pour un Ã©cart minime qui tourne encore pas mal.
+                if (wrongness > 0.5f)
                 {
-                    EndMinigame(false);
-                    return;
+                    currentTimer -= Time.deltaTime * 1.5f;
+                    forceWrongTimer += Time.deltaTime;
+                    if (forceWrongTimer >= maxForceWrongDuration)
+                    {
+                        EndMinigame(false);
+                        return;
+                    }
                 }
+                else
+                {
+                    forceWrongTimer = 0f;
+                }
+
+                if (lockImage != null) lockImage.color = Color.Lerp(lockNeutralColor, lockBadColor, wrongness);
+                if (pinImage != null) pinImage.color = Color.Lerp(pinNeutralColor, lockBadColor, wrongness);
             }
             else
             {
                 pinShakeTimer = 0f;
                 forceWrongTimer = 0f;
 
-                // Bonne zone : le verrou passe au vert, signal clair que ça tourne pour de
-                // vrai (proportionnel à l'avancée, pas juste allumé/éteint).
-                if (lockImage != null) lockImage.color = Color.Lerp(lockNeutralColor, lockGoodColor, lockAngle / 90f);
+                Color goodTint = Color.Lerp(lockNeutralColor, lockGoodColor, lockAngle / 90f);
+                if (lockImage != null) lockImage.color = goodTint;
+                if (pinImage != null) pinImage.color = Color.Lerp(pinNeutralColor, lockGoodColor, lockAngle / 90f);
             }
 
             if (lockAngle >= 88f && !isWinning) StartCoroutine(WinRoutine());
@@ -161,6 +181,7 @@ public class LockpickMinigame : MonoBehaviour
             lockAngle = Mathf.Lerp(lockAngle, 0f, Time.deltaTime * 10f);
 
             if (lockImage != null) lockImage.color = lockNeutralColor;
+            if (pinImage != null) pinImage.color = pinNeutralColor;
         }
 
         UpdateTransforms();
@@ -222,11 +243,11 @@ public class LockpickMinigame : MonoBehaviour
         else onFail?.Invoke();
     }
 
-    // Le panel de crochetage réutilise l'UI du job casino (Valet_LockpickPanel), imbriquée
-    // sous Valet_MainPanel — activer seulement le panel lui-même ne suffit pas si l'un de
-    // ses parents est désactivé (un enfant ne peut jamais s'afficher si un de ses parents
-    // ne l'est pas, peu importe son propre état). On remonte donc toute la chaîne, et on
-    // note qui était déjà actif pour ne restaurer QUE ce qu'on a nous-mêmes activé.
+    // Le panel de crochetage rÃ©utilise l'UI du job casino (Valet_LockpickPanel), imbriquÃ©e
+    // sous Valet_MainPanel â€” activer seulement le panel lui-mÃªme ne suffit pas si l'un de
+    // ses parents est dÃ©sactivÃ© (un enfant ne peut jamais s'afficher si un de ses parents
+    // ne l'est pas, peu importe son propre Ã©tat). On remonte donc toute la chaÃ®ne, et on
+    // note qui Ã©tait dÃ©jÃ  actif pour ne restaurer QUE ce qu'on a nous-mÃªmes activÃ©.
     private readonly List<GameObject> activatedParents = new List<GameObject>();
 
     private void ActivateWithParents(GameObject target)
