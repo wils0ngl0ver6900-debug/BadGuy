@@ -23,6 +23,19 @@ public class LockpickMinigame : MonoBehaviour
     public float lockShakeIntensity = 5f;
     public float pinMoveSpeed = 3f;
 
+    [Header("Retour visuel (couleur) — plus clair que la rotation seule")]
+    [Tooltip("Couleur du verrou quand tu es dans la bonne zone en maintenant le clic (ça tourne pour de vrai).")]
+    public Color lockGoodColor = new Color(0.4f, 1f, 0.4f);
+    [Tooltip("Couleur du verrou quand tu forces au mauvais endroit en maintenant le clic (ça résiste/tremble).")]
+    public Color lockBadColor = new Color(1f, 0.35f, 0.35f);
+    private Color lockNeutralColor = Color.white;
+    private UnityEngine.UI.Image lockImage;
+
+    [Header("Casse si forcé trop longtemps au mauvais endroit")]
+    [Tooltip("Si tu maintiens le clic au mauvais endroit (ça tremble) plus longtemps que ça, échec immédiat — l'outil casse net plutôt que de juste perdre du temps.")]
+    public float maxForceWrongDuration = 3f;
+    private float forceWrongTimer = 0f;
+
     private float pinAngle, lockAngle, targetPinAngle, pinShakeTimer, currentTimer, lockTolerance;
     private bool isLockRotated, isActive, isWinning;
     private Vector2 lockOriginalPos;
@@ -32,7 +45,12 @@ public class LockpickMinigame : MonoBehaviour
     private void Awake()
     {
         if (Instance == null) Instance = this;
-        if (lockTransform != null) lockOriginalPos = lockTransform.anchoredPosition;
+        if (lockTransform != null)
+        {
+            lockOriginalPos = lockTransform.anchoredPosition;
+            lockImage = lockTransform.GetComponent<UnityEngine.UI.Image>();
+            if (lockImage != null) lockNeutralColor = lockImage.color;
+        }
     }
 
     // tolerance : plus la valeur est BASSE, plus la serrure est difficile (fenêtre de
@@ -47,6 +65,8 @@ public class LockpickMinigame : MonoBehaviour
         isWinning = false;
         isLockRotated = false;
         pinShakeTimer = 0f;
+        forceWrongTimer = 0f;
+        if (lockImage != null) lockImage.color = lockNeutralColor;
 
         if (lockpickPanel != null) ActivateWithParents(lockpickPanel);
         Cursor.lockState = CursorLockMode.Locked;
@@ -107,10 +127,28 @@ public class LockpickMinigame : MonoBehaviour
                 float shakeOffset = Mathf.Sin(pinShakeTimer) * 2f;
                 if (pinTransform != null) pinTransform.localRotation = Quaternion.Euler(0, 0, pinAngle + shakeOffset);
                 currentTimer -= Time.deltaTime * 1.5f;
+
+                // Retour visuel net : le verrou passe au rouge tant que tu forces au mauvais
+                // endroit — plus clair à lire que la seule vitesse de rotation.
+                if (lockImage != null) lockImage.color = lockBadColor;
+
+                // Forcé trop longtemps au mauvais endroit -> ça casse, échec immédiat au
+                // lieu de juste continuer à perdre du temps.
+                forceWrongTimer += Time.deltaTime;
+                if (forceWrongTimer >= maxForceWrongDuration)
+                {
+                    EndMinigame(false);
+                    return;
+                }
             }
             else
             {
                 pinShakeTimer = 0f;
+                forceWrongTimer = 0f;
+
+                // Bonne zone : le verrou passe au vert, signal clair que ça tourne pour de
+                // vrai (proportionnel à l'avancée, pas juste allumé/éteint).
+                if (lockImage != null) lockImage.color = Color.Lerp(lockNeutralColor, lockGoodColor, lockAngle / 90f);
             }
 
             if (lockAngle >= 88f && !isWinning) StartCoroutine(WinRoutine());
@@ -119,7 +157,10 @@ public class LockpickMinigame : MonoBehaviour
         {
             isLockRotated = false;
             pinShakeTimer = 0f;
+            forceWrongTimer = 0f;
             lockAngle = Mathf.Lerp(lockAngle, 0f, Time.deltaTime * 10f);
+
+            if (lockImage != null) lockImage.color = lockNeutralColor;
         }
 
         UpdateTransforms();
