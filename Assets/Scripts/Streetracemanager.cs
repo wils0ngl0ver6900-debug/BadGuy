@@ -48,6 +48,16 @@ public class StreetRaceManager : MonoBehaviour
     [Tooltip("Texte affichant 'Tour X/Y' pendant la course.")]
     public TMPro.TextMeshProUGUI lapCounterText;
 
+    [Header("Halo lumineux au prochain checkpoint")]
+    [Tooltip("Prefab d'un halo/effet lumineux (particules, Light, décal au sol...) marquant le PROCHAIN point du circuit à atteindre pour le joueur. Instancié une fois au départ, repositionné automatiquement sur le point suivant à mesure que tu avances — laisse vide pour ne pas en avoir.")]
+    public GameObject checkpointHaloPrefab;
+    [Tooltip("Décalage vertical du halo par rapport au point du circuit (pour qu'il flotte au-dessus de la route plutôt que dedans).")]
+    public float checkpointHaloHeightOffset = 1f;
+    [Tooltip("Distance MINIMALE (m) entre deux checkpoints affichés. Si tes nœuds de circuit sont rapprochés par endroits, le halo sautait de l'un à l'autre trop vite pour donner une impression d'espacement propre — avec ceci, seul un sous-ensemble de nœuds suffisamment espacés reçoit le halo, les autres sont ignorés pour l'affichage (le comptage de tours, lui, continue d'utiliser TOUS les nœuds, inchangé).")]
+    public float minCheckpointSpacing = 25f;
+    private System.Collections.Generic.List<int> significantCheckpointIndices = new System.Collections.Generic.List<int>();
+    private GameObject spawnedCheckpointHalo;
+
     [Header("UI à masquer pendant la course")]
     [Tooltip("Objets d'UI désactivés pendant la course et réactivés à la fin (hotbar, minimap, étoiles de recherche...). Glisse ici les panels concernés de ta Hierarchy.")]
     public GameObject[] uiToHideDuringRace;
@@ -107,6 +117,67 @@ public class StreetRaceManager : MonoBehaviour
             int lapShown = Mathf.Min(playerParticipant.lapsCompleted + 1, lapsToWin);
             lapCounterText.text = $"Tour {lapShown}/{lapsToWin}";
         }
+
+        UpdateCheckpointHalo();
+    }
+
+    // Repositionne le halo sur le PROCHAIN checkpoint SIGNIFICATIF (voir Min Checkpoint
+    // Spacing) pour le joueur, à mesure que RaceParticipant.CurrentWaypointIndex avance —
+    // donne l'impression que le halo "disparaît" du point qu'on vient de passer et
+    // réapparaît sur le suivant, sans jamais sauter entre des nœuds trop rapprochés.
+    private void UpdateCheckpointHalo()
+    {
+        if (!raceActive || checkpointHaloPrefab == null || raceCircuit == null || playerParticipant == null || playerParticipant.hasFinished)
+        {
+            if (spawnedCheckpointHalo != null) spawnedCheckpointHalo.SetActive(false);
+            return;
+        }
+
+        if (spawnedCheckpointHalo == null)
+        {
+            spawnedCheckpointHalo = Instantiate(checkpointHaloPrefab);
+        }
+
+        if (!spawnedCheckpointHalo.activeSelf) spawnedCheckpointHalo.SetActive(true);
+
+        int targetIndex = GetNextSignificantCheckpointIndex();
+        Vector3 targetPoint = raceCircuit.GetPoint(targetIndex);
+        spawnedCheckpointHalo.transform.position = targetPoint + Vector3.up * checkpointHaloHeightOffset;
+    }
+
+    // Construit, une fois au départ, la liste des nœuds du circuit suffisamment espacés
+    // (Min Checkpoint Spacing) pour servir de checkpoints AFFICHÉS — indépendant du
+    // comptage de tours (RaceParticipant), qui continue d'utiliser TOUS les nœuds pour la
+    // précision anti-triche, inchangé.
+    private void BuildSignificantCheckpoints()
+    {
+        significantCheckpointIndices.Clear();
+        if (raceCircuit == null || raceCircuit.Count == 0) return;
+
+        significantCheckpointIndices.Add(0);
+        Vector3 lastPos = raceCircuit.GetPoint(0);
+
+        for (int i = 1; i < raceCircuit.Count; i++)
+        {
+            Vector3 pos = raceCircuit.GetPoint(i);
+            if (Vector3.Distance(pos, lastPos) >= minCheckpointSpacing)
+            {
+                significantCheckpointIndices.Add(i);
+                lastPos = pos;
+            }
+        }
+    }
+
+    private int GetNextSignificantCheckpointIndex()
+    {
+        int currentIndex = playerParticipant.CurrentWaypointIndex;
+        foreach (int idx in significantCheckpointIndices)
+        {
+            if (idx >= currentIndex) return idx;
+        }
+        // Personne trouvé après (fin de liste, dernier tronçon avant la ligne) -> revient
+        // vers le premier checkpoint significatif (le circuit boucle de toute façon).
+        return significantCheckpointIndices.Count > 0 ? significantCheckpointIndices[0] : currentIndex;
     }
 
     // Appelée depuis CallApp quand le joueur répond "Oui" à Black Knight.
@@ -138,6 +209,8 @@ public class StreetRaceManager : MonoBehaviour
         // Marqué dès le lancement effectif (pas seulement en cas de victoire) — comme un
         // job, la tentative "consomme" la course du jour, gagnée ou perdue.
         if (TimeManager.Instance != null) lastRaceDay = TimeManager.Instance.currentDay;
+
+        BuildSignificantCheckpoints();
 
         StartCoroutine(StartRaceRoutine(playerObj));
     }
@@ -648,6 +721,12 @@ public class StreetRaceManager : MonoBehaviour
     private IEnumerator CleanupRaceRoutine()
     {
         raceActive = false;
+
+        if (spawnedCheckpointHalo != null)
+        {
+            Destroy(spawnedCheckpointHalo);
+            spawnedCheckpointHalo = null;
+        }
 
         CallApp.ReleaseCallBlock();
 

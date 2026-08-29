@@ -163,14 +163,28 @@ public class CarInteraction : MonoBehaviour
         carCamera.SetActive(false);
 
         // Recalage au sol par raycast : exitPoint suppose une voiture à peu près à plat sur
-        // une surface normale. Après un accident violent (voiture retournée, encastrée...),
-        // sa position réelle peut être n'importe où — sans ce recalage, le joueur pouvait
-        // atterrir sous la carte lors d'une éjection d'urgence (CarExplosionImproved).
+        // une surface normale. Après un accident très violent (voitures boostées, hauts
+        // impacts), la voiture peut s'être enfoncée profondément dans le décor — un rayon
+        // partant d'à peine 5 unités au-dessus pouvait alors démarrer DÉJÀ sous le vrai sol
+        // et ne jamais le retrouver en descendant : c'est ce qui envoyait le joueur sous la
+        // carte 9 fois sur 10 lors d'une éjection d'urgence. Départ bien plus haut (100
+        // unités) pour garantir de partir au-dessus de n'importe quel enfoncement plausible,
+        // + repli sur la position du châssis de la voiture (transform.position, plus stable
+        // qu'un exitPoint enfant si la voiture est retournée) si le premier essai échoue.
         Vector3 targetPosition = worldPosition;
-        if (Physics.Raycast(targetPosition + Vector3.up * 5f, Vector3.down, out RaycastHit groundHit, 20f))
+        bool foundGround = Physics.Raycast(targetPosition + Vector3.up * 100f, Vector3.down, out RaycastHit groundHit, 200f);
+
+        if (!foundGround && carController != null)
+        {
+            foundGround = Physics.Raycast(carController.transform.position + Vector3.up * 100f, Vector3.down, out groundHit, 200f);
+        }
+
+        if (foundGround)
         {
             targetPosition = groundHit.point + Vector3.up * 0.1f;
         }
+        // Si même ce repli échoue (aucun collider de sol détecté du tout, cas très rare),
+        // on garde worldPosition tel quel plutôt que de risquer une position pire.
 
         // On téléporte via le Rigidbody plutôt que via transform.position directement :
         // sur un objet à Rigidbody, forcer transform.position désynchronise le moteur physique
