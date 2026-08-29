@@ -18,7 +18,7 @@ public class RaceParticipant : MonoBehaviour
 
     private RaceCircuit raceCircuit;
     private int currentWaypointIndex = 1; // le prochain point du circuit qu'on attend
-    private const float WAYPOINT_RADIUS = 6f;
+    private const float WAYPOINT_RADIUS = 14f;
     public int CurrentWaypointIndex => currentWaypointIndex;
 
     private StreetRaceManager raceManager;
@@ -46,7 +46,12 @@ public class RaceParticipant : MonoBehaviour
         if (raceCircuit != null && raceCircuit.Count > 0)
         {
             Vector3 nextPoint = raceCircuit.GetPoint(currentWaypointIndex);
-            if (Vector3.Distance(transform.position, nextPoint) < WAYPOINT_RADIUS)
+            // Distance horizontale uniquement (ignore Y) : un léger écart de hauteur entre
+            // le pivot de la voiture et le nœud du circuit ne doit pas grignoter la marge de
+            // tolérance — sinon on pouvait passer visiblement à côté sans que ça compte.
+            Vector3 flatDiff = transform.position - nextPoint;
+            flatDiff.y = 0f;
+            if (flatDiff.magnitude < WAYPOINT_RADIUS)
             {
                 currentWaypointIndex++;
             }

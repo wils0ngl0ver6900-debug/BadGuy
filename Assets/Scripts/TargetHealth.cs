@@ -67,7 +67,8 @@ public class TargetHealth : MonoBehaviour
         }
 
         currentHealth -= amount;
-        if (UIManager.Instance != null) UIManager.Instance.ShowNotification($"Touché ! -{amount} PV");
+        bool byPlayer = attacker != null && attacker.CompareTag("Player");
+        if (byPlayer && UIManager.Instance != null) UIManager.Instance.ShowNotification($"Touché ! -{amount} PV");
 
         if (currentHealth <= 0)
         {
@@ -75,7 +76,7 @@ public class TargetHealth : MonoBehaviour
         }
         else
         {
-            if (attacker != null && attacker.CompareTag("Player") && GameManager.Instance != null)
+            if (byPlayer && GameManager.Instance != null)
             {
                 GameManager.Instance.ReportHitOrMurder(isMelee);
             }
@@ -85,14 +86,18 @@ public class TargetHealth : MonoBehaviour
     void Die(GameObject attacker = null, bool isMelee = false)
     {
         isDead = true;
-        if (UIManager.Instance != null) UIManager.Instance.ShowNotification("Cible éliminée !");
+        bool byPlayer = attacker != null && attacker.CompareTag("Player");
+        // Seul un tir du JOUEUR affiche cette notification — un gang qui abat un autre gang
+        // (ou un PNJ tué par un autre PNJ en général) n'implique pas le joueur, ça n'a rien
+        // à faire dans son fil de notifications.
+        if (byPlayer && UIManager.Instance != null) UIManager.Instance.ShowNotification("Cible éliminée !");
 
-        if (isMelee && attacker != null && attacker.CompareTag("Player") && GameManager.Instance != null)
+        if (isMelee && byPlayer && GameManager.Instance != null)
         {
             GameManager.Instance.RegisterUnarmedKill();
         }
 
-        if (attacker != null && attacker.CompareTag("Player") && GameManager.Instance != null)
+        if (byPlayer && GameManager.Instance != null)
         {
             GameManager.Instance.ReportHitOrMurder(isMelee);
         }
