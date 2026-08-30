@@ -197,14 +197,19 @@ public class RoadNodeTool : EditorWindow
 
         for (int i = 0; i < waypoints.Count - 1; i++)
         {
-            Vector3 start = waypoints[i];
-            Vector3 end = waypoints[i + 1];
+            // p0/p3 = voisins (avant/après), utilisés uniquement pour donner à la courbe une
+            // tangente cohérente à l'approche — la courbe elle-même passe exactement par p1
+            // et p2 (les deux points réellement posés pour ce tronçon), jamais par p0/p3.
+            Vector3 p0 = waypoints[Mathf.Max(0, i - 1)];
+            Vector3 p1 = waypoints[i];
+            Vector3 p2 = waypoints[i + 1];
+            Vector3 p3 = waypoints[Mathf.Min(waypoints.Count - 1, i + 2)];
 
-            PlaceRoadSegments(start, end, roadRoot);
+            PlaceRoadSegmentsCurved(p0, p1, p2, p3, roadRoot);
 
             if (generateNodes)
             {
-                CreateNodesAlongSegment(start, end, i == 0, nodeRoot, createdNodes);
+                CreateNodesAlongCurve(p0, p1, p2, p3, i == 0, nodeRoot, createdNodes);
             }
         }
 
@@ -213,42 +218,62 @@ public class RoadNodeTool : EditorWindow
         Debug.Log($"[RoadNodeTool] Tracé généré : {waypoints.Count - 1} tronçon(s), {createdNodes.Count} TrafficNode créé(s) et relié(s).");
     }
 
-    private void PlaceRoadSegments(Vector3 start, Vector3 end, Transform root)
+    // Interpolation Catmull-Rom : courbe lisse qui passe exactement par p1 et p2, en
+    // s'appuyant sur p0/p3 pour orienter la tangente à l'approche/la sortie — technique
+    // standard pour faire passer une courbe douce à travers une série de points, sans
+    // toucher à la géométrie des prefabs (juste du positionnement, pas de risque de
+    // plantage lié à une manipulation de mesh).
+    private Vector3 CatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
     {
-        float totalDist = Vector3.Distance(start, end);
-        Vector3 dir = (end - start).normalized;
-        Quaternion rot = Quaternion.LookRotation(dir);
-        // LookRotation aligne l'axe Z local sur la direction — si le prefab est modélisé le
-        // long de X (choix fait plus haut dans l'UI), on compense pour que ce soit bien SON
-        // axe long qui pointe dans la direction du tracé, pas Z par défaut.
-        if (prefabLengthAxis == 0) rot *= Quaternion.Euler(0f, 90f, 0f);
+        float t2 = t * t;
+        float t3 = t2 * t;
+        return 0.5f * (
+            (2f * p1) +
+            (-p0 + p2) * t +
+            (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
+            (-p0 + 3f * p1 - 3f * p2 + p3) * t3
+        );
+    }
 
-        int segmentCount = Mathf.Max(1, Mathf.RoundToInt(totalDist / segmentLength));
-        float actualSegLength = totalDist / segmentCount; // ajuste légèrement pour couvrir pile la distance entre les deux points
+    private void PlaceRoadSegmentsCurved(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, Transform root)
+    {
+        float approxDist = Vector3.Distance(p1, p2);
+        int segmentCount = Mathf.Max(1, Mathf.RoundToInt(approxDist / segmentLength));
 
         for (int s = 0; s < segmentCount; s++)
         {
-            Vector3 segStart = start + dir * (actualSegLength * s);
-            Vector3 segCenter = segStart + dir * (actualSegLength / 2f) + Vector3.up * roadYOffset;
+            float tStart = (float)s / segmentCount;
+            float tEnd = (float)(s + 1) / segmentCount;
+            float tMid = (tStart + tEnd) / 2f;
+
+            Vector3 posStart = CatmullRom(p0, p1, p2, p3, tStart);
+            Vector3 posEnd = CatmullRom(p0, p1, p2, p3, tEnd);
+            Vector3 posMid = CatmullRom(p0, p1, p2, p3, tMid);
+
+            Vector3 dir = (posEnd - posStart).normalized;
+            if (dir == Vector3.zero) dir = (p2 - p1).normalized; // repli si deux points quasi identiques
+
+            Quaternion rot = Quaternion.LookRotation(dir);
+            if (prefabLengthAxis == 0) rot *= Quaternion.Euler(0f, 90f, 0f);
 
             GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(roadSegmentPrefab, root);
-            instance.transform.position = segCenter;
+            instance.transform.position = posMid + Vector3.up * roadYOffset;
             instance.transform.rotation = rot;
             Undo.RegisterCreatedObjectUndo(instance, "Générer route");
         }
     }
 
-    private void CreateNodesAlongSegment(Vector3 start, Vector3 end, bool includeStart, Transform root, List<TrafficNode> createdNodes)
+    private void CreateNodesAlongCurve(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, bool includeStart, Transform root, List<TrafficNode> createdNodes)
     {
         if (includeStart)
         {
-            createdNodes.Add(CreateNode(start, root, createdNodes.Count));
+            createdNodes.Add(CreateNode(p1, root, createdNodes.Count));
         }
 
         for (int i = 1; i <= nodesPerSegment; i++)
         {
             float t = (float)i / nodesPerSegment;
-            Vector3 pos = Vector3.Lerp(start, end, t);
+            Vector3 pos = CatmullRom(p0, p1, p2, p3, t);
             createdNodes.Add(CreateNode(pos, root, createdNodes.Count));
         }
     }
