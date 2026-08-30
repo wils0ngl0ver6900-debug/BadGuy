@@ -20,6 +20,7 @@ public class RoadNodeTool : EditorWindow
     private GameObject roadSegmentPrefab;
     private float segmentLength = 10f;
     private float roadYOffset = 0f;
+    private int prefabLengthAxis = 2; // 0=X, 2=Z (le plus courant pour une route)
 
     private bool generateNodes = true;
     private int nodesPerSegment = 1;
@@ -69,7 +70,19 @@ public class RoadNodeTool : EditorWindow
         GUILayout.Space(12);
         EditorGUILayout.LabelField("Route", EditorStyles.boldLabel);
         roadSegmentPrefab = (GameObject)EditorGUILayout.ObjectField("Prefab de segment (droit)", roadSegmentPrefab, typeof(GameObject), false);
+
+        EditorGUILayout.BeginHorizontal();
         segmentLength = EditorGUILayout.FloatField("Longueur réelle du prefab (m)", segmentLength);
+        using (new EditorGUI.DisabledScope(roadSegmentPrefab == null))
+        {
+            if (GUILayout.Button("Mesurer auto", GUILayout.Width(100)))
+            {
+                segmentLength = MeasurePrefabLength(roadSegmentPrefab);
+                Debug.Log($"[RoadNodeTool] Longueur mesurée : {segmentLength:F2}m.");
+            }
+        }
+        EditorGUILayout.EndHorizontal();
+        prefabLengthAxis = EditorGUILayout.Popup("Axe le long duquel le prefab est modélisé", prefabLengthAxis, new string[] { "X", "Y", "Z" });
         roadYOffset = EditorGUILayout.FloatField("Décalage vertical de la route", roadYOffset);
         EditorGUILayout.HelpBox("Le prefab est répété (\"carrelé\") entre chaque paire de points consécutifs plutôt qu'étiré — rendu propre peu importe la distance entre deux points. Indique la longueur RÉELLE de ton prefab pour un carrelage correct (mesure-le dans l'Inspector si besoin).", MessageType.None);
 
@@ -110,6 +123,34 @@ public class RoadNodeTool : EditorWindow
             if (!string.IsNullOrEmpty(name)) layers.Add(name);
         }
         return EditorGUILayout.MaskField(label, mask, layers.ToArray());
+    }
+
+    // Mesure la vraie longueur du prefab en l'instanciant temporairement à l'origine (lire
+    // les bounds d'un prefab ASSET non-instancié n'est pas fiable) — élimine le risque de se
+    // tromper en estimant à l'œil, cause la plus probable d'un chevauchement/scintillement
+    // entre segments (Z-fighting) si la valeur entrée à la main est trop courte.
+    private float MeasurePrefabLength(GameObject prefab)
+    {
+        GameObject temp = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+        temp.transform.position = Vector3.zero;
+        temp.transform.rotation = Quaternion.identity;
+
+        Renderer[] renderers = temp.GetComponentsInChildren<Renderer>();
+        float length = segmentLength;
+
+        if (renderers.Length > 0)
+        {
+            Bounds combined = renderers[0].bounds;
+            foreach (Renderer r in renderers) combined.Encapsulate(r.bounds);
+            length = prefabLengthAxis == 0 ? combined.size.x : (prefabLengthAxis == 1 ? combined.size.y : combined.size.z);
+        }
+        else
+        {
+            Debug.LogWarning("[RoadNodeTool] Aucun Renderer trouvé sur ce prefab, mesure impossible — valeur inchangée.");
+        }
+
+        DestroyImmediate(temp);
+        return length;
     }
 
     private void OnFocus()
@@ -177,6 +218,10 @@ public class RoadNodeTool : EditorWindow
         float totalDist = Vector3.Distance(start, end);
         Vector3 dir = (end - start).normalized;
         Quaternion rot = Quaternion.LookRotation(dir);
+        // LookRotation aligne l'axe Z local sur la direction — si le prefab est modélisé le
+        // long de X (choix fait plus haut dans l'UI), on compense pour que ce soit bien SON
+        // axe long qui pointe dans la direction du tracé, pas Z par défaut.
+        if (prefabLengthAxis == 0) rot *= Quaternion.Euler(0f, 90f, 0f);
 
         int segmentCount = Mathf.Max(1, Mathf.RoundToInt(totalDist / segmentLength));
         float actualSegLength = totalDist / segmentCount; // ajuste légèrement pour couvrir pile la distance entre les deux points
