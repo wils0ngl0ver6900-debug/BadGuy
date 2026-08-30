@@ -33,6 +33,13 @@ public class WorldPopulationManager : MonoBehaviour
     public float carDespawnDist = 160f;
     public float carSpawnCooldown = 3f;
 
+    [Header("Course en cours")]
+    [Tooltip("Distance (m) autour de CHAQUE point du circuit de course considérée comme \"zone de course\" — aucune génération de piéton/voiture n'y a lieu tant qu'une course est active (StreetRaceManager.IsRaceActive()). Le reste de la ville continue de vivre normalement.")]
+    public float raceZoneRadius = 25f;
+    [Tooltip("Coché : au lancement d'une course, détruit aussi les piétons/voitures déjà générés qui se trouvent dans la zone de course (pas ceux placés à la main dans la scène — uniquement ceux issus de ce script).")]
+    public bool clearZoneOnRaceStart = true;
+    private bool wasRaceActiveLastFrame = false;
+
     private const int MAX_SPAWN_ATTEMPTS = 10;
 
     private List<GameObject> activePedestrians = new List<GameObject>();
@@ -63,9 +70,56 @@ public class WorldPopulationManager : MonoBehaviour
     {
         if (player == null) return;
 
+        bool raceActiveNow = StreetRaceManager.Instance != null && StreetRaceManager.Instance.IsRaceActive();
+        if (raceActiveNow && !wasRaceActiveLastFrame && clearZoneOnRaceStart)
+        {
+            ClearGeneratedEntitiesInRaceZone();
+        }
+        wasRaceActiveLastFrame = raceActiveNow;
+
         DespawnFarEntities();
         ManagePedestrianSpawning();
         ManageCarSpawning();
+    }
+
+    // Ne détruit QUE les entités générées par ce script (activePedestrians/activeCars) —
+    // jamais les PNJ/voitures placés à la main dans la scène, qui ne sont pas dans ces listes.
+    private void ClearGeneratedEntitiesInRaceZone()
+    {
+        for (int i = activePedestrians.Count - 1; i >= 0; i--)
+        {
+            if (activePedestrians[i] != null && IsInsideActiveRaceZone(activePedestrians[i].transform.position))
+            {
+                Destroy(activePedestrians[i]);
+                activePedestrians.RemoveAt(i);
+            }
+        }
+
+        for (int i = activeCars.Count - 1; i >= 0; i--)
+        {
+            if (activeCars[i] != null && IsInsideActiveRaceZone(activeCars[i].transform.position))
+            {
+                Destroy(activeCars[i]);
+                activeCars.RemoveAt(i);
+            }
+        }
+    }
+
+    // Vrai si une course est active ET que la position donnée est proche d'un point du
+    // circuit — indépendant de raceActiveNow (cache déjà lu une fois par frame dans
+    // Update, mais revérifié ici pour rester utilisable seul si appelé ailleurs).
+    private bool IsInsideActiveRaceZone(Vector3 pos)
+    {
+        if (StreetRaceManager.Instance == null || !StreetRaceManager.Instance.IsRaceActive()) return false;
+
+        RaceCircuit circuit = StreetRaceManager.Instance.raceCircuit;
+        if (circuit == null || circuit.Count == 0) return false;
+
+        for (int i = 0; i < circuit.Count; i++)
+        {
+            if (Vector3.Distance(pos, circuit.GetPoint(i)) < raceZoneRadius) return true;
+        }
+        return false;
     }
 
     private void DespawnFarEntities()
@@ -134,6 +188,8 @@ public class WorldPopulationManager : MonoBehaviour
                 continue;
             if (IsOnScreen(hit.position))
                 continue;
+            if (IsInsideActiveRaceZone(hit.position))
+                continue;
 
             result = hit.position;
             return true;
@@ -149,7 +205,7 @@ public class WorldPopulationManager : MonoBehaviour
         foreach (TrafficNode node in allNodes)
         {
             float dist = Vector3.Distance(player.position, node.transform.position);
-            if (dist >= minDist && dist <= maxDist && !IsOnScreen(node.transform.position))
+            if (dist >= minDist && dist <= maxDist && !IsOnScreen(node.transform.position) && !IsInsideActiveRaceZone(node.transform.position))
                 valid.Add(node);
         }
 
