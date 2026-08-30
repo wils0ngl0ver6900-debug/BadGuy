@@ -16,6 +16,7 @@ GameObject:
   - component: {fileID: 4338613640992667006}
   - component: {fileID: 8320803749360906426}
   - component: {fileID: 6692233687137295573}
+  - component: {fileID: 849565182194277783}
   m_Layer: 14
   m_Name: "Pi\xE9ton_PNJ"
   m_TagString: Untagged
@@ -198,6 +199,48 @@ NavMeshAgent:
   m_BaseOffset: 1
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!114 &849565182194277783
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6512716062819704709}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c23da36fdd9a8246bbe4a0bf13356d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::NPCBrain
+  role: 0
+  faction: 0
+  locomotion: 0
+  currentState: 0
+  walkSpeed: 1.5
+  runSpeed: 5
+  visionRange: 25
+  viewAngle: 90
+  obstacleMask:
+    serializedVersion: 2
+    m_Bits: 0
+  currentTrafficNode: {fileID: 0}
+  bulletPrefab: {fileID: 0}
+  firePoint: {fileID: 0}
+  fireRate: 0.5
+  attackDamage: 15
+  muzzleFlashLight: {fileID: 0}
+  equippedWeapon: {fileID: 0}
+  weaponHandSocket: {fileID: 0}
+  weaponPositionOffset: {x: 0.18, y: -0.07, z: -0.35}
+  weaponRotationOffset: {x: 15.95, y: 30, z: 90}
+  weaponScaleOffset: {x: 0.055, y: 0.015, z: 0.04}
+  copPedestrianPrefab: {fileID: 0}
+  exitDoors: []
+  isSeeingPlayer: 0
+  leader: {fileID: 0}
+  maxSearchDuration: 18
+  searchRadiusStart: 3
+  searchRadiusEnd: 6
+  backupAlertRadius: 25
 --- !u!1001 &181521805300510164
 PrefabInstance:
   m_ObjectHideFlags: 0
