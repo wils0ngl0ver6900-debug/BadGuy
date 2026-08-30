@@ -22,6 +22,12 @@ public class RoadNodeTool : EditorWindow
     private float roadYOffset = 0f;
     private int prefabLengthAxis = 2; // 0=X, 2=Z (le plus courant pour une route)
 
+    private bool useBentMesh = true;
+    private float roadWidth = 8f;
+    private float uvTileLength = 10f;
+    private bool addMeshCollider = true;
+    private int slicesPerMeter = 2; // densité de subdivision de la courbe (plus haut = plus lisse, plus de triangles)
+
     private bool generateNodes = true;
     private int nodesPerSegment = 1;
     private bool bidirectional = true;
@@ -69,22 +75,36 @@ public class RoadNodeTool : EditorWindow
 
         GUILayout.Space(12);
         EditorGUILayout.LabelField("Route", EditorStyles.boldLabel);
-        roadSegmentPrefab = (GameObject)EditorGUILayout.ObjectField("Prefab de segment (droit)", roadSegmentPrefab, typeof(GameObject), false);
+        roadSegmentPrefab = (GameObject)EditorGUILayout.ObjectField(useBentMesh ? "Prefab (pour sa texture/matériau)" : "Prefab de segment (droit)", roadSegmentPrefab, typeof(GameObject), false);
 
-        EditorGUILayout.BeginHorizontal();
-        segmentLength = EditorGUILayout.FloatField("Longueur réelle du prefab (m)", segmentLength);
-        using (new EditorGUI.DisabledScope(roadSegmentPrefab == null))
+        useBentMesh = EditorGUILayout.Toggle("Route courbée (mesh généré)", useBentMesh);
+
+        if (useBentMesh)
         {
-            if (GUILayout.Button("Mesurer auto", GUILayout.Width(100)))
-            {
-                segmentLength = MeasurePrefabLength(roadSegmentPrefab);
-                Debug.Log($"[RoadNodeTool] Longueur mesurée : {segmentLength:F2}m.");
-            }
+            roadWidth = EditorGUILayout.FloatField("Largeur de la route (m)", roadWidth);
+            uvTileLength = EditorGUILayout.FloatField("Répétition de la texture tous les (m)", uvTileLength);
+            slicesPerMeter = EditorGUILayout.IntSlider("Subdivisions par mètre (lissage)", slicesPerMeter, 1, 5);
+            addMeshCollider = EditorGUILayout.Toggle("Ajouter un Mesh Collider", addMeshCollider);
+            roadYOffset = EditorGUILayout.FloatField("Décalage vertical de la route", roadYOffset);
+            EditorGUILayout.HelpBox("Génère un VRAI mesh de ruban qui suit la courbe sans aucun angle, peu importe la sévérité du virage — plus de tuiles rigides qui se chevauchent. Le matériau du prefab ci-dessus est réutilisé tel quel ; sa géométrie de détail (bordures, trottoirs...) n'est PAS reproduite, seulement une bande plate à la largeur indiquée.", MessageType.Info);
         }
-        EditorGUILayout.EndHorizontal();
-        prefabLengthAxis = EditorGUILayout.Popup("Axe le long duquel le prefab est modélisé", prefabLengthAxis, new string[] { "X", "Y", "Z" });
-        roadYOffset = EditorGUILayout.FloatField("Décalage vertical de la route", roadYOffset);
-        EditorGUILayout.HelpBox("Le prefab est répété (\"carrelé\") entre chaque paire de points consécutifs plutôt qu'étiré — rendu propre peu importe la distance entre deux points. Indique la longueur RÉELLE de ton prefab pour un carrelage correct (mesure-le dans l'Inspector si besoin).", MessageType.None);
+        else
+        {
+            EditorGUILayout.BeginHorizontal();
+            segmentLength = EditorGUILayout.FloatField("Longueur réelle du prefab (m)", segmentLength);
+            using (new EditorGUI.DisabledScope(roadSegmentPrefab == null))
+            {
+                if (GUILayout.Button("Mesurer auto", GUILayout.Width(100)))
+                {
+                    segmentLength = MeasurePrefabLength(roadSegmentPrefab);
+                    Debug.Log($"[RoadNodeTool] Longueur mesurée : {segmentLength:F2}m.");
+                }
+            }
+            EditorGUILayout.EndHorizontal();
+            prefabLengthAxis = EditorGUILayout.Popup("Axe le long duquel le prefab est modélisé", prefabLengthAxis, new string[] { "X", "Y", "Z" });
+            roadYOffset = EditorGUILayout.FloatField("Décalage vertical de la route", roadYOffset);
+            EditorGUILayout.HelpBox("Réutilise tes tuiles telles quelles, avec tous leurs détails (bordures, trottoirs...) — mais des angles restent visibles sur les virages serrés, la tuile étant rigide. Réservé aux tracés surtout droits ou aux virages très larges.", MessageType.None);
+        }
 
         GUILayout.Space(12);
         EditorGUILayout.LabelField("Circulation IA (TrafficNode)", EditorStyles.boldLabel);
@@ -96,7 +116,7 @@ public class RoadNodeTool : EditorWindow
         }
 
         GUILayout.Space(16);
-        using (new EditorGUI.DisabledScope(waypoints.Count < 2 || roadSegmentPrefab == null))
+        using (new EditorGUI.DisabledScope(waypoints.Count < 2 || (!useBentMesh && roadSegmentPrefab == null)))
         {
             if (GUILayout.Button("Générer", GUILayout.Height(32)))
             {
@@ -205,7 +225,14 @@ public class RoadNodeTool : EditorWindow
             Vector3 p2 = waypoints[i + 1];
             Vector3 p3 = waypoints[Mathf.Min(waypoints.Count - 1, i + 2)];
 
-            PlaceRoadSegmentsCurved(p0, p1, p2, p3, roadRoot);
+            if (useBentMesh)
+            {
+                GenerateBentRoadMesh(p0, p1, p2, p3, roadRoot);
+            }
+            else
+            {
+                PlaceRoadSegmentsCurved(p0, p1, p2, p3, roadRoot);
+            }
 
             if (generateNodes)
             {
@@ -233,6 +260,92 @@ public class RoadNodeTool : EditorWindow
             (2f * p0 - 5f * p1 + 4f * p2 - p3) * t2 +
             (-p0 + 3f * p1 - 3f * p2 + p3) * t3
         );
+    }
+
+    // Génère un VRAI mesh de ruban qui suit la courbe — extrusion classique d'un profil
+    // (ici : une simple bande plate à largeur fixe) le long d'une trajectoire, technique de
+    // base bien maîtrisée, pas de génération procédurale complexe (pas d'intersections, pas
+    // de LOD, pas de logique de jonction) — juste des positions calculées et une grille de
+    // triangles, donc un risque de plantage très faible malgré le fait que ce soit un
+    // "vrai" mesh généré.
+    private void GenerateBentRoadMesh(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, Transform root)
+    {
+        float approxLength = Vector3.Distance(p1, p2);
+        int sliceCount = Mathf.Max(2, Mathf.RoundToInt(approxLength * slicesPerMeter));
+
+        Vector3[] centers = new Vector3[sliceCount + 1];
+        Vector3[] rights = new Vector3[sliceCount + 1];
+        float[] cumulativeDist = new float[sliceCount + 1];
+
+        for (int i = 0; i <= sliceCount; i++)
+        {
+            float t = (float)i / sliceCount;
+            centers[i] = CatmullRom(p0, p1, p2, p3, t) + Vector3.up * roadYOffset;
+        }
+
+        for (int i = 0; i <= sliceCount; i++)
+        {
+            Vector3 tangent;
+            if (i == 0) tangent = (centers[1] - centers[0]).normalized;
+            else if (i == sliceCount) tangent = (centers[sliceCount] - centers[sliceCount - 1]).normalized;
+            else tangent = (centers[i + 1] - centers[i - 1]).normalized;
+
+            if (tangent == Vector3.zero) tangent = (p2 - p1).normalized; // repli si deux tranches quasi identiques
+
+            rights[i] = Vector3.Cross(Vector3.up, tangent).normalized;
+            cumulativeDist[i] = i == 0 ? 0f : cumulativeDist[i - 1] + Vector3.Distance(centers[i - 1], centers[i]);
+        }
+
+        Vector3[] verts = new Vector3[(sliceCount + 1) * 2];
+        Vector2[] uvs = new Vector2[(sliceCount + 1) * 2];
+        List<int> tris = new List<int>((sliceCount) * 6);
+
+        for (int i = 0; i <= sliceCount; i++)
+        {
+            Vector3 halfWidth = rights[i] * (roadWidth / 2f);
+            verts[i * 2] = centers[i] - halfWidth;
+            verts[i * 2 + 1] = centers[i] + halfWidth;
+
+            float v = cumulativeDist[i] / Mathf.Max(0.01f, uvTileLength);
+            uvs[i * 2] = new Vector2(0f, v);
+            uvs[i * 2 + 1] = new Vector2(1f, v);
+
+            if (i < sliceCount)
+            {
+                int a = i * 2, b = i * 2 + 1, c = (i + 1) * 2, d = (i + 1) * 2 + 1;
+                tris.Add(a); tris.Add(c); tris.Add(b);
+                tris.Add(b); tris.Add(c); tris.Add(d);
+            }
+        }
+
+        Mesh mesh = new Mesh();
+        mesh.name = "RoadSegment_Bent";
+        mesh.vertices = verts;
+        mesh.uv = uvs;
+        mesh.triangles = tris.ToArray();
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+        mesh.RecalculateTangents();
+
+        GameObject go = new GameObject($"RoadSegment_Bent_{root.childCount}");
+        go.transform.SetParent(root);
+        go.transform.position = Vector3.zero;
+        go.transform.rotation = Quaternion.identity;
+
+        MeshFilter mf = go.AddComponent<MeshFilter>();
+        mf.sharedMesh = mesh;
+
+        MeshRenderer mr = go.AddComponent<MeshRenderer>();
+        Renderer sourceRenderer = roadSegmentPrefab != null ? roadSegmentPrefab.GetComponentInChildren<Renderer>() : null;
+        if (sourceRenderer != null) mr.sharedMaterial = sourceRenderer.sharedMaterial;
+
+        if (addMeshCollider)
+        {
+            MeshCollider mc = go.AddComponent<MeshCollider>();
+            mc.sharedMesh = mesh;
+        }
+
+        Undo.RegisterCreatedObjectUndo(go, "Générer route courbée");
     }
 
     private void PlaceRoadSegmentsCurved(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, Transform root)
