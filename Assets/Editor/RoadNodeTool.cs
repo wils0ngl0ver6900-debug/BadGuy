@@ -237,18 +237,35 @@ public class RoadNodeTool : EditorWindow
 
     private void PlaceRoadSegmentsCurved(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, Transform root)
     {
-        float approxDist = Vector3.Distance(p1, p2);
-        int segmentCount = Mathf.Max(1, Mathf.RoundToInt(approxDist / segmentLength));
+        // Échantillonne finement la courbe pour connaître sa VRAIE longueur — une courbe
+        // Catmull-Rom peut "bomber" entre p1 et p2, donc le vrai trajet est souvent plus
+        // long que la distance à vol d'oiseau. Espacer les tuiles par paramètre t (comme
+        // avant) plaçait les tuiles à des distances réelles inégales et laissait des trous
+        // dans les zones où la courbe s'écarte le plus de la ligne droite.
+        const int sampleCount = 40;
+        Vector3[] samplePoints = new Vector3[sampleCount + 1];
+        float[] cumulativeDist = new float[sampleCount + 1];
+
+        for (int i = 0; i <= sampleCount; i++)
+        {
+            float tSample = (float)i / sampleCount;
+            samplePoints[i] = CatmullRom(p0, p1, p2, p3, tSample);
+            cumulativeDist[i] = i == 0 ? 0f : cumulativeDist[i - 1] + Vector3.Distance(samplePoints[i - 1], samplePoints[i]);
+        }
+
+        float totalCurveLength = cumulativeDist[sampleCount];
+        int segmentCount = Mathf.Max(1, Mathf.RoundToInt(totalCurveLength / segmentLength));
+        float actualSegLength = totalCurveLength / segmentCount;
 
         for (int s = 0; s < segmentCount; s++)
         {
-            float tStart = (float)s / segmentCount;
-            float tEnd = (float)(s + 1) / segmentCount;
-            float tMid = (tStart + tEnd) / 2f;
+            float distStart = actualSegLength * s;
+            float distEnd = actualSegLength * (s + 1);
+            float distMid = (distStart + distEnd) / 2f;
 
-            Vector3 posStart = CatmullRom(p0, p1, p2, p3, tStart);
-            Vector3 posEnd = CatmullRom(p0, p1, p2, p3, tEnd);
-            Vector3 posMid = CatmullRom(p0, p1, p2, p3, tMid);
+            Vector3 posStart = SampleByArcLength(samplePoints, cumulativeDist, distStart);
+            Vector3 posEnd = SampleByArcLength(samplePoints, cumulativeDist, distEnd);
+            Vector3 posMid = SampleByArcLength(samplePoints, cumulativeDist, distMid);
 
             Vector3 dir = (posEnd - posStart).normalized;
             if (dir == Vector3.zero) dir = (p2 - p1).normalized; // repli si deux points quasi identiques
@@ -261,6 +278,29 @@ public class RoadNodeTool : EditorWindow
             instance.transform.rotation = rot;
             Undo.RegisterCreatedObjectUndo(instance, "Générer route");
         }
+    }
+
+    // Trouve le point sur la courbe échantillonnée à une distance PARCOURUE donnée
+    // (interpolation linéaire entre les deux échantillons qui l'encadrent) — c'est ce qui
+    // garantit un espacement réel régulier entre les tuiles, pas juste régulier "sur le
+    // papier" du paramètre de la courbe.
+    private Vector3 SampleByArcLength(Vector3[] samplePoints, float[] cumulativeDist, float targetDist)
+    {
+        int count = samplePoints.Length;
+        if (targetDist <= 0f) return samplePoints[0];
+        if (targetDist >= cumulativeDist[count - 1]) return samplePoints[count - 1];
+
+        for (int i = 1; i < count; i++)
+        {
+            if (cumulativeDist[i] >= targetDist)
+            {
+                float segStart = cumulativeDist[i - 1];
+                float segEnd = cumulativeDist[i];
+                float localT = (targetDist - segStart) / (segEnd - segStart);
+                return Vector3.Lerp(samplePoints[i - 1], samplePoints[i], localT);
+            }
+        }
+        return samplePoints[count - 1];
     }
 
     private void CreateNodesAlongCurve(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, bool includeStart, Transform root, List<TrafficNode> createdNodes)
