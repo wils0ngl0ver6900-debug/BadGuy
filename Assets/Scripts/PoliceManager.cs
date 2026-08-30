@@ -156,20 +156,40 @@ public class PoliceManager : MonoBehaviour
     // AlertToAttack (à pied) — c'est ce qui manquait entièrement avant. Appelé à chaque
     // nouvelle étoile ET à chaque nouveau signalement, pour que les flics déjà actifs
     // réagissent aussi, pas seulement les nouveaux qui apparaissent.
+    //
+    // Verrou anti-récursion INDISPENSABLE : NPCBrain.AlertToAttack() (pour un Policier)
+    // rappelle PoliceManager.ReportPlayerSight() en toute fin de méthode ("appel radio" —
+    // code déjà existant, légitime, pas touché ici). Sans ce verrou, ça formait exactement
+    // ce cycle : AlertAllActiveCops -> AlertToAttack -> ReportPlayerSight ->
+    // AlertAllActiveCops -> ... jusqu'au stack overflow (planté en jeu en tirant près d'un
+    // policier). Le verrou empêche un second passage tant qu'un premier est en cours,
+    // peu importe lequel des deux points d'entrée (Update() ou ReportPlayerSight) l'a lancé.
+    private bool isAlertingCops = false;
+
     private void AlertAllActiveCops()
     {
-        foreach (GameObject cop in activeCops)
-        {
-            if (cop == null) continue;
-            CarAI ai = cop.GetComponent<CarAI>();
-            if (ai != null) ai.chaseTarget = player;
-        }
+        if (isAlertingCops) return;
+        isAlertingCops = true;
 
-        foreach (GameObject cop in activeFootCops)
+        try
         {
-            if (cop == null) continue;
-            NPCBrain brain = cop.GetComponent<NPCBrain>();
-            if (brain != null) brain.AlertToAttack(lastKnownPosition);
+            foreach (GameObject cop in activeCops)
+            {
+                if (cop == null) continue;
+                CarAI ai = cop.GetComponent<CarAI>();
+                if (ai != null) ai.chaseTarget = player;
+            }
+
+            foreach (GameObject cop in activeFootCops)
+            {
+                if (cop == null) continue;
+                NPCBrain brain = cop.GetComponent<NPCBrain>();
+                if (brain != null) brain.AlertToAttack(lastKnownPosition);
+            }
+        }
+        finally
+        {
+            isAlertingCops = false;
         }
     }
 
