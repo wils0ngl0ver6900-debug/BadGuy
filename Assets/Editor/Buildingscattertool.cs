@@ -20,6 +20,8 @@ public class BuildingScatterTool : EditorWindow
     private bool alignToGround = true;
     private LayerMask groundLayerMask = ~0;
     private int densityTarget = 40;
+    private LayerMask avoidLayerMask = 0;
+    private float avoidCheckRadius = 3f;
 
     [MenuItem("Tools/Générateur de bâtiments")]
     public static void ShowWindow()
@@ -68,6 +70,12 @@ public class BuildingScatterTool : EditorWindow
         snapRotationTo90 = EditorGUILayout.Toggle("Rotation alignée (0/90/180/270°)", snapRotationTo90);
         alignToGround = EditorGUILayout.Toggle("Poser au sol (rayon vers le bas)", alignToGround);
         groundLayerMask = LayerMaskField("Layer(s) considéré(s) comme sol", groundLayerMask);
+
+        GUILayout.Space(8);
+        EditorGUILayout.LabelField("Objets à éviter", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("Layer(s) des objets déjà présents à ne pas recouvrir (buissons, lampadaires, props divers...) — nécessite que ces objets aient un Collider.", MessageType.None);
+        avoidLayerMask = LayerMaskField("Layer(s) à éviter", avoidLayerMask);
+        avoidCheckRadius = EditorGUILayout.FloatField("Rayon de détection autour de chaque objet", avoidCheckRadius);
 
         GUILayout.Space(16);
 
@@ -155,6 +163,11 @@ public class BuildingScatterTool : EditorWindow
                 }
             }
             if (tooCloseToOther) continue;
+
+            if (avoidLayerMask != 0 && Physics.CheckSphere(candidate, avoidCheckRadius, avoidLayerMask))
+            {
+                continue; // objet existant (buisson, lampadaire...) trop proche à cet endroit
+            }
 
             if (alignToGround)
             {
